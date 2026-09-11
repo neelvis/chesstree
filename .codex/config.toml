@@ -1,0 +1,17 @@
+# ChessTree project-local Codex configuration.
+# Skills are consumed directly from .agents/skills.
+
+[agents]
+max_threads = 4
+max_depth = 1
+job_max_runtime_seconds = 1800
+interrupt_message = true
+
+[features]
+goals = true
+multi_agent = true
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+env_http_headers = { "CONTEXT7_API_KEY" = "CONTEXT7_API_KEY" }
+
