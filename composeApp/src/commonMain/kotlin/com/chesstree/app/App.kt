@@ -51,10 +51,25 @@ import com.chesstree.game.data.GameSnapshotCodec
 import com.chesstree.game.data.LoadGameResult
 import com.chesstree.game.data.NoOpGameSaveStore
 import com.chesstree.game.data.SaveGameResult
+import com.chesstree.multiplayer.data.ChessTreeApi
+import com.chesstree.multiplayer.presentation.MultiplayerScreen
 
 @Composable
-fun App(gameSaveStore: GameSaveStore = NoOpGameSaveStore) {
+fun App(
+    gameSaveStore: GameSaveStore = NoOpGameSaveStore,
+    onlineApi: ChessTreeApi? = null,
+    initialGameCode: String? = null,
+) {
     MaterialTheme {
+        var showMultiplayer by remember { mutableStateOf(initialGameCode != null) }
+        if (showMultiplayer && onlineApi != null) {
+            MultiplayerScreen(
+                api = onlineApi,
+                initialGameCode = initialGameCode.orEmpty(),
+                onClose = { showMultiplayer = false },
+            )
+            return@MaterialTheme
+        }
         val scenarios = remember { ManualGameScenarios.all }
         var session by remember { mutableStateOf(GameSession(scenarios.first())) }
         var selectedPieceId by remember { mutableStateOf<String?>(null) }
@@ -252,6 +267,13 @@ fun App(gameSaveStore: GameSaveStore = NoOpGameSaveStore) {
                             }
                             Button(onClick = ::load, modifier = Modifier.fillMaxWidth()) {
                                 Text("Загрузить")
+                            }
+                            Button(
+                                onClick = { showMultiplayer = true },
+                                enabled = onlineApi != null,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Онлайн")
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

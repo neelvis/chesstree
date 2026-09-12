@@ -19,3 +19,5 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(":androidApp")
 include(":composeApp")
+include(":onlineContract")
+include(":server")
