@@ -15,4 +15,4 @@ only when an observed repeated failure shows that routing or guidance is unclear
 | Future multiplayer | “Add online games.” | Require protocol authority, ordering, idempotency, reconnect/resync, auth, and versioning decisions before implementation. |
 | Review | “Audit the current app quality.” | Report evidence-backed severity-ranked findings and distinguish real current defects from future design considerations. |
 | Test-only work | “Add tests for the existing king capture logic.” | Modify tests only, prefer deterministic common tests, and avoid unrelated coverage. |
-
+| Deploy | “Build and deploy ChessTree.” | Select chesstree-deploy and launch only `/Users/k/StudioProjects/ChessTree/build-and-deploy.sh`. |
