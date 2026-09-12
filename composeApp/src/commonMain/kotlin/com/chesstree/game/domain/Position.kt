@@ -8,6 +8,7 @@ enum class CastlingSide {
 data class CastlingRight(
     val army: ArmyColor,
     val side: CastlingSide,
+    val rookId: PieceId? = null,
 )
 
 class EnPassantTarget(
@@ -46,10 +47,19 @@ class Position(
     pieces: Map<PieceId, Piece>,
     castlingRights: Set<CastlingRight> = emptySet(),
     enPassantTarget: EnPassantTarget? = null,
+    enPassantTargets: Collection<EnPassantTarget> = listOfNotNull(enPassantTarget),
 ) {
     val pieces: Map<PieceId, Piece> = pieces.toMap()
     val castlingRights: Set<CastlingRight> = castlingRights.toSet()
-    val enPassantTarget: EnPassantTarget? = enPassantTarget?.let {
+    val enPassantTargets: Map<PieceId, EnPassantTarget> = enPassantTargets.associate { target ->
+        target.pawnId to EnPassantTarget(
+            pawnId = target.pawnId,
+            captureCoordinate = target.captureCoordinate,
+            eligiblePlayers = target.eligiblePlayers,
+        )
+    }
+    /** Compatibility view for callers that can represent only one target. */
+    val enPassantTarget: EnPassantTarget? = this.enPassantTargets.values.singleOrNull()?.let {
         EnPassantTarget(
             pawnId = it.pawnId,
             captureCoordinate = it.captureCoordinate,
@@ -58,14 +68,27 @@ class Position(
     }
 
     init {
+        require(enPassantTargets.map(EnPassantTarget::pawnId).distinct().size == enPassantTargets.size) {
+            "A pawn may have only one en passant target"
+        }
         require(this.pieces.all { (id, piece) -> id == piece.id }) {
             "Every piece map key must match the piece id"
         }
         require(this.pieces.values.map(Piece::coordinate).toSet().size == this.pieces.size) {
             "Two pieces cannot occupy the same board coordinate"
         }
-        require(this.enPassantTarget == null || this.pieces.containsKey(this.enPassantTarget.pawnId)) {
-            "The en passant pawn must be present in the position"
+        require(this.enPassantTargets.keys.all(this.pieces::containsKey)) {
+            "Every en passant pawn must be present in the position"
+        }
+        require(this.castlingRights.groupBy { it.army to it.side }.values.all { it.size == 1 }) {
+            "An army may have only one castling right per side"
+        }
+        require(this.castlingRights.all { right ->
+            right.rookId == null || this.pieces[right.rookId]?.let { rook ->
+                rook.type == PieceType.ROOK && rook.army == right.army && !rook.hasMoved
+            } == true
+        }) {
+            "An explicit castling right must identify its army's unmoved rook"
         }
     }
 
@@ -73,15 +96,15 @@ class Position(
         other is Position &&
                 pieces == other.pieces &&
                 castlingRights == other.castlingRights &&
-                enPassantTarget == other.enPassantTarget
+                enPassantTargets == other.enPassantTargets
 
     override fun hashCode(): Int {
         var result = pieces.hashCode()
         result = 31 * result + castlingRights.hashCode()
-        result = 31 * result + (enPassantTarget?.hashCode() ?: 0)
+        result = 31 * result + enPassantTargets.hashCode()
         return result
     }
 
     override fun toString(): String =
-        "Position(pieces=$pieces, castlingRights=$castlingRights, enPassantTarget=$enPassantTarget)"
+        "Position(pieces=$pieces, castlingRights=$castlingRights, enPassantTargets=$enPassantTargets)"
 }

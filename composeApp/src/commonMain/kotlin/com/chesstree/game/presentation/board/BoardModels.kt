@@ -2,7 +2,11 @@ package com.chesstree.game.presentation.board
 
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.DirectionKind
+import com.chesstree.game.domain.GameState
+import com.chesstree.game.domain.LegalMoveGenerator
+import com.chesstree.game.domain.MoveType
 import com.chesstree.game.domain.MovementDirections
+import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PieceType
 
 data class BoardPiece(
@@ -43,6 +47,26 @@ fun movementHintsFor(piece: BoardPiece): List<MoveHint> =
                 DirectionKind.CAPTURE -> MoveHintKind.CAPTURE
             },
             route = direction.route,
+        )
+    }
+
+fun legalMoveHintsFor(
+    state: GameState,
+    pieceId: PieceId,
+): List<MoveHint> = LegalMoveGenerator.legalMoves(state, pieceId)
+    .distinctBy { move -> move.to }
+    .map { move ->
+        MoveHint(
+            target = move.to,
+            kind = when (move.type) {
+                MoveType.CAPTURE,
+                MoveType.EN_PASSANT,
+                    -> MoveHintKind.CAPTURE
+
+                MoveType.QUIET,
+                MoveType.CASTLING,
+                    -> MoveHintKind.MOVE
+            },
         )
     }
 

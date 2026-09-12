@@ -1,6 +1,7 @@
 package com.chesstree.game.presentation.scenario
 
 import com.chesstree.game.domain.ArmyColor
+import com.chesstree.game.domain.CastlingSide
 import com.chesstree.game.domain.ParticipantStatus
 import com.chesstree.game.domain.PieceType
 import com.chesstree.game.domain.PlayerId
@@ -10,6 +11,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class ManualGameScenariosTest {
+    @Test
+    fun standardScenarioStartsWithBothCastlingRightsForEveryArmy() {
+        val rights = ManualGameScenarios.standard.initialState.position.castlingRights
+
+        assertEquals(6, rights.size)
+        ArmyColor.entries.forEach { army ->
+            assertEquals(
+                CastlingSide.entries.toSet(),
+                rights.filter { right -> right.army == army }.map { right -> right.side }.toSet(),
+            )
+        }
+    }
+
     @Test
     fun catalogueHasStableUniqueIds() {
         val scenarios = ManualGameScenarios.all

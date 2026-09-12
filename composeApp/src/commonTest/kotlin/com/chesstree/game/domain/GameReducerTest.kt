@@ -133,7 +133,7 @@ class GameReducerTest {
     }
 
     @Test
-    fun ordinaryMovePreservesUnsupportedSpecialMoveMetadata() {
+    fun movingAReferencedRookAndMissingEnPassantRevokeThoseRights() {
         val rook = piece("white-rook", PieceType.ROOK, ArmyColor.WHITE, cell(0, 1, 1))
         val whiteKing = piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 3, 0))
         val redKing = piece("red-king", PieceType.KING, ArmyColor.RED, cell(2, 3, 0))
@@ -145,7 +145,9 @@ class GameReducerTest {
             cell(2, 1, 1),
             hasMoved = true,
         )
-        val castlingRights = setOf(CastlingRight(ArmyColor.WHITE, CastlingSide.KING_SIDE))
+        val castlingRights = setOf(
+            CastlingRight(ArmyColor.WHITE, CastlingSide.KING_SIDE, rook.id),
+        )
         val enPassantTarget = EnPassantTarget(
             pawnId = redPawn.id,
             captureCoordinate = cell(2, 1, 2),
@@ -170,8 +172,8 @@ class GameReducerTest {
         )
 
         val applied = assertIs<MoveReduction.Applied>(reduction)
-        assertEquals(castlingRights, applied.state.position.castlingRights)
-        assertEquals(enPassantTarget, applied.state.position.enPassantTarget)
+        assertEquals(emptySet(), applied.state.position.castlingRights)
+        assertNull(applied.state.position.enPassantTarget)
     }
 
     private fun stateWith(

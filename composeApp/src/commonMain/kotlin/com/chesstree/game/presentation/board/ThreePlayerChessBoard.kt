@@ -42,7 +42,7 @@ fun ThreePlayerChessBoard(
     pieces: List<BoardPiece>,
     selectedPieceId: String?,
     moveHints: List<MoveHint>,
-    onPieceSelected: (String?) -> Unit,
+    onCellSelected: (BoardCellId?) -> Unit,
     modifier: Modifier = Modifier,
     palette: BoardPalette = BoardPalette(),
 ) {
@@ -52,7 +52,7 @@ fun ThreePlayerChessBoard(
     val piecesByCell = remember(pieces) { pieces.associateBy(BoardPiece::cellId) }
     val selectedCell = pieces.firstOrNull { it.id == selectedPieceId }?.cellId
     val hintsByCell = moveHints.associateBy(MoveHint::target)
-    val currentOnPieceSelected by rememberUpdatedState(onPieceSelected)
+    val currentOnCellSelected by rememberUpdatedState(onCellSelected)
 
     Canvas(
         modifier = modifier
@@ -70,7 +70,7 @@ fun ThreePlayerChessBoard(
                         y = (tap.y - size.height / 2f) / scale,
                     )
                     val tappedCell = cells.lastOrNull { contains(it.corners, boardPoint) }
-                    currentOnPieceSelected(tappedCell?.let { piecesByCell[it.id]?.id })
+                    currentOnCellSelected(tappedCell?.id)
                 }
             },
     ) {

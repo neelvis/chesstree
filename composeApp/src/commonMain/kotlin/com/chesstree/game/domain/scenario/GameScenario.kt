@@ -113,8 +113,13 @@ class GameScenarioBuilder internal constructor(
     fun castlingRight(
         army: ArmyColor,
         side: CastlingSide,
+        rookId: String? = null,
     ) {
-        castlingRights += CastlingRight(army, side)
+        castlingRights += CastlingRight(
+            army = army,
+            side = side,
+            rookId = rookId?.let(::PieceId),
+        )
     }
 
     fun enPassant(
@@ -223,7 +228,7 @@ private fun validateScenarioState(state: GameState) {
         is GamePhase.Finished -> validateFinishedState(state, phase.outcome)
     }
 
-    state.position.enPassantTarget?.let { target ->
+    state.position.enPassantTargets.values.forEach { target ->
         val pawn = state.position.pieces.getValue(target.pawnId)
         require(pawn.type == PieceType.PAWN) {
             "En passant target must refer to a pawn: ${target.pawnId}"
@@ -257,11 +262,16 @@ private fun validateScenarioState(state: GameState) {
         }) {
             "$army cannot have castling rights without an unmoved king"
         }
-        val unmovedRooks = armyPieces.count { piece ->
+        val unmovedRooks = armyPieces.filter { piece ->
             piece.type == PieceType.ROOK && !piece.hasMoved
         }
-        require(unmovedRooks >= rights.size) {
+        require(unmovedRooks.size >= rights.size) {
             "$army needs one unmoved rook for each castling right"
+        }
+        rights.mapNotNull(CastlingRight::rookId).forEach { rookId ->
+            require(unmovedRooks.any { rook -> rook.id == rookId }) {
+                "$army castling right must refer to an unmoved rook: $rookId"
+            }
         }
     }
 }
@@ -279,14 +289,14 @@ private fun validateFinishedState(
             }
             val secondStatus = state.participants.getValue(outcome.second).status
             val thirdStatus = state.participants.getValue(outcome.third).status
-            require(secondStatus is ParticipantStatus.Checkmated) {
-                "The second-place player must be checkmated in a ranked outcome"
+            require(secondStatus != ParticipantStatus.Active) {
+                "The second-place player must be eliminated in a ranked outcome"
             }
-            require(thirdStatus is ParticipantStatus.Checkmated) {
-                "The third-place player must be checkmated in a ranked outcome"
+            require(thirdStatus != ParticipantStatus.Active) {
+                "The third-place player must be eliminated in a ranked outcome"
             }
-            require(thirdStatus.atPly < secondStatus.atPly) {
-                "The third-place player must be eliminated before the second-place player"
+            require(thirdStatus.atPly() <= secondStatus.atPly()) {
+                "The third-place player must not be eliminated after the second-place player"
             }
         }
 
@@ -299,6 +309,12 @@ private fun validateFinishedState(
             }
         }
     }
+}
+
+private fun ParticipantStatus.atPly(): Int = when (this) {
+    ParticipantStatus.Active -> error("An active participant has no elimination ply")
+    is ParticipantStatus.Checkmated -> atPly
+    is ParticipantStatus.Stalemated -> atPly
 }
 
 private const val MAX_PIECES_PER_ARMY: Int = 16

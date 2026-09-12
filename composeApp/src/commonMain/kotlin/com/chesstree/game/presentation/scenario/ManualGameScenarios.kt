@@ -2,6 +2,7 @@ package com.chesstree.game.presentation.scenario
 
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.BoardCoordinate
+import com.chesstree.game.domain.CastlingSide
 import com.chesstree.game.domain.PieceType
 import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.scenario.GameScenario
@@ -21,6 +22,7 @@ object ManualGameScenarios {
                 at = piece.cellId,
             )
         }
+        initialCastlingRights()
     }
 
     val sparseMovement: GameScenario = gameScenario("sparse-movement") {
@@ -82,6 +84,15 @@ object ManualGameScenarios {
         piece("white-king", ArmyColor.WHITE, PieceType.KING, cell(0, 3, 0))
         piece("red-king", ArmyColor.RED, PieceType.KING, cell(2, 3, 0))
         piece("black-king", ArmyColor.BLACK, PieceType.KING, cell(4, 3, 0))
+    }
+
+    private fun GameScenarioBuilder.initialCastlingRights() {
+        castlingRight(ArmyColor.WHITE, CastlingSide.KING_SIDE, "white-back-0")
+        castlingRight(ArmyColor.WHITE, CastlingSide.QUEEN_SIDE, "white-back-7")
+        castlingRight(ArmyColor.RED, CastlingSide.KING_SIDE, "red-back-0")
+        castlingRight(ArmyColor.RED, CastlingSide.QUEEN_SIDE, "red-back-7")
+        castlingRight(ArmyColor.BLACK, CastlingSide.KING_SIDE, "black-back-7")
+        castlingRight(ArmyColor.BLACK, CastlingSide.QUEEN_SIDE, "black-back-0")
     }
 
     private fun cell(
