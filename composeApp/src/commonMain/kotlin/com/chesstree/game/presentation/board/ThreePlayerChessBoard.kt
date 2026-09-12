@@ -1,19 +1,30 @@
 package com.chesstree.game.presentation.board
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -24,7 +35,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.PieceType
-import kotlin.math.min
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 data class BoardPalette(
     val lightCell: Color = Color(0xFFD7B98E),
@@ -55,30 +67,59 @@ fun ThreePlayerChessBoard(
     val hintsByCell = moveHints.associateBy(MoveHint::target)
     val attackedPieceIds = moveHints.mapNotNull(MoveHint::attackedPieceId).toSet()
     val currentOnCellSelected by rememberUpdatedState(onCellSelected)
+    var viewport by remember { mutableStateOf(BoardViewport()) }
 
     Canvas(
         modifier = modifier
-            .aspectRatio(1.08f, matchHeightConstraintsFirst = true)
+            .fillMaxSize()
+            .onSizeChanged { size ->
+                val coerced = coerceBoardViewport(
+                    viewport = viewport,
+                    viewportWidth = size.width.toFloat(),
+                    viewportHeight = size.height.toFloat(),
+                )
+                if (coerced != viewport) viewport = coerced
+            }
             .semantics {
                 contentDescription = "Доска для шахмат на троих, 96 клеток"
-                stateDescription =
+                val selection =
                     if (selectedPieceId == null) "Фигура не выбрана" else "Фигура выбрана"
+                stateDescription =
+                    "$selection, масштаб ${(viewport.zoom * 100).roundToInt()} процентов"
             }
-            .pointerInput(pieces) {
-                detectTapGestures { tap ->
-                    val scale = boardScale(size.width.toFloat(), size.height.toFloat())
-                    val boardPoint = BoardPoint(
-                        x = (tap.x - size.width / 2f) / scale,
-                        y = (tap.y - size.height / 2f) / scale,
+            .pointerInput(Unit) {
+                detectTwoFingerBoardTransformGestures { centroid, pan, zoomChange ->
+                    viewport = transformBoardViewport(
+                        viewport = viewport,
+                        viewportWidth = size.width.toFloat(),
+                        viewportHeight = size.height.toFloat(),
+                        centroid = BoardPoint(centroid.x, centroid.y),
+                        pan = BoardPoint(pan.x, pan.y),
+                        zoomChange = zoomChange,
                     )
+                }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures { tap ->
+                    val boardPoint = viewportPointToBoard(
+                        point = BoardPoint(tap.x, tap.y),
+                        viewportWidth = size.width.toFloat(),
+                        viewportHeight = size.height.toFloat(),
+                        viewport = viewport,
+                    ) ?: return@detectTapGestures
                     val tappedCell = cells.lastOrNull { contains(it.corners, boardPoint) }
                     currentOnCellSelected(tappedCell?.id)
                 }
             },
     ) {
-        val scale = boardScale(size.width, size.height)
+        val scale = boardScale(size.width, size.height, viewport.zoom)
         fun BoardPoint.offset(): Offset =
-            Offset(size.width / 2f + x * scale, size.height / 2f + y * scale)
+            boardPointToViewport(
+                point = this,
+                viewportWidth = size.width,
+                viewportHeight = size.height,
+                viewport = viewport,
+            ).let { Offset(it.x, it.y) }
 
         cells.forEach { cell ->
             val path = cell.path { point -> point.offset() }
@@ -264,8 +305,6 @@ private fun BoardCell.path(transform: (BoardPoint) -> Offset): Path = Path().app
     close()
 }
 
-private fun boardScale(width: Float, height: Float): Float = min(width / 2.35f, height / 2.12f)
-
 private fun contains(polygon: List<BoardPoint>, point: BoardPoint): Boolean {
     var inside = false
     var previous = polygon.last()
@@ -277,6 +316,48 @@ private fun contains(polygon: List<BoardPoint>, point: BoardPoint): Boolean {
         previous = current
     }
     return inside
+}
+
+private suspend fun PointerInputScope.detectTwoFingerBoardTransformGestures(
+    onGesture: (centroid: Offset, pan: Offset, zoom: Float) -> Unit,
+) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        var accumulatedZoom = 1f
+        var accumulatedPan = Offset.Zero
+        var pastTouchSlop = false
+        var canceled = false
+
+        do {
+            val event = awaitPointerEvent()
+            canceled = event.changes.any { it.isConsumed }
+            val pointerCount = event.changes.count { it.pressed && it.previousPressed }
+            if (!canceled && pointerCount >= 2) {
+                val zoomChange = event.calculateZoom()
+                val panChange = event.calculatePan()
+
+                if (!pastTouchSlop) {
+                    accumulatedZoom *= zoomChange
+                    accumulatedPan += panChange
+                    val centroidSize = event.calculateCentroidSize(useCurrent = false)
+                    val zoomMotion = abs(1f - accumulatedZoom) * centroidSize
+                    val panMotion = accumulatedPan.getDistance()
+                    pastTouchSlop = zoomMotion > viewConfiguration.touchSlop ||
+                        panMotion > viewConfiguration.touchSlop
+                }
+
+                if (pastTouchSlop) {
+                    val centroid = event.calculateCentroid(useCurrent = false)
+                    if (zoomChange != 1f || panChange != Offset.Zero) {
+                        onGesture(centroid, panChange, zoomChange)
+                    }
+                    event.changes.forEach { change ->
+                        if (change.positionChanged()) change.consume()
+                    }
+                }
+            }
+        } while (!canceled && event.changes.any { it.pressed })
+    }
 }
 
 private fun pieceGlyph(piece: BoardPiece): String = when (piece.type) {
