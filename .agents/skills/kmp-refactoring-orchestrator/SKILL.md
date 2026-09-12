@@ -10,6 +10,12 @@ has settled interfaces, and it does not alter dependencies, Gradle targets, publ
 contracts, persistence/wire schemas, authentication, navigation, or concurrency and
 state-machine semantics. Otherwise route to `kmp-feature-orchestrator`.
 
+When spawning discovery, testing, or review agents, use `fork_turns: "none"` by
+default. Provide a self-contained brief with the objective, owned files or
+responsibility, constraints, acceptance criteria, and expected output. Never copy
+the entire conversation into the brief. If conversation history is essential,
+pass only the number of recent turns needed for that subtask.
+
 1. Record affected files, user-owned changes, explicit equivalence criteria, and
    the target/source-set validation scope.
 2. Use one implementation context and the minimum edits. Do not move code to

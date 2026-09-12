@@ -6,6 +6,6 @@ import androidx.compose.ui.window.ComposeViewport
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     ComposeViewport(viewportContainerId = "webApp") {
-        App()
+        App(BrowserGameSaveStore())
     }
 }

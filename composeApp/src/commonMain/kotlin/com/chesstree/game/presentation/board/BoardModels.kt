@@ -26,6 +26,16 @@ data class MoveHint(
     val target: BoardCellId,
     val kind: MoveHintKind,
     val route: List<BoardCellId> = emptyList(),
+    val attackedPieceId: String? = null,
+    val showLandingMarker: Boolean = false,
+)
+
+data class BoardTrophy(
+    val id: String,
+    val type: PieceType,
+    val army: ArmyColor,
+    val bodyArmy: ArmyColor,
+    val capturedByArmy: ArmyColor,
 )
 
 fun initialBoardPieces(): List<BoardPiece> = buildList {
@@ -67,8 +77,44 @@ fun legalMoveHintsFor(
                 MoveType.CASTLING,
                     -> MoveHintKind.MOVE
             },
+            attackedPieceId = move.capturedPieceId?.value,
+            showLandingMarker = move.type == MoveType.EN_PASSANT,
         )
     }
+
+fun educationalMoveHintsFor(
+    state: GameState,
+    pieceId: PieceId,
+): List<MoveHint> {
+    val piece = state.position.pieces[pieceId] ?: return emptyList()
+    val boardPiece = BoardPiece(
+        id = piece.id.value,
+        type = piece.type,
+        army = piece.army,
+        cellId = piece.coordinate,
+    )
+    val controller = state.armies.getValue(piece.army).controller
+    return movementHintsFor(boardPiece).map { hint ->
+        val candidateCoordinates = when (piece.type) {
+            PieceType.KNIGHT -> listOf(hint.target)
+            PieceType.PAWN -> if (hint.kind == MoveHintKind.CAPTURE) {
+                listOf(hint.target)
+            } else {
+                emptyList()
+            }
+            else -> hint.route.drop(1)
+        }
+        val firstOccupiedPiece = candidateCoordinates.firstNotNullOfOrNull { coordinate ->
+            state.position.pieces.values.firstOrNull { candidate ->
+                candidate.coordinate == coordinate
+            }
+        }
+        val attackedPiece = firstOccupiedPiece?.takeIf { candidate ->
+            state.armies.getValue(candidate.army).controller != controller
+        }
+        hint.copy(attackedPieceId = attackedPiece?.id?.value)
+    }
+}
 
 private fun MutableList<BoardPiece>.addArmy(
     army: ArmyColor,

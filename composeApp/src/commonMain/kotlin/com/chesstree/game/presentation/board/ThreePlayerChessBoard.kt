@@ -21,6 +21,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.PieceType
 import kotlin.math.min
@@ -42,6 +43,7 @@ fun ThreePlayerChessBoard(
     pieces: List<BoardPiece>,
     selectedPieceId: String?,
     moveHints: List<MoveHint>,
+    trophies: List<BoardTrophy> = emptyList(),
     onCellSelected: (BoardCellId?) -> Unit,
     modifier: Modifier = Modifier,
     palette: BoardPalette = BoardPalette(),
@@ -50,8 +52,8 @@ fun ThreePlayerChessBoard(
     val labels = ThreePlayerBoardGeometry.labels
     val textMeasurer = rememberTextMeasurer()
     val piecesByCell = remember(pieces) { pieces.associateBy(BoardPiece::cellId) }
-    val selectedCell = pieces.firstOrNull { it.id == selectedPieceId }?.cellId
     val hintsByCell = moveHints.associateBy(MoveHint::target)
+    val attackedPieceIds = moveHints.mapNotNull(MoveHint::attackedPieceId).toSet()
     val currentOnCellSelected by rememberUpdatedState(onCellSelected)
 
     Canvas(
@@ -96,63 +98,25 @@ fun ThreePlayerChessBoard(
             }
             drawPath(path, palette.line.copy(alpha = 0.72f), style = Stroke(scale * 0.008f))
 
-            if (cell.id == selectedCell) {
-                drawPath(path, palette.selected, style = Stroke(scale * 0.035f))
-            }
-
             hintsByCell[cell.id]?.let { hint ->
                 when (hint.kind) {
                     MoveHintKind.MOVE -> drawCircle(
                         palette.move,
-                        radius = scale * 0.055f,
+                        radius = scale * (0.055f / 3f),
                         center = cell.center.offset()
                     )
 
-                    MoveHintKind.CAPTURE -> drawPath(
-                        path,
-                        palette.capture,
-                        style = Stroke(scale * 0.04f)
-                    )
+                    MoveHintKind.CAPTURE -> if (
+                        hint.attackedPieceId == null || hint.showLandingMarker
+                    ) {
+                        drawCircle(
+                            palette.capture,
+                            radius = scale * (0.055f / 3f),
+                            center = cell.center.offset(),
+                            style = Stroke(3.dp.toPx()),
+                        )
+                    }
                 }
-            }
-
-            piecesByCell[cell.id]?.let { piece ->
-                val glyph = pieceGlyph(piece)
-                val base = pieceColor(piece.army)
-                val body = pieceColor(piece.bodyArmy)
-                val ink =
-                    if (piece.bodyArmy == ArmyColor.WHITE) Color(0xFF2B211B) else Color(0xFFFFF8EC)
-                val pieceCenter = cell.center.offset()
-                drawCircle(
-                    color = Color.Black.copy(alpha = 0.18f),
-                    radius = scale * 0.072f,
-                    center = pieceCenter + Offset(scale * 0.008f, scale * 0.01f),
-                )
-                drawCircle(color = base, radius = scale * 0.07f, center = pieceCenter)
-                drawCircle(color = body, radius = scale * 0.052f, center = pieceCenter)
-                drawCircle(
-                    color = if (piece.army == ArmyColor.BLACK) Color(0xFF8D7565) else Color(
-                        0xFF5C382B
-                    ),
-                    radius = scale * 0.07f,
-                    center = pieceCenter,
-                    style = Stroke(scale * 0.008f),
-                )
-                val layout = textMeasurer.measure(
-                    text = glyph,
-                    style = TextStyle(
-                        color = ink,
-                        fontSize = (scale * 0.08f).toSp(),
-                        fontWeight = FontWeight.Bold,
-                    ),
-                )
-                drawText(
-                    textLayoutResult = layout,
-                    topLeft = Offset(
-                        pieceCenter.x - layout.size.width / 2f,
-                        pieceCenter.y - layout.size.height / 2f,
-                    ),
-                )
             }
         }
 
@@ -165,9 +129,36 @@ fun ThreePlayerChessBoard(
                     color = if (hint.kind == MoveHintKind.CAPTURE) palette.capture else palette.move,
                     start = start,
                     end = end,
-                    strokeWidth = scale * 0.025f,
+                    strokeWidth = scale * 0.0125f,
                     alpha = 0.55f,
                 )
+            }
+        }
+
+        cells.forEach { cell ->
+            piecesByCell[cell.id]?.let { piece ->
+                val center = cell.center.offset()
+                drawPiece(
+                    piece = piece,
+                    center = center,
+                    radius = scale * 0.07f,
+                    textMeasurer = textMeasurer,
+                )
+                when {
+                    piece.id == selectedPieceId -> drawCircle(
+                        color = palette.selected,
+                        radius = scale * 0.076f,
+                        center = center,
+                        style = Stroke(3.dp.toPx()),
+                    )
+
+                    piece.id in attackedPieceIds -> drawCircle(
+                        color = palette.capture,
+                        radius = scale * 0.076f,
+                        center = center,
+                        style = Stroke(3.dp.toPx()),
+                    )
+                }
             }
         }
 
@@ -189,7 +180,78 @@ fun ThreePlayerChessBoard(
                 ),
             )
         }
+
+        ArmyColor.entries.forEach { capturingArmy ->
+            val armyTrophies = trophies.filter { it.capturedByArmy == capturingArmy }
+            armyTrophies
+                .forEachIndexed { index, trophy ->
+                    val point = ThreePlayerBoardGeometry.trophyPosition(
+                        army = capturingArmy,
+                        index = index,
+                        count = armyTrophies.size,
+                    ).offset()
+                    drawPiece(
+                        piece = BoardPiece(
+                            id = trophy.id,
+                            type = trophy.type,
+                            army = trophy.army,
+                            bodyArmy = trophy.bodyArmy,
+                            cellId = BoardCellId(0, 0, 0),
+                        ),
+                        center = point,
+                        radius = scale * 0.035f,
+                        textMeasurer = textMeasurer,
+                        emphasizeTransferredArmy = false,
+                    )
+                }
+        }
     }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPiece(
+    piece: BoardPiece,
+    center: Offset,
+    radius: Float,
+    textMeasurer: androidx.compose.ui.text.TextMeasurer,
+    emphasizeTransferredArmy: Boolean = true,
+) {
+    val base = pieceColor(piece.army)
+    val body = pieceColor(piece.bodyArmy)
+    val ink = if (piece.bodyArmy == ArmyColor.WHITE) Color(0xFF2B211B) else Color(0xFFFFF8EC)
+    val isTransferred = piece.army != piece.bodyArmy
+    val bodyRadius = pieceBodyRadius(
+        radius = radius,
+        isTransferred = isTransferred,
+        transferredRingExtra = if (emphasizeTransferredArmy) 3.dp.toPx() else 0f,
+    )
+    drawCircle(
+        color = Color.Black.copy(alpha = 0.18f),
+        radius = radius * (0.072f / 0.07f),
+        center = center + Offset(radius * 0.11f, radius * 0.14f),
+    )
+    drawCircle(color = base, radius = radius, center = center)
+    drawCircle(color = body, radius = bodyRadius, center = center)
+    drawCircle(
+        color = if (piece.army == ArmyColor.BLACK) Color(0xFF8D7565) else Color(0xFF5C382B),
+        radius = radius,
+        center = center,
+        style = Stroke(radius * (0.008f / 0.07f)),
+    )
+    val layout = textMeasurer.measure(
+        text = pieceGlyph(piece),
+        style = TextStyle(
+            color = ink,
+            fontSize = (radius * (0.08f / 0.07f)).toSp(),
+            fontWeight = FontWeight.Bold,
+        ),
+    )
+    drawText(
+        textLayoutResult = layout,
+        topLeft = Offset(
+            center.x - layout.size.width / 2f,
+            center.y - layout.size.height / 2f,
+        ),
+    )
 }
 
 private fun BoardCell.path(transform: (BoardPoint) -> Offset): Path = Path().apply {
@@ -230,4 +292,17 @@ private fun pieceColor(army: ArmyColor): Color = when (army) {
     ArmyColor.WHITE -> Color(0xFFF7F1E4)
     ArmyColor.RED -> Color(0xFFB72C35)
     ArmyColor.BLACK -> Color(0xFF171310)
+}
+
+internal fun pieceBodyRadius(
+    radius: Float,
+    isTransferred: Boolean,
+    transferredRingExtra: Float,
+): Float {
+    val ordinaryBodyRadius = radius * (0.052f / 0.07f)
+    return if (isTransferred) {
+        (ordinaryBodyRadius - transferredRingExtra).coerceAtLeast(radius * 0.25f)
+    } else {
+        ordinaryBodyRadius
+    }
 }

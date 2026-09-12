@@ -8,6 +8,14 @@ description: Coordinate a production-quality ChessTree feature across design, sh
 Coordinate discovery, design, implementation, validation, and review without
 repeating repository exploration. User scope and authorization take precedence.
 
+## Subagent context
+
+When spawning discovery, testing, or review agents, use `fork_turns: "none"` by
+default. Provide a self-contained brief with the objective, owned files or
+responsibility, constraints, acceptance criteria, and expected output. Never copy
+the entire conversation into the brief. If conversation history is essential,
+pass only the number of recent turns needed for that subtask.
+
 ## Route and protect the workspace
 
 Use `kmp-refactoring-orchestrator` for a small behavior-preserving change with no

@@ -46,6 +46,27 @@ object ThreePlayerBoardGeometry {
     val cells: List<BoardCell> = createCells()
     val labels: List<BoardEdgeLabel> = createLabels()
 
+    internal fun trophyPosition(
+        army: com.chesstree.game.domain.ArmyColor,
+        index: Int,
+        count: Int,
+    ): BoardPoint {
+        require(index >= 0) { "Trophy index must not be negative" }
+        require(index < count) { "Trophy index must be smaller than the trophy count" }
+        val edge = when (army) {
+            com.chesstree.game.domain.ArmyColor.WHITE -> 1
+            com.chesstree.game.domain.ArmyColor.RED -> 3
+            com.chesstree.game.domain.ArmyColor.BLACK -> 5
+        }
+        val start = vertices[edge]
+        val end = vertices[(edge + 1) % vertices.size]
+        val edgeMidpoint = midpoint(start, end)
+        val tangent = BoardPoint(end.x - start.x, end.y - start.y)
+        val spacing = if (count <= 1) 0f else minOf(0.078f, 0.72f / (count - 1))
+        val centeredItem = index - (count - 1) / 2f
+        return edgeMidpoint * 1.19f + tangent * (centeredItem * spacing)
+    }
+
     private fun createCells(): List<BoardCell> {
         val drafts = buildList {
             vertices.forEachIndexed { vertexIndex, vertex ->

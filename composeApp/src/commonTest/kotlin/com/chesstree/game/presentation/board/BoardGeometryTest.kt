@@ -1,12 +1,30 @@
 package com.chesstree.game.presentation.board
 
 import com.chesstree.game.domain.ArmyColor
+import com.chesstree.game.domain.ArmyControl
+import com.chesstree.game.domain.BoardCoordinate
+import com.chesstree.game.domain.GamePhase
+import com.chesstree.game.domain.GameReducer
+import com.chesstree.game.domain.GameState
+import com.chesstree.game.domain.LegalMoveGenerator
+import com.chesstree.game.domain.MoveIntent
+import com.chesstree.game.domain.MoveReduction
+import com.chesstree.game.domain.MoveType
+import com.chesstree.game.domain.MovementDirections
+import com.chesstree.game.domain.Participant
+import com.chesstree.game.domain.Piece
+import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PieceType
+import com.chesstree.game.domain.PlayerId
+import com.chesstree.game.domain.Position
+import com.chesstree.game.domain.Turn
+import com.chesstree.game.presentation.scenario.ManualGameScenarios
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class BoardGeometryTest {
@@ -145,6 +163,93 @@ class BoardGeometryTest {
         assertTrue(abs(anchor.center.y) < 0.0001f)
     }
 
+    @Test
+    fun transferredArmyRingIsThreePixelsThicker() {
+        val radius = 24f
+        val ordinaryBody = pieceBodyRadius(radius, isTransferred = false, transferredRingExtra = 3f)
+        val transferredBody = pieceBodyRadius(radius, isTransferred = true, transferredRingExtra = 3f)
+
+        assertTrue(abs((ordinaryBody - transferredBody) - 3f) < 0.0001f)
+    }
+
+    @Test
+    fun trophyPositionsStayOutsideTheBoardNearEachArmyEdge() {
+        ArmyColor.entries.forEach { army ->
+            val positions = List(16) { index ->
+                ThreePlayerBoardGeometry.trophyPosition(army, index, count = 16)
+            }
+
+            assertEquals(positions.size, positions.toSet().size)
+            assertTrue(positions.all { point -> point.x * point.x + point.y * point.y > 0.84f })
+            assertTrue(positions.all { point -> abs(point.x) <= 1.08f && abs(point.y) <= 1.04f })
+        }
+    }
+
+    @Test
+    fun educationalHintsRemainAvailableForAnyPieceAfterTheGameEnds() {
+        val state = ManualGameScenarios.finishedGame.initialState
+        val pieceId = PieceId("black-bishop")
+
+        assertTrue(legalMoveHintsFor(state, pieceId).isEmpty())
+        assertTrue(educationalMoveHintsFor(state, pieceId).isNotEmpty())
+    }
+
+    @Test
+    fun enPassantHintMarksBothCapturedPawnAndLandingCell() {
+        val whitePawn = piece("white-pawn", PieceType.PAWN, ArmyColor.WHITE, cell(1, 2, 1))
+        val route = MovementDirections.forPiece(whitePawn.type, whitePawn.coordinate, whitePawn.army)
+            .single { it.kind == com.chesstree.game.domain.DirectionKind.MOVE }
+            .route
+        val captureAt = route[1]
+        val redOrigin = ThreePlayerBoardGeometry.cells.map(BoardCell::id).first { origin ->
+            origin !in route.take(3) && MovementDirections.forPiece(PieceType.PAWN, origin, ArmyColor.RED)
+                .any { it.kind == com.chesstree.game.domain.DirectionKind.CAPTURE && it.target == captureAt }
+        }
+        val redPawn = piece("red-pawn", PieceType.PAWN, ArmyColor.RED, redOrigin, hasMoved = true)
+        val initial = stateWithDefaultKings(whitePawn, redPawn)
+        val afterDouble = assertIs<MoveReduction.Applied>(
+            GameReducer.reduce(
+                initial,
+                MoveIntent(PlayerId.WHITE, whitePawn.coordinate, route[2]),
+            ),
+        ).state
+        val enPassant = LegalMoveGenerator.legalMoves(afterDouble).single { move ->
+            move.type == MoveType.EN_PASSANT && move.pieceId == redPawn.id
+        }
+
+        val hint = legalMoveHintsFor(afterDouble, redPawn.id).single { it.target == enPassant.to }
+
+        assertEquals(whitePawn.id.value, hint.attackedPieceId)
+        assertTrue(hint.showLandingMarker)
+    }
+
     private fun List<BoardCell>.cell(vertex: Int, column: Int, row: Int): BoardCell =
         first { it.id == BoardCellId(vertex, column, row) }
+
+    private fun stateWithDefaultKings(vararg pieces: Piece): GameState = GameState(
+        position = Position(
+            (
+                pieces.toList() + listOf(
+                    piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 3, 0)),
+                    piece("red-king", PieceType.KING, ArmyColor.RED, cell(2, 3, 0)),
+                    piece("black-king", PieceType.KING, ArmyColor.BLACK, cell(4, 3, 0)),
+                )
+            ).associateBy(Piece::id),
+        ),
+        participants = PlayerId.entries.associateWith(::Participant),
+        armies = ArmyColor.entries.associateWith { ArmyControl(it, it.originalPlayer) },
+        turn = Turn(PlayerId.WHITE, 1),
+        phase = GamePhase.InProgress,
+    )
+
+    private fun piece(
+        id: String,
+        type: PieceType,
+        army: ArmyColor,
+        at: BoardCoordinate,
+        hasMoved: Boolean = false,
+    ): Piece = Piece(PieceId(id), type, army, at, hasMoved)
+
+    private fun cell(vertex: Int, column: Int, row: Int): BoardCoordinate =
+        BoardCoordinate(vertex, column, row)
 }

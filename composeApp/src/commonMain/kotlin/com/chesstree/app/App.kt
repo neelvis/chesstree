@@ -3,7 +3,9 @@ package com.chesstree.app
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,6 +17,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,52 +31,118 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.chesstree.game.domain.GamePhase
-import com.chesstree.game.domain.GameReducer
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
-import com.chesstree.game.domain.MoveReduction
 import com.chesstree.game.domain.ParticipantStatus
 import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.presentation.board.ThreePlayerChessBoard
+import com.chesstree.game.presentation.board.BoardTrophy
+import com.chesstree.game.presentation.board.educationalMoveHintsFor
 import com.chesstree.game.presentation.board.legalMoveHintsFor
 import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
+import com.chesstree.game.presentation.session.GameSession
+import com.chesstree.game.presentation.session.SessionMoveResult
+import com.chesstree.game.data.GameSaveStore
+import com.chesstree.game.data.GameSnapshot
+import com.chesstree.game.data.GameSnapshotCodec
+import com.chesstree.game.data.LoadGameResult
+import com.chesstree.game.data.NoOpGameSaveStore
+import com.chesstree.game.data.SaveGameResult
 
 @Composable
-fun App() {
+fun App(gameSaveStore: GameSaveStore = NoOpGameSaveStore) {
     MaterialTheme {
         val scenarios = remember { ManualGameScenarios.all }
-        var selectedScenario by remember { mutableStateOf(scenarios.first()) }
-        var gameState by remember { mutableStateOf(selectedScenario.initialState) }
+        var session by remember { mutableStateOf(GameSession(scenarios.first())) }
         var selectedPieceId by remember { mutableStateOf<String?>(null) }
         var pendingPromotionMoves by remember { mutableStateOf(emptyList<Move>()) }
         var scenarioMenuExpanded by remember { mutableStateOf(false) }
+        var controlsExpanded by remember { mutableStateOf(false) }
+        var showMoveLines by remember { mutableStateOf(false) }
+        var storageMessage by remember { mutableStateOf<String?>(null) }
+        val selectedScenario = session.scenario
+        val gameState = session.state
         val pieces = remember(gameState) { gameState.toBoardPieces() }
-        val movementHints = remember(gameState, selectedPieceId) {
-            selectedPieceId
-                ?.let(::PieceId)
-                ?.let { pieceId -> legalMoveHintsFor(gameState, pieceId) }
-                .orEmpty()
+        val movementHints = remember(gameState, selectedPieceId, showMoveLines) {
+            val pieceId = selectedPieceId?.let(::PieceId) ?: return@remember emptyList()
+            if (showMoveLines) {
+                educationalMoveHintsFor(gameState, pieceId)
+            } else {
+                legalMoveHintsFor(gameState, pieceId)
+            }
+        }
+        val trophies = remember(session.capturedPieces) {
+            session.capturedPieces.map { captured ->
+                BoardTrophy(
+                    id = captured.id,
+                    type = captured.type,
+                    army = captured.army,
+                    bodyArmy = captured.bodyArmy,
+                    capturedByArmy = captured.capturedByArmy,
+                )
+            }
+        }
+        fun clearTransientState() {
+            selectedPieceId = null
+            pendingPromotionMoves = emptyList()
         }
         fun applyMove(move: Move) {
-            when (
-                val reduction = GameReducer.reduce(
-                    gameState,
+            when (val result = session.apply(
                     MoveIntent(
                         actor = move.actor,
                         from = move.from,
                         to = move.to,
                         promotion = move.promotion,
                     ),
-                )
-            ) {
-                is MoveReduction.Applied -> gameState = reduction.state
-                is MoveReduction.Rejected -> Unit
+                )) {
+                is SessionMoveResult.Applied -> {
+                    session = result.session
+                    val snapshot = GameSnapshot(
+                        scenarioId = result.session.scenario.id,
+                        moves = result.session.moves,
+                    )
+                    storageMessage = when (
+                        val saveResult = gameSaveStore.save(GameSnapshotCodec.encode(snapshot))
+                    ) {
+                        SaveGameResult.Saved -> "Партия сохранена"
+                        is SaveGameResult.Failed -> "Не удалось сохранить: ${saveResult.message}"
+                    }
+                }
+                SessionMoveResult.Rejected -> Unit
             }
-            selectedPieceId = null
-            pendingPromotionMoves = emptyList()
+            clearTransientState()
+        }
+        fun restart() {
+            session = GameSession(session.scenario)
+            clearTransientState()
+            storageMessage = "Партия перезапущена; последнее сохранение не изменено"
+        }
+        fun load() {
+            storageMessage = when (val loadResult = gameSaveStore.load()) {
+                LoadGameResult.Missing -> "Сохранённая партия не найдена"
+                is LoadGameResult.Failed -> "Не удалось загрузить: ${loadResult.message}"
+                is LoadGameResult.Loaded -> {
+                    val snapshot = GameSnapshotCodec.decode(loadResult.contents)
+                    val scenario = snapshot?.let { saved ->
+                        scenarios.firstOrNull { it.id == saved.scenarioId }
+                    }
+                    val loadedSession = if (snapshot != null && scenario != null) {
+                        GameSession.replay(scenario, snapshot.moves)
+                    } else {
+                        null
+                    }
+                    if (loadedSession == null) {
+                        "Сохранение повреждено или несовместимо"
+                    } else {
+                        session = loadedSession
+                        clearTransientState()
+                        "Партия загружена"
+                    }
+                }
+            }
         }
 
         Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFF3EEE6)) {
@@ -104,28 +173,6 @@ fun App() {
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF735E50),
                     )
-                    Box {
-                        Button(onClick = { scenarioMenuExpanded = true }) {
-                            Text("Сценарий: ${selectedScenario.title}")
-                        }
-                        DropdownMenu(
-                            expanded = scenarioMenuExpanded,
-                            onDismissRequest = { scenarioMenuExpanded = false },
-                        ) {
-                            scenarios.forEach { scenario ->
-                                DropdownMenuItem(
-                                    text = { Text(scenario.title) },
-                                    onClick = {
-                                        selectedScenario = scenario
-                                        gameState = scenario.initialState
-                                        selectedPieceId = null
-                                        pendingPromotionMoves = emptyList()
-                                        scenarioMenuExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
                     Text(
                         text = selectedScenario.description,
                         style = MaterialTheme.typography.bodySmall,
@@ -141,6 +188,7 @@ fun App() {
                         pieces = pieces,
                         selectedPieceId = selectedPieceId,
                         moveHints = movementHints,
+                        trophies = trophies,
                         onCellSelected = { cell ->
                             if (cell == null) {
                                 selectedPieceId = null
@@ -163,19 +211,88 @@ fun App() {
                             } else {
                                 val tappedPiece = gameState.position.pieces.values
                                     .firstOrNull { piece -> piece.coordinate == cell }
+                                val canMovePiece = tappedPiece?.let { piece ->
+                                    gameState.turn?.player ==
+                                            gameState.armies.getValue(piece.army).controller
+                                } == true
                                 selectedPieceId = tappedPiece
-                                    ?.takeIf { piece ->
-                                        gameState.turn?.player ==
-                                                gameState.armies.getValue(piece.army).controller
-                                    }
-                                    ?.id
-                                    ?.value
+                                    ?.takeIf { showMoveLines || canMovePiece }
+                                    ?.id?.value
                             }
                         },
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
                     )
+                }
+                TextButton(
+                    onClick = { controlsExpanded = !controlsExpanded },
+                    modifier = Modifier.align(Alignment.TopStart),
+                ) {
+                    Text(if (controlsExpanded) "Закрыть" else "☰")
+                }
+                if (controlsExpanded) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = 48.dp)
+                            .widthIn(max = 320.dp),
+                        color = Color(0xFFFFFBF6),
+                        tonalElevation = 8.dp,
+                        shadowElevation = 8.dp,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text("Управление", style = MaterialTheme.typography.titleMedium)
+                            Button(onClick = ::restart, modifier = Modifier.fillMaxWidth()) {
+                                Text("Рестарт")
+                            }
+                            Button(onClick = ::load, modifier = Modifier.fillMaxWidth()) {
+                                Text("Загрузить")
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text("Показывать линии ходов")
+                                Switch(
+                                    checked = showMoveLines,
+                                    onCheckedChange = { enabled ->
+                                        showMoveLines = enabled
+                                        if (!enabled) selectedPieceId = null
+                                    },
+                                )
+                            }
+                            Box {
+                                Button(onClick = { scenarioMenuExpanded = true }) {
+                                    Text("Сценарий: ${selectedScenario.title}")
+                                }
+                                DropdownMenu(
+                                    expanded = scenarioMenuExpanded,
+                                    onDismissRequest = { scenarioMenuExpanded = false },
+                                ) {
+                                    scenarios.forEach { scenario ->
+                                        DropdownMenuItem(
+                                            text = { Text(scenario.title) },
+                                            onClick = {
+                                                session = GameSession(scenario)
+                                                clearTransientState()
+                                                storageMessage = null
+                                                scenarioMenuExpanded = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                            storageMessage?.let { message ->
+                                Text(message, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
                 }
             }
         }

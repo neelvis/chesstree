@@ -7,6 +7,14 @@ description: Coordinate an evidence-driven ChessTree bug fix through diagnosis, 
 
 Fix the demonstrated defect without redesigning unrelated behavior.
 
+## Subagent context
+
+When spawning discovery, testing, or review agents, use `fork_turns: "none"` by
+default. Provide a self-contained brief with the objective, owned files or
+responsibility, constraints, acceptance criteria, and expected output. Never copy
+the entire conversation into the brief. If conversation history is essential,
+pass only the number of recent turns needed for that subtask.
+
 ## 1. Evidence and diagnosis
 
 Use `kmp-debug-app` semantics. Capture the failing target, expected/actual behavior,
