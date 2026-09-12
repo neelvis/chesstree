@@ -21,6 +21,14 @@ data class MovementDirection(
 object MovementDirections {
     private val pawnDistances: Map<ArmyColor, Map<BoardCoordinate, Int>> =
         ArmyColor.entries.associateWith(::calculateDistancesFromHome)
+    private val pawnFilesByVertex: List<List<BoardFile>> = listOf(
+        listOf(BoardFile.E, BoardFile.F, BoardFile.G, BoardFile.H),
+        listOf(BoardFile.H, BoardFile.G, BoardFile.F, BoardFile.E),
+        listOf(BoardFile.D, BoardFile.C, BoardFile.B, BoardFile.A),
+        listOf(BoardFile.A, BoardFile.B, BoardFile.C, BoardFile.D),
+        listOf(BoardFile.K, BoardFile.L, BoardFile.M, BoardFile.N),
+        listOf(BoardFile.N, BoardFile.M, BoardFile.L, BoardFile.K),
+    )
 
     fun forPiece(
         type: PieceType,
@@ -97,44 +105,30 @@ object MovementDirections {
     private fun pawnForwardRoutes(
         origin: BoardCoordinate,
         distances: Map<BoardCoordinate, Int>,
-    ): List<List<BoardCoordinate>> = buildList {
-        fun continueRoute(
-            route: List<BoardCoordinate>,
-            continuingDirection: OrthogonalDirection,
-        ) {
+    ): List<List<BoardCoordinate>> {
+        val file = pawnFile(origin)
+        val route = mutableListOf(origin)
+
+        while (true) {
             val current = route.last()
-            val currentDistance = distances.getValue(current)
-            val candidateDirections = if (current.isCentreCell) {
-                OrthogonalDirection.entries
-            } else {
-                listOf(continuingDirection)
-            }
-            val next = candidateDirections.mapNotNull { direction ->
-                ThreePlayerBoardTopology.orthogonalStep(current, direction)
-            }.filter { step ->
-                step.coordinate !in route && distances.getValue(step.coordinate) >= currentDistance
-            }
-            if (next.isEmpty()) {
-                add(route)
-            } else {
-                next.forEach { step ->
-                    continueRoute(route + step.coordinate, step.continuingDirection)
+            val candidates = ThreePlayerBoardTopology.orthogonalNeighbours(current)
+                .filter { coordinate ->
+                    coordinate !in route &&
+                            pawnFile(coordinate) == file &&
+                            distances.getValue(coordinate) == distances.getValue(current) + 1
                 }
-            }
+            check(candidates.size <= 1) { "A pawn file must not branch" }
+            val next = candidates.singleOrNull() ?: break
+            route += next
         }
 
-        val originDistance = distances.getValue(origin)
-        OrthogonalDirection.entries.mapNotNull { direction ->
-            ThreePlayerBoardTopology.orthogonalStep(origin, direction)
-        }.filter { step ->
-            distances.getValue(step.coordinate) == originDistance + 1
-        }.forEach { step ->
-            continueRoute(
-                route = listOf(origin, step.coordinate),
-                continuingDirection = step.continuingDirection,
-            )
-        }
+        return listOf(route).filter { it.size > 1 }
     }
+
+    private fun pawnFile(coordinate: BoardCoordinate): BoardFile =
+        pawnFilesByVertex[coordinate.vertex][
+            if (coordinate.vertex % 2 == 0) coordinate.column else coordinate.row
+        ]
 
     private fun calculateDistancesFromHome(army: ArmyColor): Map<BoardCoordinate, Int> {
         val home = homeEdge(army)
@@ -180,8 +174,5 @@ object MovementDirections {
             OrthogonalDirection.TOP,
             OrthogonalDirection.BOTTOM,
                 -> listOf(OrthogonalDirection.LEFT, OrthogonalDirection.RIGHT)
-        }
-
-    private val BoardCoordinate.isCentreCell: Boolean
-        get() = column == 0 && row == 3
+    }
 }

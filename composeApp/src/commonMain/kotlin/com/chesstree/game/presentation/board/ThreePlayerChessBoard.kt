@@ -118,16 +118,18 @@ fun ThreePlayerChessBoard(
 
             piecesByCell[cell.id]?.let { piece ->
                 val glyph = pieceGlyph(piece)
-                val fill = pieceColor(piece.army)
+                val base = pieceColor(piece.army)
+                val body = pieceColor(piece.bodyArmy)
                 val ink =
-                    if (piece.army == ArmyColor.WHITE) Color(0xFF2B211B) else Color(0xFFFFF8EC)
+                    if (piece.bodyArmy == ArmyColor.WHITE) Color(0xFF2B211B) else Color(0xFFFFF8EC)
                 val pieceCenter = cell.center.offset()
                 drawCircle(
                     color = Color.Black.copy(alpha = 0.18f),
                     radius = scale * 0.072f,
                     center = pieceCenter + Offset(scale * 0.008f, scale * 0.01f),
                 )
-                drawCircle(color = fill, radius = scale * 0.07f, center = pieceCenter)
+                drawCircle(color = base, radius = scale * 0.07f, center = pieceCenter)
+                drawCircle(color = body, radius = scale * 0.052f, center = pieceCenter)
                 drawCircle(
                     color = if (piece.army == ArmyColor.BLACK) Color(0xFF8D7565) else Color(
                         0xFF5C382B

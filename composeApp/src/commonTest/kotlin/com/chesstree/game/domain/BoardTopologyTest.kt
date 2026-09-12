@@ -97,6 +97,56 @@ class BoardTopologyTest {
         }
     }
 
+    @Test
+    fun whitePawnOnE4KeepsMovingAlongFileE() {
+        val e4 = BoardCoordinate(vertex = 1, column = 0, row = 3)
+        val directions = MovementDirections.forPiece(PieceType.PAWN, e4, ArmyColor.WHITE)
+
+        assertEquals(
+            listOf(
+                listOf(
+                    e4,
+                    BoardCoordinate(vertex = 0, column = 0, row = 3),
+                    BoardCoordinate(vertex = 0, column = 0, row = 2),
+                    BoardCoordinate(vertex = 0, column = 0, row = 1),
+                    BoardCoordinate(vertex = 0, column = 0, row = 0),
+                ),
+            ),
+            directions.filter { it.kind == DirectionKind.MOVE }.map(MovementDirection::route),
+        )
+        assertEquals(3, directions.count { it.kind == DirectionKind.CAPTURE })
+    }
+
+    @Test
+    fun whitePawnOnK9KeepsMovingAlongFileKAfterCapture() {
+        val k9 = BoardCoordinate(vertex = 5, column = 0, row = 3)
+        val directions = MovementDirections.forPiece(PieceType.PAWN, k9, ArmyColor.WHITE)
+
+        assertEquals(
+            listOf(
+                listOf(
+                    k9,
+                    BoardCoordinate(vertex = 5, column = 1, row = 3),
+                    BoardCoordinate(vertex = 5, column = 2, row = 3),
+                    BoardCoordinate(vertex = 5, column = 3, row = 3),
+                ),
+            ),
+            directions.filter { it.kind == DirectionKind.MOVE }.map(MovementDirection::route),
+        )
+    }
+
+    @Test
+    fun aPawnNeverBranchesIntoMultipleForwardFiles() {
+        ArmyColor.entries.forEach { army ->
+            ThreePlayerBoardTopology.coordinates.forEach { coordinate ->
+                val moveCount = MovementDirections.forPiece(PieceType.PAWN, coordinate, army)
+                    .count { direction -> direction.kind == DirectionKind.MOVE }
+
+                assertTrue(moveCount <= 1, "$army pawn at $coordinate has $moveCount move routes")
+            }
+        }
+    }
+
     private fun cellColour(coordinate: BoardCoordinate): Int =
         (coordinate.vertex + coordinate.column + coordinate.row) % 2
 }

@@ -2,8 +2,8 @@ package com.chesstree.game.domain
 
 data class MoveIntent(
     val actor: PlayerId,
-    val from: Square,
-    val to: Square,
+    val from: BoardCoordinate,
+    val to: BoardCoordinate,
     val promotion: PromotionChoice? = null,
 ) {
     init {
@@ -22,8 +22,8 @@ data class Move(
     val ply: Int,
     val actor: PlayerId,
     val pieceId: PieceId,
-    val from: Square,
-    val to: Square,
+    val from: BoardCoordinate,
+    val to: BoardCoordinate,
     val type: MoveType,
     val capturedPieceId: PieceId? = null,
     val promotion: PromotionChoice? = null,

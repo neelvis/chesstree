@@ -20,12 +20,12 @@ class DomainModelTest {
 
     @Test
     fun armyTransferChangesOneControlRecordForEveryPieceInArmy() {
-        val rook = piece(id = "black-rook", square = Square(BoardFile.N, 1))
+        val rook = piece(id = "black-rook", coordinate = coordinate(0, 0, 0))
         val bishop = Piece(
             id = PieceId("black-bishop"),
             type = PieceType.BISHOP,
             army = ArmyColor.BLACK,
-            square = Square(BoardFile.M, 1),
+            coordinate = coordinate(0, 0, 1),
         )
         val position = Position(pieces = mapOf(rook.id to rook, bishop.id to bishop))
         val game = GameState.new(position)
@@ -40,7 +40,7 @@ class DomainModelTest {
 
     @Test
     fun initialPieceHasMatchingBaseAndBodyColors() {
-        val rook = piece(id = "black-rook", square = Square(BoardFile.N, 1))
+        val rook = piece(id = "black-rook", coordinate = coordinate(0, 0, 0))
         val game = GameState.new(
             position = Position(pieces = mapOf(rook.id to rook)),
         )
@@ -58,7 +58,7 @@ class DomainModelTest {
             id = PieceId("red-rook"),
             type = PieceType.ROOK,
             army = ArmyColor.RED,
-            square = Square(BoardFile.A, 12),
+            coordinate = coordinate(0, 0, 0),
         )
         val participants = PlayerId.entries.associateWith { id ->
             if (id == PlayerId.RED) {
@@ -92,9 +92,9 @@ class DomainModelTest {
 
     @Test
     fun positionRejectsTwoPiecesOnOneSquare() {
-        val square = Square(BoardFile.E, 4)
-        val first = piece(id = "first", square = square)
-        val second = piece(id = "second", square = square)
+        val coordinate = coordinate(0, 0, 0)
+        val first = piece(id = "first", coordinate = coordinate)
+        val second = piece(id = "second", coordinate = coordinate)
 
         assertFailsWith<IllegalArgumentException> {
             Position(pieces = mapOf(first.id to first, second.id to second))
@@ -161,7 +161,7 @@ class DomainModelTest {
 
     @Test
     fun positionDoesNotChangeWhenInputMapIsMutated() {
-        val rook = piece(id = "rook", square = Square(BoardFile.A, 1))
+        val rook = piece(id = "rook", coordinate = coordinate(0, 0, 0))
         val mutablePieces = mutableMapOf(rook.id to rook)
         val position = Position(pieces = mutablePieces)
 
@@ -183,13 +183,19 @@ class DomainModelTest {
 
     private fun piece(
         id: String,
-        square: Square,
+        coordinate: BoardCoordinate,
     ): Piece = Piece(
         id = PieceId(id),
         type = PieceType.ROOK,
         army = ArmyColor.BLACK,
-        square = square,
+        coordinate = coordinate,
     )
+
+    private fun coordinate(
+        vertex: Int,
+        column: Int,
+        row: Int,
+    ): BoardCoordinate = BoardCoordinate(vertex, column, row)
 
     private fun defaultArmies(): Map<ArmyColor, ArmyControl> =
         ArmyColor.entries.associateWith { color ->

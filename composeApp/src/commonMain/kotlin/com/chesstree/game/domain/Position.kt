@@ -12,11 +12,11 @@ data class CastlingRight(
 
 class EnPassantTarget(
     pawnId: PieceId,
-    captureSquare: Square,
+    captureCoordinate: BoardCoordinate,
     eligiblePlayers: Set<PlayerId>,
 ) {
     val pawnId: PieceId = pawnId
-    val captureSquare: Square = captureSquare
+    val captureCoordinate: BoardCoordinate = captureCoordinate
     val eligiblePlayers: Set<PlayerId> = eligiblePlayers.toSet()
 
     init {
@@ -28,18 +28,18 @@ class EnPassantTarget(
     override fun equals(other: Any?): Boolean =
         other is EnPassantTarget &&
                 pawnId == other.pawnId &&
-                captureSquare == other.captureSquare &&
+                captureCoordinate == other.captureCoordinate &&
                 eligiblePlayers == other.eligiblePlayers
 
     override fun hashCode(): Int {
         var result = pawnId.hashCode()
-        result = 31 * result + captureSquare.hashCode()
+        result = 31 * result + captureCoordinate.hashCode()
         result = 31 * result + eligiblePlayers.hashCode()
         return result
     }
 
     override fun toString(): String =
-        "EnPassantTarget(pawnId=$pawnId, captureSquare=$captureSquare, eligiblePlayers=$eligiblePlayers)"
+        "EnPassantTarget(pawnId=$pawnId, captureCoordinate=$captureCoordinate, eligiblePlayers=$eligiblePlayers)"
 }
 
 class Position(
@@ -52,7 +52,7 @@ class Position(
     val enPassantTarget: EnPassantTarget? = enPassantTarget?.let {
         EnPassantTarget(
             pawnId = it.pawnId,
-            captureSquare = it.captureSquare,
+            captureCoordinate = it.captureCoordinate,
             eligiblePlayers = it.eligiblePlayers,
         )
     }
@@ -61,8 +61,8 @@ class Position(
         require(this.pieces.all { (id, piece) -> id == piece.id }) {
             "Every piece map key must match the piece id"
         }
-        require(this.pieces.values.map(Piece::square).toSet().size == this.pieces.size) {
-            "Two pieces cannot occupy the same square"
+        require(this.pieces.values.map(Piece::coordinate).toSet().size == this.pieces.size) {
+            "Two pieces cannot occupy the same board coordinate"
         }
         require(this.enPassantTarget == null || this.pieces.containsKey(this.enPassantTarget.pawnId)) {
             "The en passant pawn must be present in the position"

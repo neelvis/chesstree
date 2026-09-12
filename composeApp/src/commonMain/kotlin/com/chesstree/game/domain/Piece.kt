@@ -32,6 +32,6 @@ data class Piece(
     val id: PieceId,
     val type: PieceType,
     val army: ArmyColor,
-    val square: Square,
+    val coordinate: BoardCoordinate,
     val hasMoved: Boolean = false,
 )

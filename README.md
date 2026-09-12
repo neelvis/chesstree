@@ -10,4 +10,8 @@ Compose UI lives in `composeApp` and is used by Android, iOS, and web apps.
 - Web (Wasm): run `./gradlew :composeApp:wasmJsBrowserDevelopmentRun`.
 - Web compatibility bundle: run `./gradlew composeCompatibilityBrowserDistribution`.
 
+Во время ручной проверки стартовую позицию можно выбрать в меню сценариев над
+доской. Как добавлять собственные произвольные позиции, описано в
+[`docs/domain-model.md`](docs/domain-model.md#сценарии-для-ручного-тестирования).
+
 Requires JDK 17 or newer, Android SDK 37, and Xcode for iOS builds.

@@ -10,6 +10,7 @@ data class BoardPiece(
     val type: PieceType,
     val army: ArmyColor,
     val cellId: BoardCellId,
+    val bodyArmy: ArmyColor = army,
 )
 
 enum class MoveHintKind {
