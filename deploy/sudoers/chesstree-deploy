@@ -1,0 +1,2 @@
+elvis ALL=(root) NOPASSWD: /usr/local/sbin/chesstree-activate-release
+

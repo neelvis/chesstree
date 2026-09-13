@@ -4,8 +4,15 @@ set -euo pipefail
 
 CHESSTREE_DEPLOY_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 CHESSTREE_PROJECT_ROOT="$(CDPATH= cd -- "$CHESSTREE_DEPLOY_DIR/.." && pwd)"
-CHESSTREE_DEPLOY_HOST="${CHESSTREE_DEPLOY_HOST:-root@51.250.31.56}"
+CHESSTREE_DEPLOY_HOST="${CHESSTREE_DEPLOY_HOST:-elvis@51.250.31.56}"
+CHESSTREE_DEPLOY_SSH_PORT="${CHESSTREE_DEPLOY_SSH_PORT:-2222}"
 CHESSTREE_REMOTE_ROOT="/opt/chesstree"
+
+if [[ ! "$CHESSTREE_DEPLOY_SSH_PORT" =~ ^[0-9]+$ ]] ||
+    ((CHESSTREE_DEPLOY_SSH_PORT < 1 || CHESSTREE_DEPLOY_SSH_PORT > 65535)); then
+    printf 'Invalid CHESSTREE_DEPLOY_SSH_PORT: %s\n' "$CHESSTREE_DEPLOY_SSH_PORT" >&2
+    exit 1
+fi
 
 require_command() {
     command -v "$1" >/dev/null 2>&1 || {

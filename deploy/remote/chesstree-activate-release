@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+if [[ $# -ne 1 ]]; then
+    printf 'Usage: %s <release-id>\n' "$0" >&2
+    exit 1
+fi
+
+release_id="$1"
+if [[ ! "$release_id" =~ ^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{7,40}$ ]]; then
+    printf 'Invalid release id: %s\n' "$release_id" >&2
+    exit 1
+fi
+
+deploy_user=elvis
+remote_root=/opt/chesstree
+staging="/home/$deploy_user/chesstree-upload/$release_id"
+release_dir="$remote_root/releases/$release_id"
+current_link="$remote_root/current"
+
+test -d "$staging/web"
+test -x "$staging/server/bin/server"
+
+install -d -m 755 "$remote_root/releases" "$release_dir/web" "$release_dir/server"
+rsync -a --delete "$staging/web/" "$release_dir/web/"
+rsync -a --delete "$staging/server/" "$release_dir/server/"
+chown -R root:root "$release_dir"
+
+previous_release=""
+if [[ -L "$current_link" ]]; then
+    resolved_release="$(readlink -e "$current_link" 2>/dev/null || true)"
+    case "$resolved_release" in
+        "$remote_root"/releases/*) previous_release="$resolved_release" ;;
+    esac
+fi
+ln -sfn "$release_dir" "$remote_root/current.next"
+mv -Tf "$remote_root/current.next" "$current_link"
+
+rollback() {
+    if [[ -n "$previous_release" && -d "$previous_release" ]]; then
+        ln -sfn "$previous_release" "$remote_root/current.rollback"
+        mv -Tf "$remote_root/current.rollback" "$current_link"
+        systemctl restart chesstree-server || true
+    else
+        systemctl stop chesstree-server || true
+        if [[ "$(readlink -e "$current_link" 2>/dev/null || true)" == "$release_dir" ]]; then
+            unlink "$current_link"
+        fi
+    fi
+}
+
+if ! nginx -t; then
+    rollback
+    exit 1
+fi
+if ! systemctl restart chesstree-server; then
+    rollback
+    exit 1
+fi
+
+healthy=false
+for _ in {1..20}; do
+    if curl --fail --silent --show-error http://127.0.0.1:8081/health >/dev/null; then
+        healthy=true
+        break
+    fi
+    sleep 1
+done
+
+if [[ "$healthy" != true ]]; then
+    journalctl -u chesstree-server -n 100 --no-pager || true
+    rollback
+    exit 1
+fi
+
+systemctl reload nginx
+printf 'Activated release %s.\n' "$release_id"

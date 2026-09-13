@@ -1,0 +1,34 @@
+#!/bin/sh
+
+set -eu
+umask 077
+
+backup_dir=/var/backups/chesstree
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+dump_name="chesstree-${timestamp}.dump"
+globals_name="globals-${timestamp}.sql"
+checksums_name="SHA256SUMS-${timestamp}"
+dump_tmp="${backup_dir}/.${dump_name}.tmp"
+globals_tmp="${backup_dir}/.${globals_name}.tmp"
+checksums_tmp="${backup_dir}/.${checksums_name}.tmp"
+
+cleanup() {
+    rm -f "$dump_tmp" "$globals_tmp" "$checksums_tmp"
+}
+trap cleanup EXIT HUP INT TERM
+
+test -d "$backup_dir"
+pg_dump --format=custom --dbname=chesstree --file="$dump_tmp"
+pg_dumpall --globals-only --file="$globals_tmp"
+
+mv "$dump_tmp" "${backup_dir}/${dump_name}"
+mv "$globals_tmp" "${backup_dir}/${globals_name}"
+(
+    cd "$backup_dir"
+    sha256sum "$dump_name" "$globals_name" > ".${checksums_name}.tmp"
+)
+mv "$checksums_tmp" "${backup_dir}/${checksums_name}"
+
+find "$backup_dir" -type f \
+    \( -name 'chesstree-*.dump' -o -name 'globals-*.sql' -o -name 'SHA256SUMS-*' \) \
+    -mtime +13 -delete

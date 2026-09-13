@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the ChessTree PostgreSQL backup daily
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=30m
+Persistent=true
+Unit=chesstree-pg-backup.service
+
+[Install]
+WantedBy=timers.target
+

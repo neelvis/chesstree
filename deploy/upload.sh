@@ -16,11 +16,12 @@ test -d "$web_source"
 test -x "${server_source}bin/server"
 
 remote_staging="chesstree-upload/$release_id"
-ssh "$CHESSTREE_DEPLOY_HOST" \
+ssh -p "$CHESSTREE_DEPLOY_SSH_PORT" "$CHESSTREE_DEPLOY_HOST" \
     "mkdir -p '$remote_staging/web' '$remote_staging/server' '$remote_staging/infra'"
-rsync -az --delete "$web_source" "$CHESSTREE_DEPLOY_HOST:$remote_staging/web/"
-rsync -az --delete "$server_source" "$CHESSTREE_DEPLOY_HOST:$remote_staging/server/"
-rsync -az --delete "$CHESSTREE_DEPLOY_DIR/nginx/" "$CHESSTREE_DEPLOY_HOST:$remote_staging/infra/nginx/"
-rsync -az --delete "$CHESSTREE_DEPLOY_DIR/systemd/" "$CHESSTREE_DEPLOY_HOST:$remote_staging/infra/systemd/"
+rsync -e "ssh -p $CHESSTREE_DEPLOY_SSH_PORT" -az --delete "$web_source" "$CHESSTREE_DEPLOY_HOST:$remote_staging/web/"
+rsync -e "ssh -p $CHESSTREE_DEPLOY_SSH_PORT" -az --delete "$server_source" "$CHESSTREE_DEPLOY_HOST:$remote_staging/server/"
+rsync -e "ssh -p $CHESSTREE_DEPLOY_SSH_PORT" -az --delete "$CHESSTREE_DEPLOY_DIR/nginx/" "$CHESSTREE_DEPLOY_HOST:$remote_staging/infra/nginx/"
+rsync -e "ssh -p $CHESSTREE_DEPLOY_SSH_PORT" -az --delete "$CHESSTREE_DEPLOY_DIR/systemd/" "$CHESSTREE_DEPLOY_HOST:$remote_staging/infra/systemd/"
 
-printf 'Uploaded release %s to %s.\n' "$release_id" "$CHESSTREE_DEPLOY_HOST"
+printf 'Uploaded release %s to %s via SSH port %s.\n' \
+    "$release_id" "$CHESSTREE_DEPLOY_HOST" "$CHESSTREE_DEPLOY_SSH_PORT"
