@@ -18,7 +18,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -30,12 +33,21 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.chesstree.resources.Res
+import com.chesstree.resources.allDrawableResources
+import com.chesstree.resources.allFontResources
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.PieceType
+import org.jetbrains.compose.resources.Font
+import org.jetbrains.compose.resources.imageResource
 import kotlin.math.abs
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 data class BoardPalette(
@@ -56,6 +68,7 @@ fun ThreePlayerChessBoard(
     selectedPieceId: String?,
     moveHints: List<MoveHint>,
     trophies: List<BoardTrophy> = emptyList(),
+    pieceSet: PieceSet = PieceSet.STANDARD,
     onCellSelected: (BoardCellId?) -> Unit,
     modifier: Modifier = Modifier,
     palette: BoardPalette = BoardPalette(),
@@ -63,9 +76,23 @@ fun ThreePlayerChessBoard(
     val cells = ThreePlayerBoardGeometry.cells
     val labels = ThreePlayerBoardGeometry.labels
     val textMeasurer = rememberTextMeasurer()
+    val standardPieceFont = FontFamily(
+        Font(Res.allFontResources.getValue("noto_sans_symbols_2_regular")),
+    )
+    val fairyPieceImages = if (pieceSet == PieceSet.FAIRY) loadFairyPieceImages() else null
     val piecesByCell = remember(pieces) { pieces.associateBy(BoardPiece::cellId) }
     val hintsByCell = moveHints.associateBy(MoveHint::target)
     val attackedPieceIds = moveHints.mapNotNull(MoveHint::attackedPieceId).toSet()
+    val contentWidth = if (pieceSet == PieceSet.FAIRY) {
+        FAIRY_BOARD_CONTENT_WIDTH
+    } else {
+        STANDARD_BOARD_CONTENT_WIDTH
+    }
+    val contentHeight = if (pieceSet == PieceSet.FAIRY) {
+        FAIRY_BOARD_CONTENT_HEIGHT
+    } else {
+        STANDARD_BOARD_CONTENT_HEIGHT
+    }
     val currentOnCellSelected by rememberUpdatedState(onCellSelected)
     var viewport by remember { mutableStateOf(BoardViewport()) }
 
@@ -77,17 +104,20 @@ fun ThreePlayerChessBoard(
                     viewport = viewport,
                     viewportWidth = size.width.toFloat(),
                     viewportHeight = size.height.toFloat(),
+                    contentWidth = contentWidth,
+                    contentHeight = contentHeight,
                 )
                 if (coerced != viewport) viewport = coerced
             }
             .semantics {
-                contentDescription = "Доска для шахмат на троих, 96 клеток"
+                contentDescription = "Доска для шахмат на троих, 96 клеток, " +
+                    if (pieceSet == PieceSet.FAIRY) "сказочные фигуры" else "стандартные фигуры"
                 val selection =
                     if (selectedPieceId == null) "Фигура не выбрана" else "Фигура выбрана"
                 stateDescription =
                     "$selection, масштаб ${(viewport.zoom * 100).roundToInt()} процентов"
             }
-            .pointerInput(Unit) {
+            .pointerInput(contentWidth, contentHeight) {
                 detectTwoFingerBoardTransformGestures { centroid, pan, zoomChange ->
                     viewport = transformBoardViewport(
                         viewport = viewport,
@@ -96,29 +126,41 @@ fun ThreePlayerChessBoard(
                         centroid = BoardPoint(centroid.x, centroid.y),
                         pan = BoardPoint(pan.x, pan.y),
                         zoomChange = zoomChange,
+                        contentWidth = contentWidth,
+                        contentHeight = contentHeight,
                     )
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(contentWidth, contentHeight) {
                 detectTapGestures { tap ->
                     val boardPoint = viewportPointToBoard(
                         point = BoardPoint(tap.x, tap.y),
                         viewportWidth = size.width.toFloat(),
                         viewportHeight = size.height.toFloat(),
                         viewport = viewport,
+                        contentWidth = contentWidth,
+                        contentHeight = contentHeight,
                     ) ?: return@detectTapGestures
                     val tappedCell = cells.lastOrNull { contains(it.corners, boardPoint) }
                     currentOnCellSelected(tappedCell?.id)
                 }
             },
     ) {
-        val scale = boardScale(size.width, size.height, viewport.zoom)
+        val scale = boardScale(
+            size.width,
+            size.height,
+            viewport.zoom,
+            contentWidth,
+            contentHeight,
+        )
         fun BoardPoint.offset(): Offset =
             boardPointToViewport(
                 point = this,
                 viewportWidth = size.width,
                 viewportHeight = size.height,
                 viewport = viewport,
+                contentWidth = contentWidth,
+                contentHeight = contentHeight,
             ).let { Offset(it.x, it.y) }
 
         cells.forEach { cell ->
@@ -182,20 +224,23 @@ fun ThreePlayerChessBoard(
                 drawPiece(
                     piece = piece,
                     center = center,
-                    radius = scale * 0.07f,
+                    radius = scale * 0.084f,
                     textMeasurer = textMeasurer,
+                    pieceSet = pieceSet,
+                    standardPieceFont = standardPieceFont,
+                    fairyPieceImages = fairyPieceImages,
                 )
                 when {
                     piece.id == selectedPieceId -> drawCircle(
                         color = palette.selected,
-                        radius = scale * 0.076f,
+                        radius = scale * 0.091f,
                         center = center,
                         style = Stroke(3.dp.toPx()),
                     )
 
                     piece.id in attackedPieceIds -> drawCircle(
                         color = palette.capture,
-                        radius = scale * 0.076f,
+                        radius = scale * 0.091f,
                         center = center,
                         style = Stroke(3.dp.toPx()),
                     )
@@ -208,17 +253,34 @@ fun ThreePlayerChessBoard(
                 text = label.text,
                 style = TextStyle(
                     color = palette.label,
-                    fontSize = (scale * 0.085f).toSp(),
+                    fontSize = (scale * 0.0595f).toSp(),
                     fontWeight = FontWeight.SemiBold,
                 ),
             )
-            val position = label.position.offset()
+            val edgePosition = label.edgePoint.offset()
+            val normalProjection =
+                layout.size.width * abs(label.outward.x) / 2f +
+                    layout.size.height * abs(label.outward.y) / 2f
+            val labelGap = 5.dp.toPx() + normalProjection
+            val position = edgePosition + Offset(
+                x = label.outward.x * labelGap,
+                y = label.outward.y * labelGap,
+            )
             drawText(
                 textLayoutResult = layout,
                 topLeft = Offset(
                     position.x - layout.size.width / 2f,
                     position.y - layout.size.height / 2f
                 ),
+            )
+        }
+
+        fairyPieceImages?.birds?.forEach { (army, bird) ->
+            drawImageCentered(
+                image = bird,
+                center = ThreePlayerBoardGeometry.birdPosition(army).offset(),
+                maxWidth = scale * 0.26f,
+                maxHeight = scale * 0.26f,
             )
         }
 
@@ -240,9 +302,11 @@ fun ThreePlayerChessBoard(
                             cellId = BoardCellId(0, 0, 0),
                         ),
                         center = point,
-                        radius = scale * 0.035f,
+                        radius = scale * 0.042f,
                         textMeasurer = textMeasurer,
-                        emphasizeTransferredArmy = false,
+                        pieceSet = pieceSet,
+                        standardPieceFont = standardPieceFont,
+                        fairyPieceImages = fairyPieceImages,
                     )
                 }
         }
@@ -254,44 +318,68 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPiece(
     center: Offset,
     radius: Float,
     textMeasurer: androidx.compose.ui.text.TextMeasurer,
-    emphasizeTransferredArmy: Boolean = true,
+    pieceSet: PieceSet,
+    standardPieceFont: FontFamily,
+    fairyPieceImages: FairyPieceImages?,
 ) {
-    val base = pieceColor(piece.army)
-    val body = pieceColor(piece.bodyArmy)
-    val ink = if (piece.bodyArmy == ArmyColor.WHITE) Color(0xFF2B211B) else Color(0xFFFFF8EC)
-    val isTransferred = piece.army != piece.bodyArmy
-    val bodyRadius = pieceBodyRadius(
-        radius = radius,
-        isTransferred = isTransferred,
-        transferredRingExtra = if (emphasizeTransferredArmy) 3.dp.toPx() else 0f,
-    )
-    drawCircle(
-        color = Color.Black.copy(alpha = 0.18f),
-        radius = radius * (0.072f / 0.07f),
-        center = center + Offset(radius * 0.11f, radius * 0.14f),
-    )
-    drawCircle(color = base, radius = radius, center = center)
-    drawCircle(color = body, radius = bodyRadius, center = center)
-    drawCircle(
-        color = if (piece.army == ArmyColor.BLACK) Color(0xFF8D7565) else Color(0xFF5C382B),
-        radius = radius,
-        center = center,
-        style = Stroke(radius * (0.008f / 0.07f)),
-    )
-    val layout = textMeasurer.measure(
-        text = pieceGlyph(piece),
-        style = TextStyle(
-            color = ink,
-            fontSize = (radius * (0.08f / 0.07f)).toSp(),
-            fontWeight = FontWeight.Bold,
+    when (pieceSet) {
+        PieceSet.STANDARD -> {
+            val layout = textMeasurer.measure(
+                text = pieceGlyph(piece.type),
+                style = TextStyle(
+                    color = pieceColor(piece.bodyArmy),
+                    fontFamily = standardPieceFont,
+                    fontSize = (radius * 1.9f).toSp(),
+                    fontWeight = FontWeight.Normal,
+                    shadow = Shadow(
+                        color = if (piece.bodyArmy == ArmyColor.BLACK) {
+                            Color.White.copy(alpha = 0.7f)
+                        } else {
+                            Color.Black.copy(alpha = 0.7f)
+                        },
+                        offset = Offset(radius * 0.04f, radius * 0.06f),
+                        blurRadius = radius * 0.08f,
+                    ),
+                ),
+            )
+            drawText(
+                textLayoutResult = layout,
+                topLeft = Offset(
+                    center.x - layout.size.width / 2f,
+                    center.y - layout.size.height / 2f,
+                ),
+            )
+        }
+
+        PieceSet.FAIRY -> drawImageCentered(
+            image = checkNotNull(fairyPieceImages).pieces.getValue(piece.type to piece.bodyArmy),
+            center = center,
+            maxWidth = radius * 1.75f,
+            maxHeight = radius * 1.75f,
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawImageCentered(
+    image: ImageBitmap,
+    center: Offset,
+    maxWidth: Float,
+    maxHeight: Float,
+) {
+    if (image.width <= 0 || image.height <= 0) return
+    val scale = min(maxWidth / image.width, maxHeight / image.height)
+    val width = (image.width * scale).roundToInt().coerceAtLeast(1)
+    val height = (image.height * scale).roundToInt().coerceAtLeast(1)
+    drawImage(
+        image = image,
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(image.width, image.height),
+        dstOffset = IntOffset(
+            x = (center.x - width / 2f).roundToInt(),
+            y = (center.y - height / 2f).roundToInt(),
         ),
-    )
-    drawText(
-        textLayoutResult = layout,
-        topLeft = Offset(
-            center.x - layout.size.width / 2f,
-            center.y - layout.size.height / 2f,
-        ),
+        dstSize = IntSize(width, height),
+        filterQuality = FilterQuality.High,
     )
 }
 
@@ -360,13 +448,13 @@ private suspend fun PointerInputScope.detectTwoFingerBoardTransformGestures(
     }
 }
 
-private fun pieceGlyph(piece: BoardPiece): String = when (piece.type) {
-    PieceType.KING -> "K"
-    PieceType.QUEEN -> "Q"
-    PieceType.ROOK -> "R"
-    PieceType.BISHOP -> "B"
-    PieceType.KNIGHT -> "N"
-    PieceType.PAWN -> "P"
+internal fun pieceGlyph(type: PieceType): String = when (type) {
+    PieceType.KING -> "♚"
+    PieceType.QUEEN -> "♛"
+    PieceType.ROOK -> "♜"
+    PieceType.BISHOP -> "♝"
+    PieceType.KNIGHT -> "♞"
+    PieceType.PAWN -> "♟"
 }
 
 private fun pieceColor(army: ArmyColor): Color = when (army) {
@@ -375,15 +463,39 @@ private fun pieceColor(army: ArmyColor): Color = when (army) {
     ArmyColor.BLACK -> Color(0xFF171310)
 }
 
-internal fun pieceBodyRadius(
-    radius: Float,
-    isTransferred: Boolean,
-    transferredRingExtra: Float,
-): Float {
-    val ordinaryBodyRadius = radius * (0.052f / 0.07f)
-    return if (isTransferred) {
-        (ordinaryBodyRadius - transferredRingExtra).coerceAtLeast(radius * 0.25f)
-    } else {
-        ordinaryBodyRadius
-    }
+private data class FairyPieceImages(
+    val pieces: Map<Pair<PieceType, ArmyColor>, ImageBitmap>,
+    val birds: Map<ArmyColor, ImageBitmap>,
+)
+
+@Composable
+private fun loadFairyPieceImages(): FairyPieceImages {
+    val drawables = Res.allDrawableResources
+    return FairyPieceImages(
+        pieces = mapOf(
+            (PieceType.PAWN to ArmyColor.WHITE) to imageResource(drawables.getValue("pawn_0")),
+            (PieceType.PAWN to ArmyColor.RED) to imageResource(drawables.getValue("pawn_1")),
+            (PieceType.PAWN to ArmyColor.BLACK) to imageResource(drawables.getValue("pawn_2")),
+            (PieceType.KNIGHT to ArmyColor.WHITE) to imageResource(drawables.getValue("knight_0")),
+            (PieceType.KNIGHT to ArmyColor.RED) to imageResource(drawables.getValue("knight_1")),
+            (PieceType.KNIGHT to ArmyColor.BLACK) to imageResource(drawables.getValue("knight_2")),
+            (PieceType.BISHOP to ArmyColor.WHITE) to imageResource(drawables.getValue("bishop_0")),
+            (PieceType.BISHOP to ArmyColor.RED) to imageResource(drawables.getValue("bishop_1")),
+            (PieceType.BISHOP to ArmyColor.BLACK) to imageResource(drawables.getValue("bishop_2")),
+            (PieceType.ROOK to ArmyColor.WHITE) to imageResource(drawables.getValue("rook_0")),
+            (PieceType.ROOK to ArmyColor.RED) to imageResource(drawables.getValue("rook_1")),
+            (PieceType.ROOK to ArmyColor.BLACK) to imageResource(drawables.getValue("rook_2")),
+            (PieceType.QUEEN to ArmyColor.WHITE) to imageResource(drawables.getValue("queen_0")),
+            (PieceType.QUEEN to ArmyColor.RED) to imageResource(drawables.getValue("queen_1")),
+            (PieceType.QUEEN to ArmyColor.BLACK) to imageResource(drawables.getValue("queen_2")),
+            (PieceType.KING to ArmyColor.WHITE) to imageResource(drawables.getValue("king_0")),
+            (PieceType.KING to ArmyColor.RED) to imageResource(drawables.getValue("king_1")),
+            (PieceType.KING to ArmyColor.BLACK) to imageResource(drawables.getValue("king_2")),
+        ),
+        birds = mapOf(
+            ArmyColor.WHITE to imageResource(drawables.getValue("bird_0")),
+            ArmyColor.RED to imageResource(drawables.getValue("bird_1")),
+            ArmyColor.BLACK to imageResource(drawables.getValue("bird_2")),
+        ),
+    )
 }

@@ -25,6 +25,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +42,7 @@ import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.BoardTrophy
+import com.chesstree.game.presentation.board.PieceSet
 import com.chesstree.game.presentation.board.educationalMoveHintsFor
 import com.chesstree.game.presentation.board.legalMoveHintsFor
 import com.chesstree.game.presentation.board.toBoardPieces
@@ -79,12 +82,29 @@ fun App(
             return@MaterialTheme
         }
         val scenarios = remember { ManualGameScenarios.all }
-        var session by remember { mutableStateOf(GameSession(scenarios.first())) }
+        val sessionSaver = remember(scenarios) {
+            Saver<GameSession, String>(
+                save = { encodeSessionForRestoration(it) },
+                restore = { restoreSessionOrDefault(it, scenarios) },
+            )
+        }
+        var session by rememberSaveable(stateSaver = sessionSaver) {
+            mutableStateOf(GameSession(scenarios.first()))
+        }
         var selectedPieceId by remember { mutableStateOf<String?>(null) }
         var pendingPromotionMoves by remember { mutableStateOf(emptyList<Move>()) }
         var scenarioMenuExpanded by remember { mutableStateOf(false) }
         var controlsExpanded by remember { mutableStateOf(false) }
         var showMoveLines by remember { mutableStateOf(false) }
+        val pieceSetSaver = remember {
+            Saver<PieceSet, String>(
+                save = { it.name },
+                restore = ::restorePieceSet,
+            )
+        }
+        var pieceSet by rememberSaveable(stateSaver = pieceSetSaver) {
+            mutableStateOf(PieceSet.STANDARD)
+        }
         var storageMessage by remember { mutableStateOf<String?>(null) }
         val selectedScenario = session.scenario
         val gameState = session.state
@@ -212,6 +232,7 @@ fun App(
                         selectedPieceId = selectedPieceId,
                         moveHints = movementHints,
                         trophies = trophies,
+                        pieceSet = pieceSet,
                         onCellSelected = { cell ->
                             if (cell == null) {
                                 selectedPieceId = null
@@ -297,6 +318,19 @@ fun App(
                                     },
                                 )
                             }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text("Сказочные фигурки")
+                                Switch(
+                                    checked = pieceSet == PieceSet.FAIRY,
+                                    onCheckedChange = { enabled ->
+                                        pieceSet = if (enabled) PieceSet.FAIRY else PieceSet.STANDARD
+                                    },
+                                )
+                            }
                             Box {
                                 Button(onClick = { scenarioMenuExpanded = true }) {
                                     Text("Сценарий: ${selectedScenario.title}")
@@ -356,6 +390,9 @@ private fun PromotionChoice.displayName(): String = when (this) {
     PromotionChoice.BISHOP -> "Слон"
     PromotionChoice.KNIGHT -> "Конь"
 }
+
+internal fun restorePieceSet(savedName: String): PieceSet =
+    PieceSet.entries.firstOrNull { it.name == savedName } ?: PieceSet.STANDARD
 
 private fun com.chesstree.game.domain.GameState.statusText(): String {
     val phaseText = when (phase) {

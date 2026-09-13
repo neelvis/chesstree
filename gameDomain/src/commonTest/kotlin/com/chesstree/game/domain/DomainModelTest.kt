@@ -53,7 +53,7 @@ class DomainModelTest {
     }
 
     @Test
-    fun transferredPieceKeepsDefeatedBaseAndUsesWinnerBodyColor() {
+    fun transferredPieceUsesOnlyTheWinningArmyColor() {
         val rook = Piece(
             id = PieceId("red-rook"),
             type = PieceType.ROOK,
@@ -85,9 +85,9 @@ class DomainModelTest {
 
         val appearance = game.pieceAppearance(rook.id)
 
-        assertEquals(ArmyColor.RED, appearance.baseColor)
+        assertEquals(ArmyColor.WHITE, appearance.baseColor)
         assertEquals(ArmyColor.WHITE, appearance.bodyColor)
-        assertEquals(true, appearance.isTwoTone)
+        assertEquals(false, appearance.isTwoTone)
     }
 
     @Test

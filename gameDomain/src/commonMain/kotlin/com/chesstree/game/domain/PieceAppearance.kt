@@ -16,7 +16,7 @@ fun GameState.pieceAppearance(pieceId: PieceId): PieceAppearance {
     }
 
     return PieceAppearance(
-        baseColor = piece.army,
+        baseColor = controllerColor,
         bodyColor = controllerColor,
     )
 }

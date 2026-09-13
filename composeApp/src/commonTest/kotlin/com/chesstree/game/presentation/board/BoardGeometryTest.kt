@@ -164,12 +164,13 @@ class BoardGeometryTest {
     }
 
     @Test
-    fun transferredArmyRingIsThreePixelsThicker() {
-        val radius = 24f
-        val ordinaryBody = pieceBodyRadius(radius, isTransferred = false, transferredRingExtra = 3f)
-        val transferredBody = pieceBodyRadius(radius, isTransferred = true, transferredRingExtra = 3f)
-
-        assertTrue(abs((ordinaryBody - transferredBody) - 3f) < 0.0001f)
+    fun standardSetUsesUnicodeChessSymbols() {
+        assertEquals("♚", pieceGlyph(PieceType.KING))
+        assertEquals("♛", pieceGlyph(PieceType.QUEEN))
+        assertEquals("♜", pieceGlyph(PieceType.ROOK))
+        assertEquals("♝", pieceGlyph(PieceType.BISHOP))
+        assertEquals("♞", pieceGlyph(PieceType.KNIGHT))
+        assertEquals("♟", pieceGlyph(PieceType.PAWN))
     }
 
     @Test
@@ -182,6 +183,26 @@ class BoardGeometryTest {
             assertEquals(positions.size, positions.toSet().size)
             assertTrue(positions.all { point -> point.x * point.x + point.y * point.y > 0.84f })
             assertTrue(positions.all { point -> abs(point.x) <= 1.08f && abs(point.y) <= 1.04f })
+        }
+    }
+
+    @Test
+    fun birdMarkersStayOutsideTheBoardNearDistinctArmyEdges() {
+        val positions = ArmyColor.entries.map(ThreePlayerBoardGeometry::birdPosition)
+
+        assertEquals(ArmyColor.entries.size, positions.toSet().size)
+        assertTrue(positions.all { point -> point.x * point.x + point.y * point.y > 1f })
+        ArmyColor.entries.forEach { army ->
+            val bird = ThreePlayerBoardGeometry.birdPosition(army)
+            val closestTrophy = List(16) { index ->
+                ThreePlayerBoardGeometry.trophyPosition(army, index, count = 16)
+            }.minOf { trophy ->
+                kotlin.math.sqrt(
+                    (bird.x - trophy.x) * (bird.x - trophy.x) +
+                        (bird.y - trophy.y) * (bird.y - trophy.y),
+                )
+            }
+            assertTrue(closestTrophy > 0.17f)
         }
     }
 

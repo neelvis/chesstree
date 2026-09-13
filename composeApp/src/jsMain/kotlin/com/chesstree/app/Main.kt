@@ -2,21 +2,31 @@ package com.chesstree.app
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
+import androidx.compose.runtime.getValue
+import com.chesstree.resources.Res
+import com.chesstree.resources.allFontResources
 import com.chesstree.multiplayer.data.KtorChessTreeApi
 import com.chesstree.multiplayer.data.gameCodeFromUrl
 import kotlinx.browser.window
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.preloadFont
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalResourceApi::class)
 fun main() {
     val saveStore = BrowserGameSaveStore()
     val onlineApi = KtorChessTreeApi(serverBaseUrl())
     val initialGameCode = gameCodeFromUrl(window.location.href)
     ComposeViewport(viewportContainerId = "webApp") {
-        App(
-            gameSaveStore = saveStore,
-            onlineApi = onlineApi,
-            initialGameCode = initialGameCode,
+        val pieceFont by preloadFont(
+            Res.allFontResources.getValue("noto_sans_symbols_2_regular"),
         )
+        if (pieceFont != null) {
+            App(
+                gameSaveStore = saveStore,
+                onlineApi = onlineApi,
+                initialGameCode = initialGameCode,
+            )
+        }
     }
 }
 

@@ -12,11 +12,13 @@ internal fun boardScale(
     viewportWidth: Float,
     viewportHeight: Float,
     zoom: Float = MIN_BOARD_ZOOM,
+    contentWidth: Float = STANDARD_BOARD_CONTENT_WIDTH,
+    contentHeight: Float = STANDARD_BOARD_CONTENT_HEIGHT,
 ): Float {
     if (viewportWidth <= 0f || viewportHeight <= 0f) return 0f
     return min(
-        viewportWidth / BOARD_CONTENT_WIDTH,
-        viewportHeight / BOARD_CONTENT_HEIGHT,
+        viewportWidth / contentWidth,
+        viewportHeight / contentHeight,
     ) * zoom.coerceIn(MIN_BOARD_ZOOM, MAX_BOARD_ZOOM)
 }
 
@@ -25,8 +27,10 @@ internal fun boardPointToViewport(
     viewportWidth: Float,
     viewportHeight: Float,
     viewport: BoardViewport,
+    contentWidth: Float = STANDARD_BOARD_CONTENT_WIDTH,
+    contentHeight: Float = STANDARD_BOARD_CONTENT_HEIGHT,
 ): BoardPoint {
-    val scale = boardScale(viewportWidth, viewportHeight, viewport.zoom)
+    val scale = boardScale(viewportWidth, viewportHeight, viewport.zoom, contentWidth, contentHeight)
     return BoardPoint(
         x = viewportWidth / 2f + viewport.panX + point.x * scale,
         y = viewportHeight / 2f + viewport.panY + point.y * scale,
@@ -38,8 +42,10 @@ internal fun viewportPointToBoard(
     viewportWidth: Float,
     viewportHeight: Float,
     viewport: BoardViewport,
+    contentWidth: Float = STANDARD_BOARD_CONTENT_WIDTH,
+    contentHeight: Float = STANDARD_BOARD_CONTENT_HEIGHT,
 ): BoardPoint? {
-    val scale = boardScale(viewportWidth, viewportHeight, viewport.zoom)
+    val scale = boardScale(viewportWidth, viewportHeight, viewport.zoom, contentWidth, contentHeight)
     if (scale <= 0f) return null
     return BoardPoint(
         x = (point.x - viewportWidth / 2f - viewport.panX) / scale,
@@ -54,6 +60,8 @@ internal fun transformBoardViewport(
     centroid: BoardPoint,
     pan: BoardPoint,
     zoomChange: Float,
+    contentWidth: Float = STANDARD_BOARD_CONTENT_WIDTH,
+    contentHeight: Float = STANDARD_BOARD_CONTENT_HEIGHT,
 ): BoardViewport {
     if (viewportWidth <= 0f || viewportHeight <= 0f) return BoardViewport()
 
@@ -69,20 +77,28 @@ internal fun transformBoardViewport(
         panY = centroidFromCenterY + pan.y -
             (centroidFromCenterY - viewport.panY) * zoomRatio,
     )
-    return coerceBoardViewport(transformed, viewportWidth, viewportHeight)
+    return coerceBoardViewport(
+        transformed,
+        viewportWidth,
+        viewportHeight,
+        contentWidth,
+        contentHeight,
+    )
 }
 
 internal fun coerceBoardViewport(
     viewport: BoardViewport,
     viewportWidth: Float,
     viewportHeight: Float,
+    contentWidth: Float = STANDARD_BOARD_CONTENT_WIDTH,
+    contentHeight: Float = STANDARD_BOARD_CONTENT_HEIGHT,
 ): BoardViewport {
     if (viewportWidth <= 0f || viewportHeight <= 0f) return BoardViewport()
 
     val zoom = viewport.zoom.coerceIn(MIN_BOARD_ZOOM, MAX_BOARD_ZOOM)
-    val scale = boardScale(viewportWidth, viewportHeight, zoom)
-    val maxPanX = ((BOARD_CONTENT_WIDTH * scale - viewportWidth) / 2f).coerceAtLeast(0f)
-    val maxPanY = ((BOARD_CONTENT_HEIGHT * scale - viewportHeight) / 2f).coerceAtLeast(0f)
+    val scale = boardScale(viewportWidth, viewportHeight, zoom, contentWidth, contentHeight)
+    val maxPanX = ((contentWidth * scale - viewportWidth) / 2f).coerceAtLeast(0f)
+    val maxPanY = ((contentHeight * scale - viewportHeight) / 2f).coerceAtLeast(0f)
     return BoardViewport(
         zoom = zoom,
         panX = if (maxPanX == 0f) 0f else viewport.panX.coerceIn(-maxPanX, maxPanX),
@@ -93,5 +109,7 @@ internal fun coerceBoardViewport(
 internal const val MIN_BOARD_ZOOM: Float = 1f
 internal const val MAX_BOARD_ZOOM: Float = 2.5f
 
-private const val BOARD_CONTENT_WIDTH: Float = 2.35f
-private const val BOARD_CONTENT_HEIGHT: Float = 2.18f
+internal const val STANDARD_BOARD_CONTENT_WIDTH: Float = 2.35f
+internal const val STANDARD_BOARD_CONTENT_HEIGHT: Float = 2.18f
+internal const val FAIRY_BOARD_CONTENT_WIDTH: Float = 2.50f
+internal const val FAIRY_BOARD_CONTENT_HEIGHT: Float = 2.78f

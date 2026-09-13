@@ -38,6 +38,34 @@ class BoardViewportTest {
                 assertTrue(screenPoint.y <= height - margin + FLOAT_TOLERANCE)
             }
         }
+
+        listOf(
+            328f to 420f,
+            760f to 320f,
+        ).forEach { (width, height) ->
+            val birdPositions = ArmyColor.entries.map(ThreePlayerBoardGeometry::birdPosition)
+            val scale = boardScale(
+                width,
+                height,
+                contentWidth = FAIRY_BOARD_CONTENT_WIDTH,
+                contentHeight = FAIRY_BOARD_CONTENT_HEIGHT,
+            )
+            birdPositions.forEach { anchor ->
+                val screenPoint = boardPointToViewport(
+                    point = anchor,
+                    viewportWidth = width,
+                    viewportHeight = height,
+                    viewport = BoardViewport(),
+                    contentWidth = FAIRY_BOARD_CONTENT_WIDTH,
+                    contentHeight = FAIRY_BOARD_CONTENT_HEIGHT,
+                )
+                val margin = 0.13f * scale
+                assertTrue(screenPoint.x >= margin - FLOAT_TOLERANCE)
+                assertTrue(screenPoint.y >= margin - FLOAT_TOLERANCE)
+                assertTrue(screenPoint.x <= width - margin + FLOAT_TOLERANCE)
+                assertTrue(screenPoint.y <= height - margin + FLOAT_TOLERANCE)
+            }
+        }
     }
 
     @Test

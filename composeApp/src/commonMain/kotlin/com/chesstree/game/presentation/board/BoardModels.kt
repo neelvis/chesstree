@@ -18,6 +18,11 @@ data class BoardPiece(
     val bodyArmy: ArmyColor = army,
 )
 
+enum class PieceSet {
+    STANDARD,
+    FAIRY,
+}
+
 enum class MoveHintKind {
     MOVE,
     CAPTURE,

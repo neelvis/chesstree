@@ -14,6 +14,7 @@ kotlin {
         namespace = "com.chesstree.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
+        androidResources.enable = true
 
         withHostTest {}
 
@@ -51,6 +52,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.content.negotiation)
@@ -68,4 +70,8 @@ kotlin {
         }
 
     }
+}
+
+compose.resources {
+    packageOfResClass = "com.chesstree.resources"
 }

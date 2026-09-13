@@ -26,6 +26,8 @@ data class BoardCell(
 
 data class BoardEdgeLabel(
     val text: String,
+    val edgePoint: BoardPoint,
+    val outward: BoardPoint,
     val position: BoardPoint,
 )
 
@@ -53,11 +55,7 @@ object ThreePlayerBoardGeometry {
     ): BoardPoint {
         require(index >= 0) { "Trophy index must not be negative" }
         require(index < count) { "Trophy index must be smaller than the trophy count" }
-        val edge = when (army) {
-            com.chesstree.game.domain.ArmyColor.WHITE -> 1
-            com.chesstree.game.domain.ArmyColor.RED -> 3
-            com.chesstree.game.domain.ArmyColor.BLACK -> 5
-        }
+        val edge = armyEdge(army)
         val start = vertices[edge]
         val end = vertices[(edge + 1) % vertices.size]
         val edgeMidpoint = midpoint(start, end)
@@ -65,6 +63,17 @@ object ThreePlayerBoardGeometry {
         val spacing = if (count <= 1) 0f else minOf(0.078f, 0.72f / (count - 1))
         val centeredItem = index - (count - 1) / 2f
         return edgeMidpoint * 1.19f + tangent * (centeredItem * spacing)
+    }
+
+    internal fun birdPosition(army: com.chesstree.game.domain.ArmyColor): BoardPoint {
+        val edge = armyEdge(army)
+        return midpoint(vertices[edge], vertices[(edge + 1) % vertices.size]) * 1.41f
+    }
+
+    private fun armyEdge(army: com.chesstree.game.domain.ArmyColor): Int = when (army) {
+        com.chesstree.game.domain.ArmyColor.WHITE -> 1
+        com.chesstree.game.domain.ArmyColor.RED -> 3
+        com.chesstree.game.domain.ArmyColor.BLACK -> 5
     }
 
     private fun createCells(): List<BoardCell> {
@@ -157,19 +166,23 @@ object ThreePlayerBoardGeometry {
         )
         return buildList {
             repeat(6) { edgeIndex ->
-                val start = vertices[edgeIndex]
-                val end = vertices[(edgeIndex + 1) % 6]
-                val outward = midpoint(start, end) * 1.13f
-                repeat(8) { part ->
-                    val t = (part + 0.5f) / 8f
-                    val edgePoint = lerp(start, end, t)
-                    val labelPoint = edgePoint * 1.08f + outward * 0.04f
-                    add(
-                        BoardEdgeLabel(
-                            text = values[edgeIndex][part],
-                            position = labelPoint,
-                        ),
-                    )
+            val start = vertices[edgeIndex]
+            val end = vertices[(edgeIndex + 1) % 6]
+            val edgeMidpoint = midpoint(start, end)
+            val outward = edgeMidpoint * (1f / kotlin.math.sqrt(
+                edgeMidpoint.x * edgeMidpoint.x + edgeMidpoint.y * edgeMidpoint.y,
+            ))
+            repeat(8) { part ->
+                val t = (part + 0.5f) / 8f
+                val edgePoint = lerp(start, end, t)
+                add(
+                    BoardEdgeLabel(
+                        text = values[edgeIndex][part],
+                        edgePoint = edgePoint,
+                        outward = outward,
+                        position = edgePoint + outward * 0.075f,
+                    ),
+                )
                 }
             }
         }
