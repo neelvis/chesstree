@@ -89,3 +89,7 @@ Web and the native entry points recognize `/g/{code}` URLs. Android App Links an
 iOS Universal Links still require the production HTTPS domain, Android release
 certificate SHA-256, Apple Team ID, and the corresponding hosted association files
 before operating-system verification can be enabled.
+
+The planned single-backend/two-database-host production topology, firewall rules,
+Nginx configuration, and PostgreSQL streaming-replication procedure are documented
+in [`deploy/README.md`](deploy/README.md).
