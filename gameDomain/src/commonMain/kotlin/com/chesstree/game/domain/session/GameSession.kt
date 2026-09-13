@@ -1,4 +1,4 @@
-package com.chesstree.game.presentation.session
+package com.chesstree.game.domain.session
 
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.GameReducer

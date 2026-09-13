@@ -12,4 +12,6 @@ interface ChessTreeStore {
     suspend fun createGame(id: UUID, code: String, ownerId: UUID): GameRecord?
     suspend fun joinGame(code: String, userId: UUID, shuffledColors: List<PlayerColor>): JoinGameResult
     suspend fun findGame(code: String): GameRecord?
+    suspend fun findGameState(code: String): GameStateRecord?
+    suspend fun submitMove(code: String, userId: UUID, command: GameMoveCommand): SubmitMoveResult
 }

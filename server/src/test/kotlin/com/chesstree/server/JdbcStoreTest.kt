@@ -1,6 +1,12 @@
 package com.chesstree.server
 
+import com.chesstree.game.domain.LegalMoveGenerator
+import com.chesstree.game.domain.scenario.StandardGame
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import java.sql.DriverManager
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.Test
@@ -11,15 +17,52 @@ import kotlin.test.assertNull
 
 class JdbcStoreTest {
     @Test
+    fun migratesVersionOneDatabaseForMoveHistory() = runBlocking {
+        val databaseUrl = "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "CREATE TABLE schema_metadata (singleton BOOLEAN PRIMARY KEY, version INTEGER NOT NULL)",
+                )
+                statement.executeUpdate("INSERT INTO schema_metadata (singleton, version) VALUES (TRUE, 1)")
+            }
+        }
+
+        JdbcStore(DatabaseConfig(databaseUrl, "sa", "")).initialize()
+
+        DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
+                    rows.next()
+                    assertEquals(2, rows.getInt("version"))
+                }
+                statement.executeQuery("SELECT COUNT(*) FROM game_moves").use { rows ->
+                    rows.next()
+                    assertEquals(0, rows.getInt(1))
+                }
+            }
+        }
+    }
+
+    @Test
     fun persistsUsersSessionsAndLobbyTransitions() = runBlocking {
+        val databaseUrl = "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
         val store = JdbcStore(
             DatabaseConfig(
-                url = "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+                url = databaseUrl,
                 user = "sa",
                 password = "",
             ),
         )
         store.initialize()
+        DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
+                    rows.next()
+                    assertEquals(2, rows.getInt("version"))
+                }
+            }
+        }
         val first = store.user("First")
         val second = store.user("Second")
         val third = store.user("Third")
@@ -38,6 +81,34 @@ class JdbcStoreTest {
         ).game
         assertEquals(GameStatus.ACTIVE, active.status)
         assertEquals(PlayerColor.entries.toSet(), active.players.mapNotNull { it.color }.toSet())
+
+        val legal = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
+        val command = GameMoveCommand(
+            commandId = UUID.randomUUID(),
+            expectedRevision = 0,
+            from = legal.from,
+            to = legal.to,
+            promotion = legal.promotion,
+        )
+        val competingCommand = command.copy(commandId = UUID.randomUUID())
+        val competingResults = coroutineScope {
+            listOf(command, competingCommand).map { candidate ->
+                async { store.submitMove("ABC1234", first.id, candidate) }
+            }.awaitAll()
+        }
+        assertEquals(1, competingResults.count { it is SubmitMoveResult.Applied })
+        assertEquals(1, competingResults.count { it is SubmitMoveResult.Stale })
+        val acceptedCommandId = assertNotNull(store.findGameState("ABC1234")).moves.single().commandId
+        val acceptedCommand = listOf(command, competingCommand).single { it.commandId == acceptedCommandId }
+        assertEquals(
+            1,
+            assertIs<SubmitMoveResult.Applied>(
+                store.submitMove("ABC1234", first.id, acceptedCommand),
+            ).state.moves.size,
+        )
+        assertIs<SubmitMoveResult.Stale>(
+            store.submitMove("ABC1234", first.id, command.copy(commandId = UUID.randomUUID())),
+        )
     }
 
     private suspend fun JdbcStore.user(username: String): UserRecord =

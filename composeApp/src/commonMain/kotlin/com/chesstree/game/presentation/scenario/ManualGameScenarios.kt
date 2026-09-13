@@ -2,28 +2,15 @@ package com.chesstree.game.presentation.scenario
 
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.BoardCoordinate
-import com.chesstree.game.domain.CastlingSide
 import com.chesstree.game.domain.PieceType
 import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.scenario.GameScenario
 import com.chesstree.game.domain.scenario.GameScenarioBuilder
+import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.game.domain.scenario.gameScenario
-import com.chesstree.game.presentation.board.initialBoardPieces
 
 object ManualGameScenarios {
-    val standard: GameScenario = gameScenario("standard") {
-        title = "Обычное начало"
-        description = "Три полных армии; ход белых."
-        initialBoardPieces().forEach { piece ->
-            piece(
-                id = piece.id,
-                army = piece.army,
-                type = piece.type,
-                at = piece.cellId,
-            )
-        }
-        initialCastlingRights()
-    }
+    val standard: GameScenario = StandardGame.scenario
 
     val sparseMovement: GameScenario = gameScenario("sparse-movement") {
         title = "Ходы на свободной доске"
@@ -84,15 +71,6 @@ object ManualGameScenarios {
         piece("white-king", ArmyColor.WHITE, PieceType.KING, cell(0, 3, 0))
         piece("red-king", ArmyColor.RED, PieceType.KING, cell(2, 3, 0))
         piece("black-king", ArmyColor.BLACK, PieceType.KING, cell(4, 3, 0))
-    }
-
-    private fun GameScenarioBuilder.initialCastlingRights() {
-        castlingRight(ArmyColor.WHITE, CastlingSide.KING_SIDE, "white-back-0")
-        castlingRight(ArmyColor.WHITE, CastlingSide.QUEEN_SIDE, "white-back-7")
-        castlingRight(ArmyColor.RED, CastlingSide.KING_SIDE, "red-back-0")
-        castlingRight(ArmyColor.RED, CastlingSide.QUEEN_SIDE, "red-back-7")
-        castlingRight(ArmyColor.BLACK, CastlingSide.KING_SIDE, "black-back-7")
-        castlingRight(ArmyColor.BLACK, CastlingSide.QUEEN_SIDE, "black-back-0")
     }
 
     private fun cell(

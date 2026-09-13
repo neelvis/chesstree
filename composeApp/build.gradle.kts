@@ -45,6 +45,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation(projects.gameDomain)
             implementation(projects.onlineContract)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

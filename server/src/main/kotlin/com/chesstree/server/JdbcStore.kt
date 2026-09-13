@@ -69,15 +69,47 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                     )
                     """.trimIndent(),
                 )
+                statement.executeUpdate(
+                    """
+                    CREATE TABLE IF NOT EXISTS game_moves (
+                        game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+                        revision INTEGER NOT NULL,
+                        command_id UUID NOT NULL,
+                        user_id UUID NOT NULL REFERENCES users(id),
+                        expected_revision INTEGER NOT NULL,
+                        actor VARCHAR(16) NOT NULL,
+                        from_vertex INTEGER NOT NULL,
+                        from_column INTEGER NOT NULL,
+                        from_row INTEGER NOT NULL,
+                        to_vertex INTEGER NOT NULL,
+                        to_column INTEGER NOT NULL,
+                        to_row INTEGER NOT NULL,
+                        promotion VARCHAR(16),
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (game_id, revision),
+                        UNIQUE (game_id, command_id)
+                    )
+                    """.trimIndent(),
+                )
                 try {
-                    statement.executeUpdate("INSERT INTO schema_metadata (singleton, version) VALUES (TRUE, 1)")
+                    statement.executeUpdate(
+                        "INSERT INTO schema_metadata (singleton, version) VALUES (TRUE, $SCHEMA_VERSION)",
+                    )
                 } catch (error: java.sql.SQLException) {
                     if (error.sqlState != UNIQUE_VIOLATION) throw error
                 }
-                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
-                    check(rows.next() && rows.getInt("version") == SCHEMA_VERSION) {
-                        "Unsupported database schema version"
-                    }
+                val schemaVersion = statement.executeQuery(
+                    "SELECT version FROM schema_metadata WHERE singleton = TRUE",
+                ).use { rows ->
+                    check(rows.next()) { "Database schema version is missing" }
+                    rows.getInt("version")
+                }
+                when (schemaVersion) {
+                    SCHEMA_VERSION -> Unit
+                    1 -> statement.executeUpdate(
+                        "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
+                    )
+                    else -> error("Unsupported database schema version: $schemaVersion")
                 }
             }
         }
@@ -235,6 +267,112 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         connection().use { loadGame(it, code) }
     }
 
+    override suspend fun findGameState(code: String): GameStateRecord? = io {
+        connection().use { loadGameState(it, code) }
+    }
+
+    override suspend fun submitMove(
+        code: String,
+        userId: UUID,
+        command: GameMoveCommand,
+    ): SubmitMoveResult = io {
+        transaction { connection ->
+            connection.prepareStatement("SELECT id FROM games WHERE public_code = ? FOR UPDATE").use { statement ->
+                statement.setString(1, code)
+                statement.executeQuery().use { rows ->
+                    if (!rows.next()) return@transaction SubmitMoveResult.Missing
+                }
+            }
+            val state = checkNotNull(loadGameState(connection, code))
+            when (val evaluation = evaluateMove(state, userId, command)) {
+                is MoveEvaluation.Accepted -> {
+                    connection.prepareStatement(
+                        """
+                        INSERT INTO game_moves (
+                            game_id, revision, command_id, user_id, expected_revision, actor,
+                            from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """.trimIndent(),
+                    ).use { statement ->
+                        val intent = evaluation.move.intent
+                        statement.setObject(1, state.game.id)
+                        statement.setInt(2, state.moves.size + 1)
+                        statement.setObject(3, evaluation.move.commandId)
+                        statement.setObject(4, evaluation.move.userId)
+                        statement.setInt(5, evaluation.move.expectedRevision)
+                        statement.setString(6, intent.actor.name)
+                        statement.setInt(7, intent.from.vertex)
+                        statement.setInt(8, intent.from.column)
+                        statement.setInt(9, intent.from.row)
+                        statement.setInt(10, intent.to.vertex)
+                        statement.setInt(11, intent.to.column)
+                        statement.setInt(12, intent.to.row)
+                        statement.setString(13, intent.promotion?.name)
+                        statement.executeUpdate()
+                    }
+                    if (evaluation.finished) {
+                        connection.prepareStatement("UPDATE games SET status = 'FINISHED' WHERE id = ?").use { statement ->
+                            statement.setObject(1, state.game.id)
+                            statement.executeUpdate()
+                        }
+                    }
+                    SubmitMoveResult.Applied(checkNotNull(loadGameState(connection, code)))
+                }
+                MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state)
+                MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
+                MoveEvaluation.NotActive -> SubmitMoveResult.NotActive
+                MoveEvaluation.NotParticipant -> SubmitMoveResult.NotParticipant
+                MoveEvaluation.NotTurn -> SubmitMoveResult.NotTurn
+                MoveEvaluation.IllegalMove -> SubmitMoveResult.IllegalMove
+                MoveEvaluation.CommandConflict -> SubmitMoveResult.CommandConflict
+            }
+        }
+    }
+
+    private fun loadGameState(connection: Connection, code: String): GameStateRecord? {
+        val game = loadGame(connection, code) ?: return null
+        return GameStateRecord(game, loadMoves(connection, game.id))
+    }
+
+    private fun loadMoves(connection: Connection, gameId: UUID): List<GameMoveRecord> =
+        connection.prepareStatement(
+            """
+            SELECT command_id, user_id, expected_revision, actor,
+                   from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion
+            FROM game_moves WHERE game_id = ? ORDER BY revision
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setObject(1, gameId)
+            statement.executeQuery().use { rows ->
+                buildList {
+                    while (rows.next()) {
+                        add(
+                            GameMoveRecord(
+                                commandId = rows.getObject("command_id", UUID::class.java),
+                                userId = rows.getObject("user_id", UUID::class.java),
+                                expectedRevision = rows.getInt("expected_revision"),
+                                intent = com.chesstree.game.domain.MoveIntent(
+                                    actor = com.chesstree.game.domain.PlayerId.valueOf(rows.getString("actor")),
+                                    from = com.chesstree.game.domain.BoardCoordinate(
+                                        rows.getInt("from_vertex"),
+                                        rows.getInt("from_column"),
+                                        rows.getInt("from_row"),
+                                    ),
+                                    to = com.chesstree.game.domain.BoardCoordinate(
+                                        rows.getInt("to_vertex"),
+                                        rows.getInt("to_column"),
+                                        rows.getInt("to_row"),
+                                    ),
+                                    promotion = rows.getString("promotion")
+                                        ?.let(com.chesstree.game.domain.PromotionChoice::valueOf),
+                                ),
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
     private fun loadGame(connection: Connection, code: String): GameRecord? {
         val game = connection.prepareStatement(
             "SELECT id, public_code, status FROM games WHERE public_code = ?",
@@ -298,6 +436,6 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
     private companion object {
         const val UNIQUE_VIOLATION = "23505"
         const val PLAYER_COUNT = 3
-        const val SCHEMA_VERSION = 1
+        const val SCHEMA_VERSION = 2
     }
 }

@@ -1,6 +1,9 @@
 package com.chesstree.multiplayer.data
 
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.CoordinateResponse
+import com.chesstree.multiplayer.contract.GameStateResponse
+import com.chesstree.multiplayer.contract.MoveCommandRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -57,6 +60,28 @@ class ChessTreeApiTest {
         val result = api(engine).login("alice", "correct-horse")
 
         assertEquals("network_error", assertIs<ApiResult.Failure>(result).code)
+    }
+
+    @Test
+    fun submitMoveUsesVersionedGameEndpoint() = runTest {
+        val engine = MockEngine { request ->
+            assertEquals("https://server.test/api/v1/games/ABC1234/moves", request.url.toString())
+            respond(
+                content = """{"game":$GAME_JSON,"revision":0,"moves":[]}""",
+                status = HttpStatusCode.OK,
+                headers = JSON_HEADERS,
+            )
+        }
+        val command = MoveCommandRequest(
+            commandId = "00000000-0000-0000-0000-000000000001",
+            expectedRevision = 0,
+            from = CoordinateResponse(0, 0, 0),
+            to = CoordinateResponse(0, 0, 1),
+        )
+
+        val result = api(engine).submitMove("session-token", "abc1234", command)
+
+        assertEquals(0, assertIs<ApiResult.Success<GameStateResponse>>(result).value.revision)
     }
 
     private fun api(engine: MockEngine): KtorChessTreeApi = KtorChessTreeApi(

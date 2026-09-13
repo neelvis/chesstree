@@ -8,6 +8,7 @@ class InMemoryStore : ChessTreeStore {
     private val usernames = mutableMapOf<String, UUID>()
     private val sessions = mutableMapOf<String, Pair<UUID, Instant>>()
     private val games = linkedMapOf<String, MutableGame>()
+    private val moves = mutableMapOf<String, MutableList<GameMoveRecord>>()
 
     override suspend fun createUser(
         username: String,
@@ -47,6 +48,7 @@ class InMemoryStore : ChessTreeStore {
         val owner = users.getValue(ownerId)
         val game = MutableGame(id, code, mutableListOf(GamePlayer(owner, 0, null)))
         games[code] = game
+        moves[code] = mutableListOf()
         game.snapshot()
     }
 
@@ -69,15 +71,48 @@ class InMemoryStore : ChessTreeStore {
 
     override suspend fun findGame(code: String): GameRecord? = synchronized(this) { games[code]?.snapshot() }
 
+    override suspend fun findGameState(code: String): GameStateRecord? = synchronized(this) {
+        games[code]?.let { game -> GameStateRecord(game.snapshot(), moves.getValue(code).toList()) }
+    }
+
+    override suspend fun submitMove(
+        code: String,
+        userId: UUID,
+        command: GameMoveCommand,
+    ): SubmitMoveResult = synchronized(this) {
+        val game = games[code] ?: return@synchronized SubmitMoveResult.Missing
+        val gameMoves = moves.getValue(code)
+        val state = GameStateRecord(game.snapshot(), gameMoves.toList())
+        when (val evaluation = evaluateMove(state, userId, command)) {
+            is MoveEvaluation.Accepted -> {
+                gameMoves += evaluation.move
+                if (evaluation.finished) game.status = GameStatus.FINISHED
+                SubmitMoveResult.Applied(GameStateRecord(game.snapshot(), gameMoves.toList()))
+            }
+            MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state)
+            MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
+            MoveEvaluation.NotActive -> SubmitMoveResult.NotActive
+            MoveEvaluation.NotParticipant -> SubmitMoveResult.NotParticipant
+            MoveEvaluation.NotTurn -> SubmitMoveResult.NotTurn
+            MoveEvaluation.IllegalMove -> SubmitMoveResult.IllegalMove
+            MoveEvaluation.CommandConflict -> SubmitMoveResult.CommandConflict
+        }
+    }
+
     private data class MutableGame(
         val id: UUID,
         val code: String,
         val players: MutableList<GamePlayer>,
+        var status: GameStatus = GameStatus.WAITING,
     ) {
         fun snapshot() = GameRecord(
             id = id,
             code = code,
-            status = if (players.size == PLAYER_COUNT) GameStatus.ACTIVE else GameStatus.WAITING,
+            status = when {
+                status == GameStatus.FINISHED -> GameStatus.FINISHED
+                players.size == PLAYER_COUNT -> GameStatus.ACTIVE
+                else -> GameStatus.WAITING
+            },
             players = players.toList(),
         )
     }

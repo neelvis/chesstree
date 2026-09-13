@@ -43,8 +43,8 @@ import com.chesstree.game.presentation.board.educationalMoveHintsFor
 import com.chesstree.game.presentation.board.legalMoveHintsFor
 import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
-import com.chesstree.game.presentation.session.GameSession
-import com.chesstree.game.presentation.session.SessionMoveResult
+import com.chesstree.game.domain.session.GameSession
+import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.GameSnapshot
 import com.chesstree.game.data.GameSnapshotCodec

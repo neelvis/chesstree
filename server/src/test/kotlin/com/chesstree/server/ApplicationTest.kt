@@ -1,7 +1,12 @@
 package com.chesstree.server
 
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.GameStateResponse
+import com.chesstree.multiplayer.contract.MoveCommandRequest
+import com.chesstree.game.domain.LegalMoveGenerator
+import com.chesstree.game.domain.scenario.StandardGame
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -14,7 +19,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -119,6 +126,66 @@ class ApplicationTest {
         assertEquals("http://localhost:8080", response.headers[HttpHeaders.AccessControlAllowOrigin])
     }
 
+    @Test
+    fun serverValidatesMovesAndDeduplicatesRetriedCommands() = testApplication {
+        application { chessTreeModule(testServices()) }
+        val users = listOf(
+            register("owner", "correct-horse"),
+            register("second", "correct-horse"),
+            register("third", "correct-horse"),
+        )
+        val game = createGame(users[0].accessToken)
+        join(game.code, users[1].accessToken)
+        val active = join(game.code, users[2].accessToken)
+        val whiteUsername = active.players.single { it.color == "WHITE" }.user.username
+        val white = users.single { it.user.username == whiteUsername }
+        val redUsername = active.players.single { it.color == "RED" }.user.username
+        val red = users.single { it.user.username == redUsername }
+        val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
+        val command = MoveCommandRequest(
+            commandId = UUID.randomUUID().toString(),
+            expectedRevision = 0,
+            from = move.from.response(),
+            to = move.to.response(),
+            promotion = move.promotion?.name,
+        )
+
+        val malformed = postMove(
+            game.code,
+            white.accessToken,
+            command.copy(commandId = UUID.randomUUID().toString(), to = command.from),
+        )
+        assertEquals(HttpStatusCode.BadRequest, malformed.status)
+
+        val wrongTurn = postMove(game.code, red.accessToken, command)
+        assertEquals(HttpStatusCode.Conflict, wrongTurn.status)
+        assertTrue(wrongTurn.bodyAsText().contains("not_your_turn"))
+
+        val occupiedTarget = StandardGame.pieces.first {
+            it.army.name == "WHITE" && it.coordinate != move.from
+        }.coordinate.response()
+        val illegal = postMove(
+            game.code,
+            white.accessToken,
+            command.copy(commandId = UUID.randomUUID().toString(), to = occupiedTarget),
+        )
+        assertEquals(HttpStatusCode.UnprocessableEntity, illegal.status)
+        assertTrue(illegal.bodyAsText().contains("illegal_move"))
+
+        val applied = submitMove(game.code, white.accessToken, command)
+        assertEquals(1, applied.revision)
+        assertEquals("WHITE", applied.moves.single().actor)
+        assertEquals(1, submitMove(game.code, white.accessToken, command).revision)
+
+        val stale = client.post("/api/v1/games/${game.code}/moves") {
+            bearerAuth(white.accessToken)
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(command.copy(commandId = UUID.randomUUID().toString())))
+        }
+        assertEquals(HttpStatusCode.Conflict, stale.status)
+        assertTrue(stale.bodyAsText().contains("stale_revision"))
+    }
+
     private suspend fun io.ktor.server.testing.ApplicationTestBuilder.register(
         username: String,
         password: String,
@@ -142,6 +209,28 @@ class ApplicationTest {
         assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
         return json.decodeFromString(response.bodyAsText())
     }
+
+    private suspend fun io.ktor.server.testing.ApplicationTestBuilder.submitMove(
+        code: String,
+        token: String,
+        command: MoveCommandRequest,
+    ): GameStateResponse {
+        val response = postMove(code, token, command)
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        return json.decodeFromString(response.bodyAsText())
+    }
+
+    private suspend fun io.ktor.server.testing.ApplicationTestBuilder.postMove(
+        code: String,
+        token: String,
+        command: MoveCommandRequest,
+    ) = client.post("/api/v1/games/$code/moves") {
+        bearerAuth(token)
+        contentType(ContentType.Application.Json)
+        setBody(json.encodeToString(command))
+    }
+
+    private fun com.chesstree.game.domain.BoardCoordinate.response() = CoordinateResponse(vertex, column, row)
 
     private fun testServices(): ServerServices {
         val store = InMemoryStore()

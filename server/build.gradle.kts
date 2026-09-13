@@ -20,6 +20,7 @@ application {
 }
 
 dependencies {
+    implementation(projects.gameDomain)
     implementation(projects.onlineContract)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)

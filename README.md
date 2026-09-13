@@ -53,6 +53,8 @@ The service exposes:
 - `POST /api/v1/games` to create a lobby;
 - `POST /api/v1/games/{code}/join` to join it;
 - `GET /api/v1/games/{code}` for a participating user;
+- `GET /api/v1/games/{code}/state` to resynchronize the authoritative move history;
+- `POST /api/v1/games/{code}/moves` to submit a versioned, idempotent move command;
 - `GET /health` for a process health check.
 
 For any non-local deployment, expose the service only through HTTPS, replace the
@@ -66,4 +68,10 @@ registration, login, lobby creation, code entry, joining, and lobby refresh. On
 Web, a `/g/{code}` URL opens the online screen with the code prefilled. Sessions
 are persisted by the server, but the client access token currently remains only in
 memory and requires a new login after restarting the app.
-Native verified links and real-time move synchronization are separate later slices.
+
+Once the lobby is active, all moves are validated by the same deterministic domain
+engine on the server. Each command contains an expected revision and a unique
+command ID; stale clients resynchronize from the ordered move history and retried
+commands cannot apply twice. Waiting lobbies and active games currently refresh
+every two seconds. WebSocket
+push and native verified links are separate later slices.

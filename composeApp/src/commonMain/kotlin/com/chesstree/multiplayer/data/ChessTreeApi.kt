@@ -3,7 +3,9 @@ package com.chesstree.multiplayer.data
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.LoginRequest
+import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.RegisterRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -27,6 +29,12 @@ interface ChessTreeApi {
     suspend fun createGame(token: String): ApiResult<GameResponse>
     suspend fun joinGame(token: String, code: String): ApiResult<GameResponse>
     suspend fun getGame(token: String, code: String): ApiResult<GameResponse>
+    suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse>
+    suspend fun submitMove(
+        token: String,
+        code: String,
+        command: MoveCommandRequest,
+    ): ApiResult<GameStateResponse>
 }
 
 sealed interface ApiResult<out T> {
@@ -69,6 +77,22 @@ class KtorChessTreeApi(
 
     override suspend fun getGame(token: String, code: String): ApiResult<GameResponse> = request {
         client.get("$apiBaseUrl/games/${code.trim().uppercase()}") { bearerAuth(token) }.decode()
+    }
+
+    override suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse> = request {
+        client.get("$apiBaseUrl/games/${code.trim().uppercase()}/state") { bearerAuth(token) }.decode()
+    }
+
+    override suspend fun submitMove(
+        token: String,
+        code: String,
+        command: MoveCommandRequest,
+    ): ApiResult<GameStateResponse> = request {
+        client.post("$apiBaseUrl/games/${code.trim().uppercase()}/moves") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(command)
+        }.decode()
     }
 
     fun close() = client.close()

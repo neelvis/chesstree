@@ -29,4 +29,32 @@ data class GameResponse(
 )
 
 @Serializable
+data class CoordinateResponse(val vertex: Int, val column: Int, val row: Int)
+
+@Serializable
+data class MoveCommandRequest(
+    val commandId: String,
+    val expectedRevision: Int,
+    val from: CoordinateResponse,
+    val to: CoordinateResponse,
+    val promotion: String? = null,
+)
+
+@Serializable
+data class MoveEventResponse(
+    val revision: Int,
+    val actor: String,
+    val from: CoordinateResponse,
+    val to: CoordinateResponse,
+    val promotion: String? = null,
+)
+
+@Serializable
+data class GameStateResponse(
+    val game: GameResponse,
+    val revision: Int,
+    val moves: List<MoveEventResponse>,
+)
+
+@Serializable
 data class ErrorResponse(val code: String, val message: String)

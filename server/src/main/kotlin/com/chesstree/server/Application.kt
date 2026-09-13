@@ -1,10 +1,16 @@
 package com.chesstree.server
 
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GamePlayerResponse
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.GameStateResponse
+import com.chesstree.multiplayer.contract.MoveCommandRequest
+import com.chesstree.multiplayer.contract.MoveEventResponse
 import com.chesstree.multiplayer.contract.UserResponse
+import com.chesstree.game.domain.BoardCoordinate
+import com.chesstree.game.domain.PromotionChoice
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
@@ -126,6 +132,49 @@ fun Application.chessTreeModule(
                         call.respond(game.response(services.publicBaseUrl))
                     }
                 }
+                get("/games/{code}/state") {
+                    val user = call.authenticatedUser()
+                    val state = services.store.findGameState(call.gameCode())
+                    if (state == null || state.game.players.none { it.user.id == user.id }) {
+                        call.respond(HttpStatusCode.NotFound, ErrorResponse("game_not_found", "Игра не найдена"))
+                    } else {
+                        call.respond(state.response(services.publicBaseUrl))
+                    }
+                }
+                post("/games/{code}/moves") {
+                    val user = call.authenticatedUser()
+                    val code = call.gameCode()
+                    val command = call.receive<MoveCommandRequest>().toDomainCommand()
+                    when (val result = services.store.submitMove(code, user.id, command)) {
+                        is SubmitMoveResult.Applied -> call.respond(result.state.response(services.publicBaseUrl))
+                        is SubmitMoveResult.Stale -> call.respond(
+                            HttpStatusCode.Conflict,
+                            ErrorResponse("stale_revision", "Состояние партии изменилось; обновите его"),
+                        )
+                        SubmitMoveResult.Missing,
+                        SubmitMoveResult.NotParticipant,
+                            -> call.respond(
+                                HttpStatusCode.NotFound,
+                                ErrorResponse("game_not_found", "Игра не найдена"),
+                            )
+                        SubmitMoveResult.NotActive -> call.respond(
+                            HttpStatusCode.Conflict,
+                            ErrorResponse("game_not_active", "Партия ещё не началась или уже завершена"),
+                        )
+                        SubmitMoveResult.NotTurn -> call.respond(
+                            HttpStatusCode.Conflict,
+                            ErrorResponse("not_your_turn", "Сейчас ход другого игрока"),
+                        )
+                        SubmitMoveResult.IllegalMove -> call.respond(
+                            HttpStatusCode.UnprocessableEntity,
+                            ErrorResponse("illegal_move", "Недопустимый ход"),
+                        )
+                        SubmitMoveResult.CommandConflict -> call.respond(
+                            HttpStatusCode.Conflict,
+                            ErrorResponse("command_conflict", "Идентификатор команды уже использован"),
+                        )
+                    }
+                }
             }
         }
     }
@@ -179,6 +228,38 @@ private fun GameRecord.response(publicBaseUrl: String) = GameResponse(
     status = status.name,
     players = players.map { GamePlayerResponse(it.user.response(), it.color?.name) },
 )
+
+private fun GameStateRecord.response(publicBaseUrl: String) = GameStateResponse(
+    game = game.response(publicBaseUrl),
+    revision = moves.size,
+    moves = moves.mapIndexed { index, move ->
+        MoveEventResponse(
+            revision = index + 1,
+            actor = move.intent.actor.name,
+            from = move.intent.from.response(),
+            to = move.intent.to.response(),
+            promotion = move.intent.promotion?.name,
+        )
+    },
+)
+
+private fun BoardCoordinate.response() = CoordinateResponse(vertex, column, row)
+
+private fun MoveCommandRequest.toDomainCommand(): GameMoveCommand = try {
+    require(expectedRevision >= 0)
+    val fromCoordinate = BoardCoordinate(from.vertex, from.column, from.row)
+    val toCoordinate = BoardCoordinate(to.vertex, to.column, to.row)
+    require(fromCoordinate != toCoordinate)
+    GameMoveCommand(
+        commandId = UUID.fromString(commandId),
+        expectedRevision = expectedRevision,
+        from = fromCoordinate,
+        to = toCoordinate,
+        promotion = promotion?.let(PromotionChoice::valueOf),
+    )
+} catch (_: IllegalArgumentException) {
+    throw BadRequestException("Invalid move command")
+}
 
 private const val AUTH_PROVIDER = "auth-bearer"
 private val AUTH_RATE_LIMIT = RateLimitName("authentication")
