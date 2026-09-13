@@ -28,5 +28,6 @@ android {
 
 dependencies {
     implementation(projects.composeApp)
+    implementation(projects.onlineContract)
     implementation(libs.androidx.activity.compose)
 }

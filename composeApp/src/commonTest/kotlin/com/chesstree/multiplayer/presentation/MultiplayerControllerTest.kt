@@ -11,7 +11,11 @@ import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.multiplayer.contract.UserResponse
 import com.chesstree.multiplayer.data.ApiResult
 import com.chesstree.multiplayer.data.ChessTreeApi
+import com.chesstree.multiplayer.data.OnlineSessionStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -72,6 +76,25 @@ class MultiplayerControllerTest {
     }
 
     @Test
+    fun authenticationIsStoredRestoredAndCleared() = runTest {
+        val store = FakeSessionStore()
+        val first = MultiplayerController(FakeApi(), this, sessionStore = store)
+        first.setUsername("Alice")
+        first.setPassword("correct-horse")
+        first.submitAuthentication()
+        runCurrent()
+        assertEquals("Alice", store.authentication?.user?.username)
+
+        val restored = MultiplayerController(FakeApi(), this, sessionStore = store)
+        runCurrent()
+        assertEquals("Alice", restored.state.value.authentication?.user?.username)
+
+        restored.logout()
+        runCurrent()
+        assertNull(store.authentication)
+    }
+
+    @Test
     fun acceptedServerMoveAdvancesReplayedSession() = runTest {
         val api = MoveApi()
         val controller = MultiplayerController(api, this, commandId = { "00000000-0000-0000-0000-000000000001" })
@@ -113,6 +136,30 @@ class MultiplayerControllerTest {
         assertEquals("Состояние партии изменилось; обновите его", controller.state.value.error)
     }
 
+    @Test
+    fun pushedStateUpdatesGameWithoutManualRefresh() = runTest {
+        val api = PushApi()
+        val controller = MultiplayerController(api, backgroundScope)
+        controller.setUsername("Alice")
+        controller.setPassword("correct-horse")
+        controller.submitAuthentication()
+        runCurrent()
+        controller.setGameCode("ABC1234")
+        controller.joinGame()
+        runCurrent()
+
+        api.pushRevisionOne()
+        runCurrent()
+
+        assertEquals(1, controller.state.value.remoteState?.revision)
+        assertEquals(1, controller.state.value.session?.moves?.size)
+        assertFalse(controller.state.value.reconnecting)
+
+        api.pushInitialState()
+        runCurrent()
+        assertEquals(1, controller.state.value.remoteState?.revision)
+    }
+
     private class FakeApi(private val joinFails: Boolean = false) : ChessTreeApi {
         private val auth = AuthResponse("token", UserResponse("user-id", "Alice"))
         private val game = GameResponse(
@@ -134,6 +181,7 @@ class MultiplayerControllerTest {
         override suspend fun getGameState(token: String, code: String) = ApiResult.Success(
             GameStateResponse(game, revision = 0, moves = emptyList()),
         )
+        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> = emptyFlow()
         override suspend fun submitMove(
             token: String,
             code: String,
@@ -161,6 +209,8 @@ class MultiplayerControllerTest {
         override suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse> =
             ApiResult.Success(submitted?.let(::movedState) ?: GameStateResponse(game, revision = 0, moves = emptyList()))
 
+        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> = emptyFlow()
+
         override suspend fun submitMove(
             token: String,
             code: String,
@@ -186,5 +236,75 @@ class MultiplayerControllerTest {
                 ),
             ),
         )
+    }
+
+    private class PushApi : ChessTreeApi {
+        private val auth = AuthResponse("token", UserResponse("user-id", "Alice"))
+        private val game = GameResponse(
+            id = "game-id",
+            code = "ABC1234",
+            shareUrl = "https://play.test/g/ABC1234",
+            status = "ACTIVE",
+            players = listOf(GamePlayerResponse(auth.user, "WHITE")),
+        )
+        private val updates = MutableSharedFlow<ApiResult<GameStateResponse>>(extraBufferCapacity = 1)
+
+        override suspend fun register(username: String, password: String) = ApiResult.Success(auth)
+        override suspend fun login(username: String, password: String) = ApiResult.Success(auth)
+        override suspend fun logout(token: String) = ApiResult.Success(Unit)
+        override suspend fun createGame(token: String) = ApiResult.Success(game)
+        override suspend fun joinGame(token: String, code: String) = ApiResult.Success(game)
+        override suspend fun getGame(token: String, code: String) = ApiResult.Success(game)
+        override suspend fun getGameState(token: String, code: String) = ApiResult.Success(initialState())
+        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> = updates
+        override suspend fun submitMove(token: String, code: String, command: MoveCommandRequest) =
+            ApiResult.Success(initialState())
+
+        fun pushRevisionOne() {
+            val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
+            updates.tryEmit(
+                ApiResult.Success(
+                    GameStateResponse(
+                        game = game,
+                        revision = 1,
+                        moves = listOf(
+                            MoveEventResponse(
+                                revision = 1,
+                                actor = move.actor.name,
+                                from = com.chesstree.multiplayer.contract.CoordinateResponse(
+                                    move.from.vertex,
+                                    move.from.column,
+                                    move.from.row,
+                                ),
+                                to = com.chesstree.multiplayer.contract.CoordinateResponse(
+                                    move.to.vertex,
+                                    move.to.column,
+                                    move.to.row,
+                                ),
+                                promotion = move.promotion?.name,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        fun pushInitialState() {
+            updates.tryEmit(ApiResult.Success(initialState()))
+        }
+
+        private fun initialState() = GameStateResponse(game, revision = 0, moves = emptyList())
+    }
+
+    private class FakeSessionStore : OnlineSessionStore {
+        var authentication: AuthResponse? = null
+
+        override suspend fun load(): AuthResponse? = authentication
+        override suspend fun save(authentication: AuthResponse) {
+            this.authentication = authentication
+        }
+        override suspend fun clear() {
+            authentication = null
+        }
     }
 }

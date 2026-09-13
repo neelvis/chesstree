@@ -5,6 +5,8 @@ import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GamePlayerResponse
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.GameSocketAuthRequest
+import com.chesstree.multiplayer.contract.GameStatePush
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.MoveEventResponse
@@ -14,6 +16,7 @@ import com.chesstree.game.domain.PromotionChoice
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
@@ -36,9 +39,18 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.websocket.WebSockets
+import io.ktor.server.websocket.receiveDeserialized
+import io.ktor.server.websocket.sendSerialized
+import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.close
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.withTimeout
 import java.util.UUID
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Duration.Companion.minutes
 
 data class ServerServices(
@@ -46,6 +58,7 @@ data class ServerServices(
     val auth: AuthService,
     val tokens: TokenGenerator,
     val publicBaseUrl: String,
+    val updates: GameUpdateHub = GameUpdateHub(),
 )
 
 data class AuthenticatedUserPrincipal(val user: UserRecord, val token: String)
@@ -55,8 +68,16 @@ fun Application.chessTreeModule(
     allowedCorsHosts: List<String> = emptyList(),
 ) {
     val logger = environment.log
+    val json = Json { ignoreUnknownKeys = false; explicitNulls = false }
     install(ContentNegotiation) {
-        json(Json { ignoreUnknownKeys = false; explicitNulls = false })
+        json(json)
+    }
+    install(WebSockets) {
+        contentConverter = KotlinxWebsocketSerializationConverter(json)
+        pingPeriodMillis = 20_000
+        timeoutMillis = 20_000
+        maxFrameSize = 64 * 1024
+        masking = false
     }
     if (allowedCorsHosts.isNotEmpty()) {
         install(CORS) {
@@ -106,13 +127,17 @@ fun Application.chessTreeModule(
                 post("/games") {
                     val user = call.authenticatedUser()
                     val game = createUniqueGame(services, user)
+                    services.updates.publish(game.code)
                     call.respond(HttpStatusCode.Created, game.response(services.publicBaseUrl))
                 }
                 post("/games/{code}/join") {
                     val user = call.authenticatedUser()
                     val code = call.gameCode()
                     when (val result = services.store.joinGame(code, user.id, services.tokens.shuffledColors())) {
-                        is JoinGameResult.Joined -> call.respond(result.game.response(services.publicBaseUrl))
+                        is JoinGameResult.Joined -> {
+                            services.updates.publish(code)
+                            call.respond(result.game.response(services.publicBaseUrl))
+                        }
                         JoinGameResult.Missing -> call.respond(
                             HttpStatusCode.NotFound,
                             ErrorResponse("game_not_found", "Игра не найдена"),
@@ -146,7 +171,10 @@ fun Application.chessTreeModule(
                     val code = call.gameCode()
                     val command = call.receive<MoveCommandRequest>().toDomainCommand()
                     when (val result = services.store.submitMove(code, user.id, command)) {
-                        is SubmitMoveResult.Applied -> call.respond(result.state.response(services.publicBaseUrl))
+                        is SubmitMoveResult.Applied -> {
+                            services.updates.publish(code)
+                            call.respond(result.state.response(services.publicBaseUrl))
+                        }
                         is SubmitMoveResult.Stale -> call.respond(
                             HttpStatusCode.Conflict,
                             ErrorResponse("stale_revision", "Состояние партии изменилось; обновите его"),
@@ -174,6 +202,38 @@ fun Application.chessTreeModule(
                             ErrorResponse("command_conflict", "Идентификатор команды уже использован"),
                         )
                     }
+                }
+            }
+            webSocket("/games/{code}/events") {
+                val code = runCatching { call.gameCode() }.getOrNull()
+                if (code == null) {
+                    close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Invalid game code"))
+                    return@webSocket
+                }
+                val authRequest = runCatching {
+                    withTimeout(10.seconds) { receiveDeserialized<GameSocketAuthRequest>() }
+                }.getOrNull()
+                val user = authRequest?.let { services.auth.authenticate(it.accessToken) }
+                val initialState = user?.let { authenticated ->
+                    services.store.findGameState(code)?.takeIf { state ->
+                        state.game.players.any { it.user.id == authenticated.id }
+                    }
+                }
+                if (initialState == null) {
+                    close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Authentication failed"))
+                    return@webSocket
+                }
+                services.updates.updates(code).collect {
+                    if (services.auth.authenticate(authRequest.accessToken)?.id != user.id) {
+                        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Session expired"))
+                        throw CancellationException("WebSocket session expired")
+                    }
+                    val state = services.store.findGameState(code) ?: return@collect
+                    if (state.game.players.none { it.user.id == user.id }) {
+                        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Access revoked"))
+                        throw CancellationException("WebSocket access revoked")
+                    }
+                    sendSerialized(GameStatePush(state = state.response(services.publicBaseUrl)))
                 }
             }
         }

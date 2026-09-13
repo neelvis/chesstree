@@ -3,6 +3,8 @@ package com.chesstree.server
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.GameSocketAuthRequest
+import com.chesstree.multiplayer.contract.GameStatePush
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.game.domain.LegalMoveGenerator
@@ -13,12 +15,17 @@ import io.ktor.client.request.header
 import io.ktor.client.request.options
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.receiveDeserialized
+import io.ktor.client.plugins.websocket.sendSerialized
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
+import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -184,6 +191,49 @@ class ApplicationTest {
         }
         assertEquals(HttpStatusCode.Conflict, stale.status)
         assertTrue(stale.bodyAsText().contains("stale_revision"))
+    }
+
+    @Test
+    fun participantReceivesLobbyChangesThroughWebSocket() = testApplication {
+        application { chessTreeModule(testServices()) }
+        val socketClient = createClient {
+            install(WebSockets) {
+                contentConverter = KotlinxWebsocketSerializationConverter(json)
+            }
+        }
+        val owner = register("owner", "correct-horse")
+        val second = register("second", "correct-horse")
+        val third = register("third", "correct-horse")
+        val game = createGame(owner.accessToken)
+        join(game.code, second.accessToken)
+
+        socketClient.webSocket("/api/v1/games/${game.code}/events") {
+            sendSerialized(GameSocketAuthRequest(owner.accessToken))
+            val waiting = receiveDeserialized<GameStatePush>()
+            assertEquals("WAITING", waiting.state.game.status)
+
+            val activeGame = join(game.code, third.accessToken)
+            val active = receiveDeserialized<GameStatePush>()
+            assertEquals("ACTIVE", active.state.game.status)
+            assertEquals(3, active.state.game.players.size)
+
+            val players = listOf(owner, second, third)
+            val whiteName = activeGame.players.single { it.color == "WHITE" }.user.username
+            val white = players.single { it.user.username == whiteName }
+            val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
+            submitMove(
+                game.code,
+                white.accessToken,
+                MoveCommandRequest(
+                    commandId = UUID.randomUUID().toString(),
+                    expectedRevision = 0,
+                    from = move.from.response(),
+                    to = move.to.response(),
+                    promotion = move.promotion?.name,
+                ),
+            )
+            assertEquals(1, receiveDeserialized<GameStatePush>().state.revision)
+        }
     }
 
     private suspend fun io.ktor.server.testing.ApplicationTestBuilder.register(

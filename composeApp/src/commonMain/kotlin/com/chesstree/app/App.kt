@@ -21,6 +21,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,19 +53,26 @@ import com.chesstree.game.data.LoadGameResult
 import com.chesstree.game.data.NoOpGameSaveStore
 import com.chesstree.game.data.SaveGameResult
 import com.chesstree.multiplayer.data.ChessTreeApi
+import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
+import com.chesstree.multiplayer.data.OnlineSessionStore
 import com.chesstree.multiplayer.presentation.MultiplayerScreen
 
 @Composable
 fun App(
     gameSaveStore: GameSaveStore = NoOpGameSaveStore,
     onlineApi: ChessTreeApi? = null,
+    onlineSessionStore: OnlineSessionStore = NoOpOnlineSessionStore,
     initialGameCode: String? = null,
 ) {
     MaterialTheme {
         var showMultiplayer by remember { mutableStateOf(initialGameCode != null) }
+        LaunchedEffect(initialGameCode) {
+            if (initialGameCode != null) showMultiplayer = true
+        }
         if (showMultiplayer && onlineApi != null) {
             MultiplayerScreen(
                 api = onlineApi,
+                sessionStore = onlineSessionStore,
                 initialGameCode = initialGameCode.orEmpty(),
                 onClose = { showMultiplayer = false },
             )

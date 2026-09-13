@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.ktor.server.status.pages)
     implementation(libs.ktor.server.rate.limit)
     implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.websockets)
     implementation(libs.ktor.serialization.json)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.argon2.jvm)
@@ -37,6 +38,8 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.ktor.client.content.negotiation)
+    testImplementation(libs.ktor.client.websockets)
     testRuntimeOnly(libs.h2)
 }
 

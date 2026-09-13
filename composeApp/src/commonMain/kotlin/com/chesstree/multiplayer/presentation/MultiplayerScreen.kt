@@ -23,7 +23,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -37,6 +36,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.data.ChessTreeApi
+import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
+import com.chesstree.multiplayer.data.OnlineSessionStore
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
@@ -46,26 +47,19 @@ import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.legalMoveHintsFor
 import com.chesstree.game.presentation.board.toBoardPieces
-import kotlinx.coroutines.delay
 
 @Composable
 fun MultiplayerScreen(
     api: ChessTreeApi,
+    sessionStore: OnlineSessionStore = NoOpOnlineSessionStore,
     initialGameCode: String = "",
     onClose: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val controller = remember(api, scope, initialGameCode) {
-        MultiplayerController(api, scope, initialGameCode)
+    val controller = remember(api, scope, initialGameCode, sessionStore) {
+        MultiplayerController(api, scope, initialGameCode, sessionStore)
     }
     val state by controller.state.collectAsState()
-
-    LaunchedEffect(state.game?.code, state.game?.status) {
-        while (state.game?.status == "WAITING" || state.game?.status == "ACTIVE") {
-            delay(2_000)
-            controller.refreshGame()
-        }
-    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -94,6 +88,9 @@ fun MultiplayerScreen(
                     LobbyContent(state, controller)
                 }
                 state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (state.reconnecting && state.game != null) {
+                    Text("Переподключение к партии…", color = MaterialTheme.colorScheme.tertiary)
+                }
                 if (state.loading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                 }

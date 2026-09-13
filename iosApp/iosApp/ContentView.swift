@@ -13,5 +13,12 @@ struct ContentView: View {
     var body: some View {
         ComposeView()
             .ignoresSafeArea(.keyboard)
+            .onOpenURL { url in
+                MainViewControllerKt.OpenGameLink(url: url.absoluteString)
+            }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                guard let url = activity.webpageURL else { return }
+                MainViewControllerKt.OpenGameLink(url: url.absoluteString)
+            }
     }
 }

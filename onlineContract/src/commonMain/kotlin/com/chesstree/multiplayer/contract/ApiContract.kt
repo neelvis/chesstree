@@ -57,4 +57,13 @@ data class GameStateResponse(
 )
 
 @Serializable
+data class GameSocketAuthRequest(val accessToken: String)
+
+@Serializable
+data class GameStatePush(
+    val protocolVersion: Int = API_VERSION,
+    val state: GameStateResponse,
+)
+
+@Serializable
 data class ErrorResponse(val code: String, val message: String)
