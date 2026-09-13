@@ -17,7 +17,31 @@ import kotlin.test.assertNull
 
 class JdbcStoreTest {
     @Test
-    fun migratesVersionOneDatabaseForMoveHistory() = runBlocking {
+    fun migratesVersionTwoDatabaseToCurrentSchema() = runBlocking {
+        val databaseUrl = "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "CREATE TABLE schema_metadata (singleton BOOLEAN PRIMARY KEY, version INTEGER NOT NULL)",
+                )
+                statement.executeUpdate("INSERT INTO schema_metadata (singleton, version) VALUES (TRUE, 2)")
+            }
+        }
+
+        JdbcStore(DatabaseConfig(databaseUrl, "sa", "")).initialize()
+
+        DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
+                    rows.next()
+                    assertEquals(3, rows.getInt("version"))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun migratesVersionOneDatabaseToCurrentSchema() = runBlocking {
         val databaseUrl = "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -34,7 +58,7 @@ class JdbcStoreTest {
             connection.createStatement().use { statement ->
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
                     rows.next()
-                    assertEquals(2, rows.getInt("version"))
+                    assertEquals(3, rows.getInt("version"))
                 }
                 statement.executeQuery("SELECT COUNT(*) FROM game_moves").use { rows ->
                     rows.next()
@@ -59,7 +83,7 @@ class JdbcStoreTest {
             connection.createStatement().use { statement ->
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
                     rows.next()
-                    assertEquals(2, rows.getInt("version"))
+                    assertEquals(3, rows.getInt("version"))
                 }
             }
         }

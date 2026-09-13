@@ -55,6 +55,7 @@ The service exposes:
 - `GET /api/v1/games/{code}` for a participating user;
 - `GET /api/v1/games/{code}/state` to resynchronize the authoritative move history;
 - `POST /api/v1/games/{code}/moves` to submit a versioned, idempotent move command;
+- `WS /api/v1/games/{code}/events` to receive authenticated state updates;
 - `GET /health` for a process health check.
 
 For any non-local deployment, expose the service only through HTTPS, replace the
@@ -63,15 +64,28 @@ real client address or enforce its own authentication rate limit. Serve the Web
 client from the same origin (or add an explicit allowlisted CORS policy).
 
 When the third distinct user joins, the lobby becomes `ACTIVE` and the server
-randomly assigns `WHITE`, `RED`, and `BLACK`. The shared Compose UI now provides
-registration, login, lobby creation, code entry, joining, and lobby refresh. On
-Web, a `/g/{code}` URL opens the online screen with the code prefilled. Sessions
-are persisted by the server, but the client access token currently remains only in
-memory and requires a new login after restarting the app.
+randomly assigns `WHITE`, `RED`, and `BLACK`. The shared Compose UI provides
+registration, login, lobby creation, code entry, and joining. Lobby and game
+changes arrive through WebSocket push; REST remains authoritative for commands and
+full-state resynchronization. Android encrypts the access token with a key from
+Android Keystore, iOS stores it in Keychain, and Web intentionally keeps it only in
+memory because browser storage cannot provide the same protection from script
+access.
 
 Once the lobby is active, all moves are validated by the same deterministic domain
 engine on the server. Each command contains an expected revision and a unique
 command ID; stale clients resynchronize from the ordered move history and retried
-commands cannot apply twice. Waiting lobbies and active games currently refresh
-every two seconds. WebSocket
-push and native verified links are separate later slices.
+commands cannot apply twice. Multiple backend instances must connect to the same
+PostgreSQL database. Transactional database triggers publish an internal game UUID
+through PostgreSQL `LISTEN/NOTIFY`; each instance resolves it to local WebSocket
+subscriptions, so load-balancer sticky sessions are not required. Public join codes
+are not exposed in notification payloads. The notification is only an invalidation
+signal: authoritative state remains in the database, and reconnecting listeners
+resynchronize their active local games. `LISTEN` uses a dedicated long-lived JDBC
+connection, so both servers must connect directly to PostgreSQL or through a proxy
+configured for session pooling rather than transaction pooling.
+
+Web and the native entry points recognize `/g/{code}` URLs. Android App Links and
+iOS Universal Links still require the production HTTPS domain, Android release
+certificate SHA-256, Apple Team ID, and the corresponding hosted association files
+before operating-system verification can be enabled.

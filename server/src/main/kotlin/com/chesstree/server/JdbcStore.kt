@@ -14,103 +14,110 @@ data class DatabaseConfig(val url: String, val user: String, val password: Strin
 class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
     suspend fun initialize() = io {
         connection().use { connection ->
-            connection.createStatement().use { statement ->
-                statement.executeUpdate(
-                    """
-                    CREATE TABLE IF NOT EXISTS schema_metadata (
-                        singleton BOOLEAN DEFAULT TRUE PRIMARY KEY CHECK (singleton),
-                        version INTEGER NOT NULL
-                    )
-                    """.trimIndent(),
-                )
-                statement.executeUpdate(
-                    """
-                    CREATE TABLE IF NOT EXISTS users (
-                        id UUID PRIMARY KEY,
-                        username VARCHAR(24) NOT NULL,
-                        normalized_username VARCHAR(24) NOT NULL UNIQUE,
-                        password_hash TEXT NOT NULL,
-                        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """.trimIndent(),
-                )
-                statement.executeUpdate(
-                    """
-                    CREATE TABLE IF NOT EXISTS sessions (
-                        token_hash CHAR(64) PRIMARY KEY,
-                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """.trimIndent(),
-                )
-                statement.executeUpdate(
-                    """
-                    CREATE TABLE IF NOT EXISTS games (
-                        id UUID PRIMARY KEY,
-                        public_code CHAR(7) NOT NULL UNIQUE,
-                        status VARCHAR(16) NOT NULL,
-                        created_by UUID NOT NULL REFERENCES users(id),
-                        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """.trimIndent(),
-                )
-                statement.executeUpdate(
-                    """
-                    CREATE TABLE IF NOT EXISTS game_players (
-                        game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-                        user_id UUID NOT NULL REFERENCES users(id),
-                        joined_order INTEGER NOT NULL,
-                        color VARCHAR(16),
-                        joined_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        PRIMARY KEY (game_id, user_id),
-                        UNIQUE (game_id, joined_order),
-                        UNIQUE (game_id, color)
-                    )
-                    """.trimIndent(),
-                )
-                statement.executeUpdate(
-                    """
-                    CREATE TABLE IF NOT EXISTS game_moves (
-                        game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-                        revision INTEGER NOT NULL,
-                        command_id UUID NOT NULL,
-                        user_id UUID NOT NULL REFERENCES users(id),
-                        expected_revision INTEGER NOT NULL,
-                        actor VARCHAR(16) NOT NULL,
-                        from_vertex INTEGER NOT NULL,
-                        from_column INTEGER NOT NULL,
-                        from_row INTEGER NOT NULL,
-                        to_vertex INTEGER NOT NULL,
-                        to_column INTEGER NOT NULL,
-                        to_row INTEGER NOT NULL,
-                        promotion VARCHAR(16),
-                        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        PRIMARY KEY (game_id, revision),
-                        UNIQUE (game_id, command_id)
-                    )
-                    """.trimIndent(),
-                )
-                try {
+            val isPostgres = connection.metaData.databaseProductName == "PostgreSQL"
+            if (isPostgres) connection.execute("SELECT pg_advisory_lock($SCHEMA_LOCK_KEY)")
+            try {
+                connection.createStatement().use { statement ->
                     statement.executeUpdate(
-                        "INSERT INTO schema_metadata (singleton, version) VALUES (TRUE, $SCHEMA_VERSION)",
+                        """
+                        CREATE TABLE IF NOT EXISTS schema_metadata (
+                            singleton BOOLEAN DEFAULT TRUE PRIMARY KEY CHECK (singleton),
+                            version INTEGER NOT NULL
+                        )
+                        """.trimIndent(),
                     )
-                } catch (error: java.sql.SQLException) {
-                    if (error.sqlState != UNIQUE_VIOLATION) throw error
-                }
-                val schemaVersion = statement.executeQuery(
-                    "SELECT version FROM schema_metadata WHERE singleton = TRUE",
-                ).use { rows ->
-                    check(rows.next()) { "Database schema version is missing" }
-                    rows.getInt("version")
-                }
-                when (schemaVersion) {
-                    SCHEMA_VERSION -> Unit
-                    1 -> statement.executeUpdate(
-                        "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
+                    statement.executeUpdate(
+                        """
+                        CREATE TABLE IF NOT EXISTS users (
+                            id UUID PRIMARY KEY,
+                            username VARCHAR(24) NOT NULL,
+                            normalized_username VARCHAR(24) NOT NULL UNIQUE,
+                            password_hash TEXT NOT NULL,
+                            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        )
+                        """.trimIndent(),
                     )
-                    else -> error("Unsupported database schema version: $schemaVersion")
+                    statement.executeUpdate(
+                        """
+                        CREATE TABLE IF NOT EXISTS sessions (
+                            token_hash CHAR(64) PRIMARY KEY,
+                            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        )
+                        """.trimIndent(),
+                    )
+                    statement.executeUpdate(
+                        """
+                        CREATE TABLE IF NOT EXISTS games (
+                            id UUID PRIMARY KEY,
+                            public_code CHAR(7) NOT NULL UNIQUE,
+                            status VARCHAR(16) NOT NULL,
+                            created_by UUID NOT NULL REFERENCES users(id),
+                            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        )
+                        """.trimIndent(),
+                    )
+                    statement.executeUpdate(
+                        """
+                        CREATE TABLE IF NOT EXISTS game_players (
+                            game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+                            user_id UUID NOT NULL REFERENCES users(id),
+                            joined_order INTEGER NOT NULL,
+                            color VARCHAR(16),
+                            joined_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            PRIMARY KEY (game_id, user_id),
+                            UNIQUE (game_id, joined_order),
+                            UNIQUE (game_id, color)
+                        )
+                        """.trimIndent(),
+                    )
+                    statement.executeUpdate(
+                        """
+                        CREATE TABLE IF NOT EXISTS game_moves (
+                            game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+                            revision INTEGER NOT NULL,
+                            command_id UUID NOT NULL,
+                            user_id UUID NOT NULL REFERENCES users(id),
+                            expected_revision INTEGER NOT NULL,
+                            actor VARCHAR(16) NOT NULL,
+                            from_vertex INTEGER NOT NULL,
+                            from_column INTEGER NOT NULL,
+                            from_row INTEGER NOT NULL,
+                            to_vertex INTEGER NOT NULL,
+                            to_column INTEGER NOT NULL,
+                            to_row INTEGER NOT NULL,
+                            promotion VARCHAR(16),
+                            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            PRIMARY KEY (game_id, revision),
+                            UNIQUE (game_id, command_id)
+                        )
+                        """.trimIndent(),
+                    )
+                    try {
+                        statement.executeUpdate(
+                            "INSERT INTO schema_metadata (singleton, version) VALUES (TRUE, $SCHEMA_VERSION)",
+                        )
+                    } catch (error: java.sql.SQLException) {
+                        if (error.sqlState != UNIQUE_VIOLATION) throw error
+                    }
+                    val schemaVersion = statement.executeQuery(
+                        "SELECT version FROM schema_metadata WHERE singleton = TRUE",
+                    ).use { rows ->
+                        check(rows.next()) { "Database schema version is missing" }
+                        rows.getInt("version")
+                    }
+                    when (schemaVersion) {
+                        SCHEMA_VERSION -> Unit
+                        1, 2 -> statement.executeUpdate(
+                            "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
+                        )
+                        else -> error("Unsupported database schema version: $schemaVersion")
+                    }
+                    if (isPostgres) installGameUpdateTriggers(connection)
                 }
+            } finally {
+                if (isPostgres) connection.execute("SELECT pg_advisory_unlock($SCHEMA_LOCK_KEY)")
             }
         }
     }
@@ -421,6 +428,73 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
 
     private fun connection(): Connection = DriverManager.getConnection(config.url, config.user, config.password)
 
+    private fun Connection.execute(sql: String) {
+        createStatement().use { it.execute(sql) }
+    }
+
+    private fun installGameUpdateTriggers(connection: Connection) {
+        connection.createStatement().use { statement ->
+            statement.execute(
+                """
+                CREATE OR REPLACE FUNCTION chesstree_notify_game_row_update()
+                RETURNS TRIGGER AS ${'$'}${'$'}
+                DECLARE
+                    updated_game_id UUID;
+                BEGIN
+                    IF TG_OP = 'DELETE' THEN
+                        updated_game_id := OLD.id;
+                    ELSE
+                        updated_game_id := NEW.id;
+                    END IF;
+                    PERFORM pg_notify('$GAME_UPDATE_CHANNEL', updated_game_id::TEXT);
+                    RETURN NULL;
+                END;
+                ${'$'}${'$'} LANGUAGE plpgsql
+                """.trimIndent(),
+            )
+            statement.execute(
+                """
+                CREATE OR REPLACE FUNCTION chesstree_notify_game_child_update()
+                RETURNS TRIGGER AS ${'$'}${'$'}
+                DECLARE
+                    updated_game_id UUID;
+                BEGIN
+                    IF TG_OP = 'DELETE' THEN
+                        updated_game_id := OLD.game_id;
+                    ELSE
+                        updated_game_id := NEW.game_id;
+                    END IF;
+                    PERFORM pg_notify('$GAME_UPDATE_CHANNEL', updated_game_id::TEXT);
+                    RETURN NULL;
+                END;
+                ${'$'}${'$'} LANGUAGE plpgsql
+                """.trimIndent(),
+            )
+            listOf(
+                Triple("games", "chesstree_games_notify_update", "chesstree_notify_game_row_update"),
+                Triple("game_players", "chesstree_game_players_notify_update", "chesstree_notify_game_child_update"),
+                Triple("game_moves", "chesstree_game_moves_notify_update", "chesstree_notify_game_child_update"),
+            ).forEach { (table, trigger, function) ->
+                statement.execute(
+                    """
+                    DO ${'$'}${'$'}
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_trigger
+                            WHERE tgname = '$trigger' AND tgrelid = '$table'::regclass
+                        ) THEN
+                            CREATE TRIGGER $trigger
+                            AFTER INSERT OR UPDATE OR DELETE ON $table
+                            FOR EACH ROW EXECUTE FUNCTION $function();
+                        END IF;
+                    END;
+                    ${'$'}${'$'}
+                    """.trimIndent(),
+                )
+            }
+        }
+    }
+
     private fun <T> transaction(block: (Connection) -> T): T = connection().use { connection ->
         connection.autoCommit = false
         try {
@@ -436,6 +510,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
     private companion object {
         const val UNIQUE_VIOLATION = "23505"
         const val PLAYER_COUNT = 3
-        const val SCHEMA_VERSION = 2
+        const val SCHEMA_VERSION = 3
+        const val SCHEMA_LOCK_KEY = 0x4348455353545245L
     }
 }
