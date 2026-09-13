@@ -75,10 +75,13 @@ fun ThreePlayerChessBoard(
 ) {
     val cells = ThreePlayerBoardGeometry.cells
     val labels = ThreePlayerBoardGeometry.labels
-    val textMeasurer = rememberTextMeasurer()
-    val standardPieceFont = FontFamily(
-        Font(Res.allFontResources.getValue("noto_sans_symbols_2_regular")),
+    val textMeasurer = rememberTextMeasurer(cacheSize = BOARD_TEXT_LAYOUT_CACHE_SIZE)
+    val standardPieceFontResource = Font(
+        Res.allFontResources.getValue("noto_sans_symbols_2_regular"),
     )
+    val standardPieceFont = remember(standardPieceFontResource) {
+        FontFamily(standardPieceFontResource)
+    }
     val fairyPieceImages = if (pieceSet == PieceSet.FAIRY) loadFairyPieceImages() else null
     val piecesByCell = remember(pieces) { pieces.associateBy(BoardPiece::cellId) }
     val hintsByCell = moveHints.associateBy(MoveHint::target)
@@ -462,6 +465,8 @@ private fun pieceColor(army: ArmyColor): Color = when (army) {
     ArmyColor.RED -> Color(0xFFB72C35)
     ArmyColor.BLACK -> Color(0xFF171310)
 }
+
+internal const val BOARD_TEXT_LAYOUT_CACHE_SIZE: Int = 48
 
 private data class FairyPieceImages(
     val pieces: Map<Pair<PieceType, ArmyColor>, ImageBitmap>,

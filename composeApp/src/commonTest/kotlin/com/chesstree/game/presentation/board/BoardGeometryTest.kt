@@ -174,6 +174,19 @@ class BoardGeometryTest {
     }
 
     @Test
+    fun textLayoutCacheHoldsEveryRepeatedBoardLayout() {
+        val labelLayouts = ThreePlayerBoardGeometry.labels
+            .map(BoardEdgeLabel::text)
+            .distinct()
+            .size
+        val pieceLayoutsAtBoardAndTrophySizes = PieceType.entries.size * 2
+
+        assertTrue(
+            BOARD_TEXT_LAYOUT_CACHE_SIZE >= labelLayouts + pieceLayoutsAtBoardAndTrophySizes,
+        )
+    }
+
+    @Test
     fun trophyPositionsStayOutsideTheBoardNearEachArmyEdge() {
         ArmyColor.entries.forEach { army ->
             val positions = List(16) { index ->
