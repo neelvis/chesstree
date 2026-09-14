@@ -15,6 +15,7 @@ import org.jetbrains.compose.resources.preloadFont
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalResourceApi::class)
 fun main() {
     val saveStore = BrowserGameSaveStore()
+    val onlineSessionStore = BrowserOnlineSessionStore()
     val onlineApi = KtorChessTreeApi(serverBaseUrl())
     val initialGameCode = gameCodeFromUrl(window.location.href)
     ComposeViewport(viewportContainerId = "webApp") {
@@ -25,6 +26,7 @@ fun main() {
             App(
                 gameSaveStore = saveStore,
                 onlineApi = onlineApi,
+                onlineSessionStore = onlineSessionStore,
                 initialGameCode = initialGameCode,
                 gameLinkSharer = BrowserGameLinkSharer(),
             )
