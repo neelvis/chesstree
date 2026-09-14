@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.chesstree.game.domain.GameOutcome
 import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.Move
@@ -394,8 +395,9 @@ private fun PromotionChoice.displayName(): String = when (this) {
 internal fun restorePieceSet(savedName: String): PieceSet =
     PieceSet.entries.firstOrNull { it.name == savedName } ?: PieceSet.STANDARD
 
-private fun com.chesstree.game.domain.GameState.statusText(): String {
-    val phaseText = when (phase) {
+internal fun com.chesstree.game.domain.GameState.statusText(): String {
+    val currentPhase = phase
+    val phaseText = when (currentPhase) {
         GamePhase.InProgress -> turn?.let { currentTurn ->
             val check = if (LegalMoveGenerator.isKingInCheck(this, currentTurn.player)) {
                 ", шах"
@@ -405,7 +407,11 @@ private fun com.chesstree.game.domain.GameState.statusText(): String {
             "Ход: ${currentTurn.player.name.lowercase()}, полуход ${currentTurn.ply}$check"
         } ?: "Партия продолжается"
 
-        is GamePhase.Finished -> "Партия завершена"
+        is GamePhase.Finished -> when (currentPhase.outcome) {
+            is GameOutcome.Ranked -> "Партия завершена"
+            is GameOutcome.ThreeWayDraw -> "Ничья"
+            is GameOutcome.TwoWayDraw -> "Ничья"
+        }
     }
     val eliminated = participants.values.mapNotNull { participant ->
         when (participant.status) {

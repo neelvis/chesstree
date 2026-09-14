@@ -308,6 +308,18 @@ private fun validateFinishedState(
                 "A second-stalemate draw requires at least two stalemated players"
             }
         }
+
+        is GameOutcome.TwoWayDraw -> {
+            require(state.participants.getValue(outcome.first).status == ParticipantStatus.Active) {
+                "The first tied player must be active in a two-way draw"
+            }
+            require(state.participants.getValue(outcome.second).status == ParticipantStatus.Active) {
+                "The second tied player must be active in a two-way draw"
+            }
+            require(state.participants.getValue(outcome.third).status != ParticipantStatus.Active) {
+                "The third-place player must be eliminated in a two-way draw"
+            }
+        }
     }
 }
 

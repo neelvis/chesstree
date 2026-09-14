@@ -17,7 +17,14 @@ sealed interface MoveReduction {
 
 /** The single immutable state-transition entry point for player move intents. */
 object GameReducer {
-    fun reduce(state: GameState, intent: MoveIntent): MoveReduction {
+    fun reduce(state: GameState, intent: MoveIntent): MoveReduction =
+        reduce(state, intent, finishInsufficientMaterial = true)
+
+    internal fun reduce(
+        state: GameState,
+        intent: MoveIntent,
+        finishInsufficientMaterial: Boolean,
+    ): MoveReduction {
         val turn = state.turn
         if (state.phase != GamePhase.InProgress || turn == null) {
             return MoveReduction.Rejected(MoveRejectionReason.GAME_FINISHED)
@@ -57,6 +64,7 @@ object GameReducer {
                 initial = provisional,
                 lastMover = move.actor,
                 stateBeforeMove = state,
+                finishInsufficientMaterial = finishInsufficientMaterial,
             ),
             move,
         )
@@ -111,11 +119,15 @@ object GameReducer {
         initial: GameState,
         lastMover: PlayerId,
         stateBeforeMove: GameState,
+        finishInsufficientMaterial: Boolean,
     ): GameState {
         var state = initial
         repeat(PlayerId.entries.size) {
             val turn = state.turn ?: return state
-            if (LegalMoveGenerator.legalMoves(state, turn.player).isNotEmpty()) return state
+            if (LegalMoveGenerator.legalMoves(state, turn.player).isNotEmpty()) {
+                if (finishInsufficientMaterial) finishIfInsufficientMaterial(state)?.let { return it }
+                return state
+            }
             state = if (LegalMoveGenerator.isKingInCheck(state, turn.player)) {
                 applyCheckmate(state, turn.player, lastMover, stateBeforeMove)
             } else {
@@ -124,6 +136,50 @@ object GameReducer {
             if (state.phase is GamePhase.Finished) return state
         }
         return state
+    }
+
+    internal fun finishIfInsufficientMaterial(state: GameState): GameState? {
+        if (!hasInsufficientMaterial(state)) return null
+        val activePlayers = state.participants.values
+            .filter { participant -> participant.status == ParticipantStatus.Active }
+            .mapTo(linkedSetOf(), Participant::id)
+        val tied = activePlayers.sortedBy(PlayerId::ordinal)
+        val third = state.participants.values.single { participant ->
+            participant.status != ParticipantStatus.Active
+        }.id
+        return GameState(
+            position = state.position,
+            participants = state.participants,
+            armies = state.armies,
+            turn = null,
+            phase = GamePhase.Finished(
+                GameOutcome.TwoWayDraw(
+                    first = tied[0],
+                    second = tied[1],
+                    third = third,
+                    reason = DrawReason.INSUFFICIENT_MATERIAL,
+                ),
+            ),
+        )
+    }
+
+    internal fun hasInsufficientMaterial(state: GameState): Boolean {
+        val pieces = state.position.pieces.values
+        val kings = pieces.filter { piece -> piece.type == PieceType.KING }
+        val nonKings = pieces.filter { piece -> piece.type != PieceType.KING }
+        if (kings.size != 2) return false
+        if (nonKings.size > 1 || nonKings.any { piece -> piece.type != PieceType.KNIGHT }) return false
+        val activePlayers = state.participants.values
+            .filter { participant -> participant.status == ParticipantStatus.Active }
+            .mapTo(linkedSetOf(), Participant::id)
+        if (activePlayers.size != 2) return false
+        val kingControllers = kings.mapTo(linkedSetOf()) { piece ->
+            state.armies.getValue(piece.army).controller
+        }
+        val allPieceControllersAreActive = pieces.all { piece ->
+            state.armies.getValue(piece.army).controller in activePlayers
+        }
+        return kingControllers == activePlayers && allPieceControllersAreActive
     }
 
     private fun applyCheckmate(

@@ -253,6 +253,100 @@ class GameEngineTest {
     }
 
     @Test
+    fun capturingTheLastNonKingPieceAutomaticallyFinishesAsDraw() {
+        val whiteKing = piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 1, 1))
+        val blackKnight = piece("black-knight", PieceType.KNIGHT, ArmyColor.BLACK, cell(0, 2, 1))
+        val blackKing = piece("black-king", PieceType.KING, ArmyColor.BLACK, cell(4, 3, 0))
+        val participants = mapOf(
+            PlayerId.WHITE to Participant(PlayerId.WHITE),
+            PlayerId.RED to Participant(
+                PlayerId.RED,
+                ParticipantStatus.Checkmated(by = PlayerId.WHITE, atPly = 1),
+            ),
+            PlayerId.BLACK to Participant(PlayerId.BLACK),
+        )
+        val armies = mapOf(
+            ArmyColor.WHITE to ArmyControl(ArmyColor.WHITE, PlayerId.WHITE),
+            ArmyColor.RED to ArmyControl(ArmyColor.RED, PlayerId.WHITE),
+            ArmyColor.BLACK to ArmyControl(ArmyColor.BLACK, PlayerId.BLACK),
+        )
+        val game = GameState(
+            position = Position(listOf(whiteKing, blackKnight, blackKing).associateBy(Piece::id)),
+            participants = participants,
+            armies = armies,
+            turn = Turn(PlayerId.WHITE, 2),
+            phase = GamePhase.InProgress,
+        )
+
+        val applied = assertIs<MoveReduction.Applied>(
+            GameReducer.reduce(
+                game,
+                MoveIntent(PlayerId.WHITE, whiteKing.coordinate, blackKnight.coordinate),
+            ),
+        )
+
+        val finished = assertIs<GamePhase.Finished>(applied.state.phase)
+        assertEquals(
+            GameOutcome.TwoWayDraw(
+                first = PlayerId.WHITE,
+                second = PlayerId.BLACK,
+                third = PlayerId.RED,
+                reason = DrawReason.INSUFFICIENT_MATERIAL,
+            ),
+            finished.outcome,
+        )
+    }
+
+    @Test
+    fun kingAndKnightAgainstKingAutomaticallyFinishesAsDraw() {
+        val whiteKing = piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 1, 1))
+        val blackPawn = piece("black-pawn", PieceType.PAWN, ArmyColor.BLACK, cell(0, 2, 1))
+        val blackKnight = piece("black-knight", PieceType.KNIGHT, ArmyColor.BLACK, cell(4, 1, 1))
+        val blackKing = piece("black-king", PieceType.KING, ArmyColor.BLACK, cell(4, 3, 0))
+        val participants = mapOf(
+            PlayerId.WHITE to Participant(PlayerId.WHITE),
+            PlayerId.RED to Participant(
+                PlayerId.RED,
+                ParticipantStatus.Checkmated(by = PlayerId.WHITE, atPly = 1),
+            ),
+            PlayerId.BLACK to Participant(PlayerId.BLACK),
+        )
+        val armies = mapOf(
+            ArmyColor.WHITE to ArmyControl(ArmyColor.WHITE, PlayerId.WHITE),
+            ArmyColor.RED to ArmyControl(ArmyColor.RED, PlayerId.WHITE),
+            ArmyColor.BLACK to ArmyControl(ArmyColor.BLACK, PlayerId.BLACK),
+        )
+        val game = GameState(
+            position = Position(
+                listOf(whiteKing, blackPawn, blackKnight, blackKing).associateBy(Piece::id),
+            ),
+            participants = participants,
+            armies = armies,
+            turn = Turn(PlayerId.WHITE, 2),
+            phase = GamePhase.InProgress,
+        )
+
+        val applied = assertIs<MoveReduction.Applied>(
+            GameReducer.reduce(
+                game,
+                MoveIntent(PlayerId.WHITE, whiteKing.coordinate, blackPawn.coordinate),
+            ),
+        )
+
+        assertEquals(PieceType.KNIGHT, applied.state.position.pieces.getValue(blackKnight.id).type)
+        val finished = assertIs<GamePhase.Finished>(applied.state.phase)
+        assertEquals(
+            GameOutcome.TwoWayDraw(
+                first = PlayerId.WHITE,
+                second = PlayerId.BLACK,
+                third = PlayerId.RED,
+                reason = DrawReason.INSUFFICIENT_MATERIAL,
+            ),
+            finished.outcome,
+        )
+    }
+
+    @Test
     fun checkmateThenStalemateRanksTheOnlyRemainingActivePlayer() {
         val whiteKing = piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 3, 0))
         val whiteRook = piece("white-rook", PieceType.ROOK, ArmyColor.WHITE, cell(0, 1, 1))

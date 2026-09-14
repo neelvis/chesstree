@@ -44,6 +44,7 @@ fun evaluateMove(
     val session = checkNotNull(GameSession.replay(StandardGame.scenario, state.moves.map(GameMoveRecord::intent))) {
         "Stored move history is invalid"
     }
+    if (session.state.phase is GamePhase.Finished) return MoveEvaluation.NotActive
     val actor = PlayerId.valueOf(player.color.name)
     if (session.state.turn?.player != actor) return MoveEvaluation.NotTurn
     val intent = MoveIntent(actor, command.from, command.to, command.promotion)

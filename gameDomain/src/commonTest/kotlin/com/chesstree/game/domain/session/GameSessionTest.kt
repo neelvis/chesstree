@@ -3,9 +3,13 @@ package com.chesstree.game.domain.session
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.BoardCoordinate
+import com.chesstree.game.domain.GamePhase
+import com.chesstree.game.domain.GameReducer
 import com.chesstree.game.domain.MoveIntent
+import com.chesstree.game.domain.MoveReduction
 import com.chesstree.game.domain.MoveType
 import com.chesstree.game.domain.PieceType
+import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.scenario.gameScenario
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -43,6 +47,51 @@ class GameSessionTest {
         assertEquals(applied.capturedPieces, replayed.capturedPieces)
     }
 
+    @Test
+    fun replayKeepsLegacyMovesAfterBareKingsLoadableAndFinishesOnTheNextMove() {
+        val capture = MoveIntent(
+            actor = PlayerId.WHITE,
+            from = BoardCoordinate(0, 1, 1),
+            to = BoardCoordinate(0, 2, 1),
+        )
+        val currentHistory = assertNotNull(GameSession.replay(bareKingsPractice, listOf(capture)))
+        assertIs<GamePhase.Finished>(currentHistory.state.phase)
+
+        val legacyAfterCapture = assertIs<MoveReduction.Applied>(
+            GameReducer.reduce(
+                bareKingsPractice.initialState,
+                capture,
+                finishInsufficientMaterial = false,
+            ),
+        ).state
+        val historicalKingMove = LegalMoveGenerator.legalMoves(legacyAfterCapture).first()
+        val history = listOf(
+            capture,
+            MoveIntent(
+                actor = historicalKingMove.actor,
+                from = historicalKingMove.from,
+                to = historicalKingMove.to,
+                promotion = historicalKingMove.promotion,
+            ),
+        )
+
+        val replayed = assertNotNull(GameSession.replay(bareKingsPractice, history))
+        assertIs<GamePhase.InProgress>(replayed.state.phase)
+
+        val nextMove = LegalMoveGenerator.legalMoves(replayed.state).first()
+        val finished = assertIs<SessionMoveResult.Applied>(
+            replayed.apply(
+                MoveIntent(
+                    actor = nextMove.actor,
+                    from = nextMove.from,
+                    to = nextMove.to,
+                    promotion = nextMove.promotion,
+                ),
+            ),
+        ).session
+        assertIs<GamePhase.Finished>(finished.state.phase)
+    }
+
     private companion object {
         val capturePractice = gameScenario("capture-practice") {
             piece("white-king", ArmyColor.WHITE, PieceType.KING, BoardCoordinate(0, 3, 0))
@@ -57,6 +106,14 @@ class GameSessionTest {
                 BoardCoordinate(5, 0, 3),
                 hasMoved = true,
             )
+        }
+
+        val bareKingsPractice = gameScenario("bare-kings-practice") {
+            piece("white-king", ArmyColor.WHITE, PieceType.KING, BoardCoordinate(0, 1, 1))
+            piece("black-knight", ArmyColor.BLACK, PieceType.KNIGHT, BoardCoordinate(0, 2, 1))
+            piece("black-king", ArmyColor.BLACK, PieceType.KING, BoardCoordinate(4, 3, 0))
+            checkmated(PlayerId.RED, by = PlayerId.WHITE, atPly = 1)
+            turn(PlayerId.WHITE, ply = 2)
         }
     }
 }

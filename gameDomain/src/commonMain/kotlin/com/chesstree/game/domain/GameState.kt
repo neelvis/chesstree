@@ -12,6 +12,7 @@ data class Turn(
 enum class DrawReason {
     SECOND_STALEMATE,
     AGREEMENT,
+    INSUFFICIENT_MATERIAL,
 }
 
 sealed interface GameOutcome {
@@ -30,6 +31,19 @@ sealed interface GameOutcome {
     data class ThreeWayDraw(
         val reason: DrawReason,
     ) : GameOutcome
+
+    data class TwoWayDraw(
+        val first: PlayerId,
+        val second: PlayerId,
+        val third: PlayerId,
+        val reason: DrawReason,
+    ) : GameOutcome {
+        init {
+            require(setOf(first, second, third).size == PlayerId.entries.size) {
+                "A two-way draw must contain each player exactly once"
+            }
+        }
+    }
 }
 
 sealed interface GamePhase {

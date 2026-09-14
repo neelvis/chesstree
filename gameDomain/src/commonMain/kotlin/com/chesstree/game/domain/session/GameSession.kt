@@ -50,11 +50,25 @@ data class GameSession(
         fun replay(scenario: GameScenario, moves: List<MoveIntent>): GameSession? {
             var state = scenario.initialState
             val capturedPieces = mutableListOf<CapturedPiece>()
-            moves.forEach { intent ->
-                val reduction = GameReducer.reduce(state, intent)
+            var insufficientMaterialFirstReachedAt: Int? = null
+            moves.forEachIndexed { index, intent ->
+                val reduction = GameReducer.reduce(
+                    state,
+                    intent,
+                    finishInsufficientMaterial = false,
+                )
                 if (reduction !is MoveReduction.Applied) return null
                 capturedPiece(state, reduction.move)?.let(capturedPieces::add)
                 state = reduction.state
+                if (
+                    insufficientMaterialFirstReachedAt == null &&
+                    GameReducer.hasInsufficientMaterial(state)
+                ) {
+                    insufficientMaterialFirstReachedAt = index
+                }
+            }
+            if (insufficientMaterialFirstReachedAt == moves.lastIndex) {
+                state = checkNotNull(GameReducer.finishIfInsufficientMaterial(state))
             }
             return GameSession(
                 scenario = scenario,
