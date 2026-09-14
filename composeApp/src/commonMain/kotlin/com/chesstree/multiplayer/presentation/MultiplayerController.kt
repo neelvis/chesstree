@@ -75,7 +75,11 @@ class MultiplayerController(
         copy(gameCode = value.uppercase().filter { it.isLetterOrDigit() }.take(7), error = null)
     }
 
-    fun submitAuthentication() = launchRequest {
+    fun submitAuthentication(onSuccess: () -> Unit = {}) = launchRequest(
+        afterUpdate = { updated ->
+            if (updated.authentication != null) onSuccess()
+        },
+    ) {
         val current = mutableState.value
         val result = when (current.authMode) {
             AuthMode.LOGIN -> api.login(current.username, current.password)

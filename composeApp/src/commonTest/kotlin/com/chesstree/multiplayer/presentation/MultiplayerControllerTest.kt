@@ -26,6 +26,29 @@ import kotlin.test.assertNull
 @OptIn(ExperimentalCoroutinesApi::class)
 class MultiplayerControllerTest {
     @Test
+    fun credentialSaveIsRequestedOnlyAfterSuccessfulAuthentication() = runTest {
+        var successfulRequests = 0
+        val successful = MultiplayerController(FakeApi(), this)
+        successful.setUsername("Alice")
+        successful.setPassword("correct-horse")
+
+        successful.submitAuthentication { successfulRequests += 1 }
+        runCurrent()
+
+        assertEquals(1, successfulRequests)
+
+        var failedRequests = 0
+        val failed = MultiplayerController(FakeApi(authFails = true), this)
+        failed.setUsername("Alice")
+        failed.setPassword("incorrect-password")
+
+        failed.submitAuthentication { failedRequests += 1 }
+        runCurrent()
+
+        assertEquals(0, failedRequests)
+    }
+
+    @Test
     fun registrationClearsPasswordAndCreatesLobby() = runTest {
         val controller = MultiplayerController(FakeApi(), this)
         controller.setAuthMode(AuthMode.REGISTER)
@@ -160,7 +183,10 @@ class MultiplayerControllerTest {
         assertEquals(1, controller.state.value.remoteState?.revision)
     }
 
-    private class FakeApi(private val joinFails: Boolean = false) : ChessTreeApi {
+    private class FakeApi(
+        private val joinFails: Boolean = false,
+        private val authFails: Boolean = false,
+    ) : ChessTreeApi {
         private val auth = AuthResponse("token", UserResponse("user-id", "Alice"))
         private val game = GameResponse(
             id = "game-id",
@@ -170,8 +196,8 @@ class MultiplayerControllerTest {
             players = emptyList(),
         )
 
-        override suspend fun register(username: String, password: String) = ApiResult.Success(auth)
-        override suspend fun login(username: String, password: String) = ApiResult.Success(auth)
+        override suspend fun register(username: String, password: String): ApiResult<AuthResponse> = authenticate()
+        override suspend fun login(username: String, password: String): ApiResult<AuthResponse> = authenticate()
         override suspend fun logout(token: String) = ApiResult.Success(Unit)
         override suspend fun createGame(token: String) = ApiResult.Success(game)
         override suspend fun joinGame(token: String, code: String): ApiResult<GameResponse> =
@@ -187,6 +213,12 @@ class MultiplayerControllerTest {
             code: String,
             command: MoveCommandRequest,
         ) = ApiResult.Success(GameStateResponse(game, revision = 0, moves = emptyList()))
+
+        private fun authenticate(): ApiResult<AuthResponse> = if (authFails) {
+            ApiResult.Failure("invalid_credentials", "Неверный логин или пароль")
+        } else {
+            ApiResult.Success(auth)
+        }
     }
 
     private class MoveApi(private val staleOnSubmit: Boolean = false) : ChessTreeApi {

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
@@ -31,8 +30,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.data.ChessTreeApi
@@ -113,29 +110,15 @@ private fun AuthenticationContent(state: MultiplayerUiState, controller: Multipl
             Button(onClick = { controller.setAuthMode(AuthMode.REGISTER) }) { Text("Регистрация") }
         }
     }
-    OutlinedTextField(
-        value = state.username,
-        onValueChange = controller::setUsername,
-        label = { Text("Логин") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OutlinedTextField(
-        value = state.password,
-        onValueChange = controller::setPassword,
-        label = { Text("Пароль") },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Button(
-        onClick = controller::submitAuthentication,
+    AuthenticationForm(
+        mode = state.authMode,
+        username = state.username,
+        password = state.password,
         enabled = !state.loading && state.username.isNotBlank() && state.password.isNotBlank(),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(if (state.authMode == AuthMode.LOGIN) "Войти" else "Создать аккаунт")
-    }
+        onUsernameChange = controller::setUsername,
+        onPasswordChange = controller::setPassword,
+        onSubmit = controller::submitAuthentication,
+    )
 }
 
 @Composable
