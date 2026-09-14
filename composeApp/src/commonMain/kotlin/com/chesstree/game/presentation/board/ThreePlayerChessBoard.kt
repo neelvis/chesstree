@@ -18,12 +18,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
@@ -114,7 +116,7 @@ fun ThreePlayerChessBoard(
             }
             .semantics {
                 contentDescription = "Доска для шахмат на троих, 96 клеток, " +
-                    if (pieceSet == PieceSet.FAIRY) "сказочные фигуры" else "стандартные фигуры"
+                    if (pieceSet == PieceSet.FAIRY) "Premium фигуры" else "стандартные фигуры"
                 val selection =
                     if (selectedPieceId == null) "Фигура не выбрана" else "Фигура выбрана"
                 stateDescription =
@@ -134,7 +136,7 @@ fun ThreePlayerChessBoard(
                     )
                 }
             }
-            .pointerInput(contentWidth, contentHeight) {
+            .pointerInput(contentWidth, contentHeight, selectedPieceId, piecesByCell) {
                 detectTapGestures { tap ->
                     val boardPoint = viewportPointToBoard(
                         point = BoardPoint(tap.x, tap.y),
@@ -145,7 +147,12 @@ fun ThreePlayerChessBoard(
                         contentHeight = contentHeight,
                     ) ?: return@detectTapGestures
                     val tappedCell = cells.lastOrNull { contains(it.corners, boardPoint) }
-                    currentOnCellSelected(tappedCell?.id)
+                    val tappedPieceId = tappedCell?.id?.let(piecesByCell::get)?.id
+                    currentOnCellSelected(
+                        tappedCell?.id?.takeUnless {
+                            isRepeatedPieceTap(selectedPieceId, tappedPieceId)
+                        },
+                    )
                 }
             },
     ) {
@@ -221,30 +228,32 @@ fun ThreePlayerChessBoard(
             }
         }
 
-        cells.forEach { cell ->
-            piecesByCell[cell.id]?.let { piece ->
+        cells
+            .mapNotNull { cell -> piecesByCell[cell.id]?.let { piece -> cell to piece } }
+            .sortedBy { (cell, _) -> cell.center.y }
+            .forEach { (cell, piece) ->
                 val center = cell.center.offset()
                 drawPiece(
                     piece = piece,
                     center = center,
-                    radius = scale * 0.084f,
+                    radius = boardPieceRadius(
+                        boardScale = scale,
+                        isSelected = piece.id == selectedPieceId,
+                    ),
                     textMeasurer = textMeasurer,
                     pieceSet = pieceSet,
                     standardPieceFont = standardPieceFont,
                     fairyPieceImages = fairyPieceImages,
                 )
-                when {
-                    piece.id == selectedPieceId -> drawCircle(
-                        color = palette.selected,
-                        radius = scale * 0.091f,
-                        center = center,
-                        style = Stroke(3.dp.toPx()),
-                    )
+            }
 
-                    piece.id in attackedPieceIds -> drawCircle(
+        cells.forEach { cell ->
+            piecesByCell[cell.id]?.let { piece ->
+                if (piece.id != selectedPieceId && piece.id in attackedPieceIds) {
+                    drawCircle(
                         color = palette.capture,
                         radius = scale * 0.091f,
-                        center = center,
+                        center = cell.center.offset(),
                         style = Stroke(3.dp.toPx()),
                     )
                 }
@@ -284,6 +293,7 @@ fun ThreePlayerChessBoard(
                 center = ThreePlayerBoardGeometry.birdPosition(army).offset(),
                 maxWidth = scale * 0.26f,
                 maxHeight = scale * 0.26f,
+                flipHorizontally = army == ArmyColor.BLACK,
             )
         }
 
@@ -357,8 +367,10 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPiece(
         PieceSet.FAIRY -> drawImageCentered(
             image = checkNotNull(fairyPieceImages).pieces.getValue(piece.type to piece.bodyArmy),
             center = center,
-            maxWidth = radius * 1.75f,
-            maxHeight = radius * 1.75f,
+            maxWidth = radius * 2f,
+            maxHeight = radius * 2f,
+            outlineColor = premiumPieceOutlineColor(piece.bodyArmy),
+            outlineWidth = PREMIUM_PIECE_OUTLINE_WIDTH.dp.toPx(),
         )
     }
 }
@@ -368,23 +380,91 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawImageCentered(
     center: Offset,
     maxWidth: Float,
     maxHeight: Float,
+    flipHorizontally: Boolean = false,
+    outlineColor: Color? = null,
+    outlineWidth: Float = 0f,
 ) {
     if (image.width <= 0 || image.height <= 0) return
-    val scale = min(maxWidth / image.width, maxHeight / image.height)
-    val width = (image.width * scale).roundToInt().coerceAtLeast(1)
-    val height = (image.height * scale).roundToInt().coerceAtLeast(1)
-    drawImage(
-        image = image,
-        srcOffset = IntOffset.Zero,
-        srcSize = IntSize(image.width, image.height),
-        dstOffset = IntOffset(
-            x = (center.x - width / 2f).roundToInt(),
-            y = (center.y - height / 2f).roundToInt(),
-        ),
-        dstSize = IntSize(width, height),
-        filterQuality = FilterQuality.High,
+    val imageSize = scaledImageSize(image.width, image.height, maxWidth, maxHeight)
+    val width = imageSize.width
+    val height = imageSize.height
+    val destination = IntOffset(
+        x = (center.x - width / 2f).roundToInt(),
+        y = (center.y - height / 1.5f).roundToInt(),
+    )
+    fun drawAt(offset: Offset = Offset.Zero, colorFilter: ColorFilter? = null) {
+        drawImage(
+            image = image,
+            srcOffset = IntOffset.Zero,
+            srcSize = IntSize(image.width, image.height),
+            dstOffset = IntOffset(
+                x = destination.x + offset.x.roundToInt(),
+                y = destination.y + offset.y.roundToInt(),
+            ),
+            dstSize = imageSize,
+            filterQuality = FilterQuality.High,
+            colorFilter = colorFilter,
+        )
+    }
+    val draw = {
+        if (outlineColor != null && outlineWidth > 0f) {
+            val outlineFilter = ColorFilter.tint(outlineColor)
+            PREMIUM_PIECE_OUTLINE_DIRECTIONS.forEach { direction ->
+                drawAt(
+                    offset = Offset(direction.x * outlineWidth, direction.y * outlineWidth),
+                    colorFilter = outlineFilter,
+                )
+            }
+        }
+        drawAt()
+    }
+    if (flipHorizontally) {
+        scale(scaleX = -1f, scaleY = 1f, pivot = center) { draw() }
+    } else {
+        draw()
+    }
+}
+
+internal fun scaledImageSize(
+    sourceWidth: Int,
+    sourceHeight: Int,
+    maxWidth: Float,
+    maxHeight: Float,
+): IntSize {
+    require(sourceWidth > 0 && sourceHeight > 0) { "Image dimensions must be positive" }
+    val imageScale = min(maxWidth / sourceWidth, maxHeight / sourceHeight)
+    return IntSize(
+        width = (sourceWidth * imageScale).roundToInt().coerceAtLeast(1),
+        height = (sourceHeight * imageScale).roundToInt().coerceAtLeast(1),
     )
 }
+
+internal fun premiumPieceOutlineColor(army: ArmyColor): Color = when (army) {
+    ArmyColor.WHITE -> Color.White
+    ArmyColor.RED -> Color.Red
+    ArmyColor.BLACK -> Color.Black
+}
+
+internal fun boardPieceRadius(boardScale: Float, isSelected: Boolean): Float =
+    boardScale * BOARD_PIECE_RADIUS_FACTOR * if (isSelected) SELECTED_PIECE_SCALE else 1f
+
+internal fun isRepeatedPieceTap(selectedPieceId: String?, tappedPieceId: String?): Boolean =
+    selectedPieceId != null && selectedPieceId == tappedPieceId
+
+private const val BOARD_PIECE_RADIUS_FACTOR = 0.084f * 1.15f
+private const val SELECTED_PIECE_SCALE = 1.3f
+private const val PREMIUM_PIECE_OUTLINE_WIDTH = 2
+private const val DIAGONAL_OUTLINE_COMPONENT = 0.70710677f
+private val PREMIUM_PIECE_OUTLINE_DIRECTIONS = listOf(
+    Offset(-1f, 0f),
+    Offset(1f, 0f),
+    Offset(0f, -1f),
+    Offset(0f, 1f),
+    Offset(-DIAGONAL_OUTLINE_COMPONENT, -DIAGONAL_OUTLINE_COMPONENT),
+    Offset(DIAGONAL_OUTLINE_COMPONENT, -DIAGONAL_OUTLINE_COMPONENT),
+    Offset(-DIAGONAL_OUTLINE_COMPONENT, DIAGONAL_OUTLINE_COMPONENT),
+    Offset(DIAGONAL_OUTLINE_COMPONENT, DIAGONAL_OUTLINE_COMPONENT),
+)
 
 private fun BoardCell.path(transform: (BoardPoint) -> Offset): Path = Path().apply {
     val first = transform(corners.first())

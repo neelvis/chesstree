@@ -327,7 +327,7 @@ fun App(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
-                                Text("Сказочные фигурки")
+                                Text("Premium фигуры")
                                 Switch(
                                     checked = pieceSet == PieceSet.FAIRY,
                                     onCheckedChange = { enabled ->
