@@ -14,7 +14,9 @@ kotlin {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
         withHostTest {}
     }
-    jvm()
+    jvm {
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+    }
     js { browser() }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs { browser() }

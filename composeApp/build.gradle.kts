@@ -54,7 +54,6 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.client.websockets)
             implementation(libs.ktor.serialization.json)
@@ -67,6 +66,14 @@ kotlin {
             implementation(libs.ktor.client.mock)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.coroutines.test)
+        }
+
+        androidMain.dependencies {
+            implementation(libs.ktor.client.cio)
+        }
+
+        iosMain.dependencies {
+            implementation(libs.ktor.client.cio)
         }
 
     }

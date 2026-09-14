@@ -21,7 +21,13 @@ class MainActivity : ComponentActivity() {
         val onlineSessionStore = AndroidOnlineSessionStore(applicationContext)
         setContent {
             val initialGameCode by linkedGameCode.collectAsState()
-            App(saveStore, onlineApi, onlineSessionStore, initialGameCode)
+            App(
+                gameSaveStore = saveStore,
+                onlineApi = onlineApi,
+                onlineSessionStore = onlineSessionStore,
+                initialGameCode = initialGameCode,
+                gameLinkSharer = AndroidGameLinkSharer(this),
+            )
         }
     }
 

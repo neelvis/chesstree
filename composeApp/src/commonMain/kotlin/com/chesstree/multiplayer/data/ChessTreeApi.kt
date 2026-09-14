@@ -11,7 +11,7 @@ import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.RegisterRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.receiveDeserialized
@@ -156,7 +156,7 @@ class KtorChessTreeApi(
             ?: ApiResult.Failure("http_${status.value}", "Сервер отклонил запрос")
 
     companion object {
-        fun defaultHttpClient(): HttpClient = HttpClient(CIO) {
+        fun defaultHttpClient(): HttpClient = HttpClient(defaultHttpClientEngine()) {
             expectSuccess = false
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = false; explicitNulls = false })
@@ -169,6 +169,8 @@ class KtorChessTreeApi(
         }
     }
 }
+
+internal expect fun defaultHttpClientEngine(): HttpClientEngineFactory<*>
 
 private fun String.toWebSocketUrl(): String = when {
     startsWith("https://") -> "wss://${removePrefix("https://")}"

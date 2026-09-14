@@ -59,6 +59,7 @@ import com.chesstree.game.data.SaveGameResult
 import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
+import com.chesstree.multiplayer.presentation.GameLinkSharer
 import com.chesstree.multiplayer.presentation.MultiplayerScreen
 
 @Composable
@@ -67,6 +68,7 @@ fun App(
     onlineApi: ChessTreeApi? = null,
     onlineSessionStore: OnlineSessionStore = NoOpOnlineSessionStore,
     initialGameCode: String? = null,
+    gameLinkSharer: GameLinkSharer? = null,
 ) {
     MaterialTheme {
         var showMultiplayer by remember { mutableStateOf(initialGameCode != null) }
@@ -78,6 +80,7 @@ fun App(
                 api = onlineApi,
                 sessionStore = onlineSessionStore,
                 initialGameCode = initialGameCode.orEmpty(),
+                gameLinkSharer = gameLinkSharer,
                 onClose = { showMultiplayer = false },
             )
             return@MaterialTheme

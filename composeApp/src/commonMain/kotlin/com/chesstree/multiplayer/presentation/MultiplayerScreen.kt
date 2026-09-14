@@ -47,12 +47,15 @@ import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.legalMoveHintsFor
 import com.chesstree.game.presentation.board.toBoardPieces
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 @Composable
 fun MultiplayerScreen(
     api: ChessTreeApi,
     sessionStore: OnlineSessionStore = NoOpOnlineSessionStore,
     initialGameCode: String = "",
+    gameLinkSharer: GameLinkSharer? = null,
     onClose: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -85,7 +88,7 @@ fun MultiplayerScreen(
                 if (state.authentication == null) {
                     AuthenticationContent(state, controller)
                 } else {
-                    LobbyContent(state, controller)
+                    LobbyContent(state, controller, gameLinkSharer)
                 }
                 state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 if (state.reconnecting && state.game != null) {
@@ -136,7 +139,11 @@ private fun AuthenticationContent(state: MultiplayerUiState, controller: Multipl
 }
 
 @Composable
-private fun LobbyContent(state: MultiplayerUiState, controller: MultiplayerController) {
+private fun LobbyContent(
+    state: MultiplayerUiState,
+    controller: MultiplayerController,
+    gameLinkSharer: GameLinkSharer?,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -166,7 +173,7 @@ private fun LobbyContent(state: MultiplayerUiState, controller: MultiplayerContr
         if ((game.status == "ACTIVE" || game.status == "FINISHED") && state.session != null) {
             OnlineGame(state, controller)
         } else {
-            GameLobby(game, controller, state.loading)
+            GameLobby(game, controller, state.loading, gameLinkSharer)
         }
     }
 }
@@ -265,10 +272,52 @@ private fun OnlineGame(state: MultiplayerUiState, controller: MultiplayerControl
 }
 
 @Composable
-private fun GameLobby(game: GameResponse, controller: MultiplayerController, loading: Boolean) {
+private fun GameLobby(
+    game: GameResponse,
+    controller: MultiplayerController,
+    loading: Boolean,
+    gameLinkSharer: GameLinkSharer?,
+) {
+    val scope = rememberCoroutineScope()
+    var shareMessage by remember(game.shareUrl) { mutableStateOf<String?>(null) }
+    var sharing by remember(game.shareUrl) { mutableStateOf(false) }
     Spacer(Modifier.height(8.dp))
     Text("Код: ${game.code}", style = MaterialTheme.typography.titleLarge)
     Text(game.shareUrl, style = MaterialTheme.typography.bodySmall)
+    if (gameLinkSharer != null) {
+        OutlinedButton(
+            onClick = {
+                shareMessage = null
+                scope.launch {
+                    sharing = true
+                    try {
+                        shareMessage = when (gameLinkSharer.share(game.shareUrl)) {
+                            GameLinkShareResult.COPIED -> "Ссылка скопирована"
+                            GameLinkShareResult.SHARE_SHEET_OPENED -> null
+                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Throwable) {
+                        shareMessage = "Не удалось поделиться ссылкой"
+                    } finally {
+                        sharing = false
+                    }
+                }
+            },
+            enabled = !sharing,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Поделиться") }
+        shareMessage?.let { message ->
+            Text(
+                message,
+                color = if (message == "Ссылка скопирована") {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+            )
+        }
+    }
     Text(if (game.status == "ACTIVE") "Игра готова" else "Ожидаем игроков: ${game.players.size}/3")
     game.players.forEach { player ->
         Text("${player.user.username}${player.color?.let { " — $it" }.orEmpty()}")

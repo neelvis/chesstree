@@ -5,6 +5,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.chesstree.multiplayer.data.KtorChessTreeApi
 import com.chesstree.multiplayer.data.gameCodeFromUrl
+import com.chesstree.multiplayer.presentation.IosGameLinkSharer
 import kotlinx.coroutines.flow.MutableStateFlow
 import platform.UIKit.UIViewController
 
@@ -12,10 +13,18 @@ fun MainViewController(): UIViewController {
     val saveStore = IosGameSaveStore()
     val onlineSessionStore = IosOnlineSessionStore()
     val onlineApi = KtorChessTreeApi("http://127.0.0.1:8081")
-    return ComposeUIViewController {
+    lateinit var rootViewController: UIViewController
+    rootViewController = ComposeUIViewController {
         val initialGameCode by linkedGameCode.collectAsState()
-        App(saveStore, onlineApi, onlineSessionStore, initialGameCode)
+        App(
+            gameSaveStore = saveStore,
+            onlineApi = onlineApi,
+            onlineSessionStore = onlineSessionStore,
+            initialGameCode = initialGameCode,
+            gameLinkSharer = IosGameLinkSharer { rootViewController },
+        )
     }
+    return rootViewController
 }
 
 private val linkedGameCode = MutableStateFlow<String?>(null)
