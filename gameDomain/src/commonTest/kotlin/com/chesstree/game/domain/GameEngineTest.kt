@@ -298,6 +298,46 @@ class GameEngineTest {
     }
 
     @Test
+    fun stalematedPlayersKingDoesNotPreventBareActiveKingsDraw() {
+        val whiteKing = piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 1, 1))
+        val redKing = piece("red-king", PieceType.KING, ArmyColor.RED, cell(2, 3, 0))
+        val blackKing = piece("black-king", PieceType.KING, ArmyColor.BLACK, cell(4, 3, 0))
+        val game = GameState(
+            position = Position(listOf(whiteKing, redKing, blackKing).associateBy(Piece::id)),
+            participants = mapOf(
+                PlayerId.WHITE to Participant(PlayerId.WHITE),
+                PlayerId.RED to Participant(
+                    PlayerId.RED,
+                    ParticipantStatus.Stalemated(atPly = 1),
+                ),
+                PlayerId.BLACK to Participant(PlayerId.BLACK),
+            ),
+            armies = ArmyColor.entries.associateWith { ArmyControl(it, it.originalPlayer) },
+            turn = Turn(PlayerId.WHITE, 2),
+            phase = GamePhase.InProgress,
+        )
+        val move = LegalMoveGenerator.legalMoves(game).first()
+
+        val applied = assertIs<MoveReduction.Applied>(
+            GameReducer.reduce(
+                game,
+                MoveIntent(PlayerId.WHITE, move.from, move.to, move.promotion),
+            ),
+        )
+
+        val finished = assertIs<GamePhase.Finished>(applied.state.phase)
+        assertEquals(
+            GameOutcome.TwoWayDraw(
+                first = PlayerId.WHITE,
+                second = PlayerId.BLACK,
+                third = PlayerId.RED,
+                reason = DrawReason.INSUFFICIENT_MATERIAL,
+            ),
+            finished.outcome,
+        )
+    }
+
+    @Test
     fun kingAndKnightAgainstKingAutomaticallyFinishesAsDraw() {
         val whiteKing = piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 1, 1))
         val blackPawn = piece("black-pawn", PieceType.PAWN, ArmyColor.BLACK, cell(0, 2, 1))

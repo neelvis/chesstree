@@ -167,19 +167,22 @@ object GameReducer {
         val pieces = state.position.pieces.values
         val kings = pieces.filter { piece -> piece.type == PieceType.KING }
         val nonKings = pieces.filter { piece -> piece.type != PieceType.KING }
-        if (kings.size != 2) return false
-        if (nonKings.size > 1 || nonKings.any { piece -> piece.type != PieceType.KNIGHT }) return false
         val activePlayers = state.participants.values
             .filter { participant -> participant.status == ParticipantStatus.Active }
             .mapTo(linkedSetOf(), Participant::id)
         if (activePlayers.size != 2) return false
-        val kingControllers = kings.mapTo(linkedSetOf()) { piece ->
-            state.armies.getValue(piece.army).controller
-        }
-        val allPieceControllersAreActive = pieces.all { piece ->
+        val activeKings = kings.filter { piece ->
             state.armies.getValue(piece.army).controller in activePlayers
         }
-        return kingControllers == activePlayers && allPieceControllersAreActive
+        if (activeKings.size != 2) return false
+        if (nonKings.size > 1 || nonKings.any { piece -> piece.type != PieceType.KNIGHT }) return false
+        val kingControllers = activeKings.mapTo(linkedSetOf()) { piece ->
+            state.armies.getValue(piece.army).controller
+        }
+        val allNonKingControllersAreActive = nonKings.all { piece ->
+            state.armies.getValue(piece.army).controller in activePlayers
+        }
+        return kingControllers == activePlayers && allNonKingControllersAreActive
     }
 
     private fun applyCheckmate(
