@@ -154,14 +154,15 @@ object ThreePlayerBoardTopology {
         continueRoute(origin, initialCorner, listOf(origin))
     }
 
-    private fun cellsAt(vertex: MeshVertex): List<CellCornerAtVertex> =
+    // Board connectivity is fixed; build the corner incidence index once, not
+    // during every diagonal step in every candidate move's king-safety check.
+    private val cornersByVertex: Map<MeshVertex, List<CellCornerAtVertex>> =
         coordinates.flatMap { coordinate ->
-            CellCorner.entries.mapNotNull { corner ->
-                CellCornerAtVertex(coordinate, corner).takeIf {
-                    vertexAt(coordinate, corner) == vertex
-                }
-            }
-        }
+            CellCorner.entries.map { corner -> CellCornerAtVertex(coordinate, corner) }
+        }.groupBy { vertexAt(it.coordinate, it.corner) }
+
+    private fun cellsAt(vertex: MeshVertex): List<CellCornerAtVertex> =
+        cornersByVertex.getValue(vertex)
 
     private fun vertexAt(
         coordinate: BoardCoordinate,
