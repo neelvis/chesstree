@@ -374,8 +374,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPiece(
             center = center,
             maxWidth = radius * 2f,
             maxHeight = radius * 2f,
-            outlineColor = premiumPieceOutlineColor(piece.bodyArmy),
-            outlineWidth = PREMIUM_PIECE_OUTLINE_WIDTH.dp.toPx(),
+//            outlineColor = premiumPieceOutlineColor(piece.bodyArmy),
+//            outlineWidth = PREMiUM_PIECE_OUTLINE_WIDTH.dp.toPx(),
         )
     }
 }
@@ -458,7 +458,7 @@ internal fun isRepeatedPieceTap(selectedPieceId: String?, tappedPieceId: String?
 
 private const val BOARD_PIECE_RADIUS_FACTOR = 0.084f * 1.15f
 private const val SELECTED_PIECE_SCALE = 1.3f
-private const val PREMIUM_PIECE_OUTLINE_WIDTH = 2
+private const val PREMIUM_PIECE_OUTLINE_WIDTH = 1
 private const val DIAGONAL_OUTLINE_COMPONENT = 0.70710677f
 private val PREMIUM_PIECE_OUTLINE_DIRECTIONS = listOf(
     Offset(-1f, 0f),

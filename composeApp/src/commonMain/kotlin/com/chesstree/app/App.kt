@@ -436,7 +436,7 @@ private fun TurnPieceIndicator(
     Image(
         bitmap = imageResource(Res.allDrawableResources.getValue(resourceName)),
         contentDescription = turnIndicatorDescription(player, pieceSet),
-        modifier = Modifier.size(64.dp),
+        modifier = Modifier.size(128.dp),
         contentScale = ContentScale.Fit,
     )
 }
