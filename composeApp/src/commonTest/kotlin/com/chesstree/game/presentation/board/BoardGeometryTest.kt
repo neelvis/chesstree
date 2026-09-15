@@ -187,6 +187,11 @@ class BoardGeometryTest {
     }
 
     @Test
+    fun movementDirectionLinesUseHalfThePreviousWidth() {
+        assertEquals(0.0125f / 2f, MOVE_DIRECTION_LINE_WIDTH_FACTOR)
+    }
+
+    @Test
     fun trophyPositionsStayOutsideTheBoardNearEachArmyEdge() {
         ArmyColor.entries.forEach { army ->
             val positions = List(16) { index ->

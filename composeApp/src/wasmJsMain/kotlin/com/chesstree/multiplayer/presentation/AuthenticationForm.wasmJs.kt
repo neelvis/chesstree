@@ -40,7 +40,7 @@ internal actual fun AuthenticationForm(
                 },
             )
         },
-        modifier = Modifier.fillMaxWidth().height(180.dp),
+        modifier = Modifier.fillMaxWidth().height(196.dp),
         update = { form ->
             form.authenticationUsername().setValueIfChanged(username)
             form.authenticationPassword().apply {

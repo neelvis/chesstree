@@ -1,7 +1,10 @@
 package com.chesstree.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,8 +12,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -32,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.chesstree.game.domain.GameOutcome
 import com.chesstree.game.domain.GamePhase
@@ -40,12 +49,11 @@ import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.ParticipantStatus
 import com.chesstree.game.domain.PieceId
+import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.PieceSet
-import com.chesstree.game.presentation.board.educationalMoveHintsFor
-import com.chesstree.game.presentation.board.legalMoveHintsFor
 import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
 import com.chesstree.game.domain.session.GameSession
@@ -53,7 +61,6 @@ import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.GameSnapshot
 import com.chesstree.game.data.GameSnapshotCodec
-import com.chesstree.game.data.LoadGameResult
 import com.chesstree.game.data.NoOpGameSaveStore
 import com.chesstree.game.data.SaveGameResult
 import com.chesstree.multiplayer.data.ChessTreeApi
@@ -61,6 +68,9 @@ import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
 import com.chesstree.multiplayer.presentation.GameLinkSharer
 import com.chesstree.multiplayer.presentation.MultiplayerScreen
+import com.chesstree.resources.Res
+import com.chesstree.resources.allDrawableResources
+import org.jetbrains.compose.resources.imageResource
 
 @Composable
 fun App(
@@ -71,7 +81,26 @@ fun App(
     gameLinkSharer: GameLinkSharer? = null,
 ) {
     MaterialTheme {
-        var showMultiplayer by remember { mutableStateOf(initialGameCode != null) }
+        val scenarios = remember { ManualGameScenarios.all }
+        val sessionSaver = remember(scenarios) {
+            Saver<GameSession, String>(
+                save = { encodeSessionForRestoration(it) },
+                restore = { restoreSessionOrDefault(it, scenarios) },
+            )
+        }
+        var session by rememberSaveable(stateSaver = sessionSaver) {
+            mutableStateOf(GameSession(scenarios.first()))
+        }
+        val settingsSaver = remember {
+            Saver<GameSettings, String>(
+                save = { encodeGameSettings(it) },
+                restore = ::restoreGameSettings,
+            )
+        }
+        var settings by rememberSaveable(stateSaver = settingsSaver) {
+            mutableStateOf(GameSettings())
+        }
+        var showMultiplayer by rememberSaveable { mutableStateOf(initialGameCode != null) }
         LaunchedEffect(initialGameCode) {
             if (initialGameCode != null) showMultiplayer = true
         }
@@ -85,41 +114,21 @@ fun App(
             )
             return@MaterialTheme
         }
-        val scenarios = remember { ManualGameScenarios.all }
-        val sessionSaver = remember(scenarios) {
-            Saver<GameSession, String>(
-                save = { encodeSessionForRestoration(it) },
-                restore = { restoreSessionOrDefault(it, scenarios) },
-            )
-        }
-        var session by rememberSaveable(stateSaver = sessionSaver) {
-            mutableStateOf(GameSession(scenarios.first()))
-        }
         var selectedPieceId by remember { mutableStateOf<String?>(null) }
         var pendingPromotionMoves by remember { mutableStateOf(emptyList<Move>()) }
         var scenarioMenuExpanded by remember { mutableStateOf(false) }
         var controlsExpanded by remember { mutableStateOf(false) }
-        var showMoveLines by remember { mutableStateOf(false) }
-        val pieceSetSaver = remember {
-            Saver<PieceSet, String>(
-                save = { it.name },
-                restore = ::restorePieceSet,
-            )
-        }
-        var pieceSet by rememberSaveable(stateSaver = pieceSetSaver) {
-            mutableStateOf(PieceSet.STANDARD)
-        }
         var storageMessage by remember { mutableStateOf<String?>(null) }
         val selectedScenario = session.scenario
         val gameState = session.state
         val pieces = remember(gameState) { gameState.toBoardPieces() }
-        val movementHints = remember(gameState, selectedPieceId, showMoveLines) {
-            val pieceId = selectedPieceId?.let(::PieceId) ?: return@remember emptyList()
-            if (showMoveLines) {
-                educationalMoveHintsFor(gameState, pieceId)
-            } else {
-                legalMoveHintsFor(gameState, pieceId)
-            }
+        val selectedMoveHints = remember(gameState, selectedPieceId, settings) {
+            movementHintsForSelection(
+                state = gameState,
+                selectedPieceId = selectedPieceId,
+                showCurrentPossibleMoves = settings.showCurrentPossibleMoves,
+                showMoveLines = settings.showMoveLines,
+            )
         }
         val trophies = remember(session.capturedPieces) {
             session.capturedPieces.map { captured ->
@@ -167,66 +176,38 @@ fun App(
             clearTransientState()
             storageMessage = "Партия перезапущена; последнее сохранение не изменено"
         }
-        fun load() {
-            storageMessage = when (val loadResult = gameSaveStore.load()) {
-                LoadGameResult.Missing -> "Сохранённая партия не найдена"
-                is LoadGameResult.Failed -> "Не удалось загрузить: ${loadResult.message}"
-                is LoadGameResult.Loaded -> {
-                    val snapshot = GameSnapshotCodec.decode(loadResult.contents)
-                    val scenario = snapshot?.let { saved ->
-                        scenarios.firstOrNull { it.id == saved.scenarioId }
-                    }
-                    val loadedSession = if (snapshot != null && scenario != null) {
-                        GameSession.replay(scenario, snapshot.moves)
-                    } else {
-                        null
-                    }
-                    if (loadedSession == null) {
-                        "Сохранение повреждено или несовместимо"
-                    } else {
-                        session = loadedSession
-                        clearTransientState()
-                        "Партия загружена"
-                    }
-                }
-            }
-        }
-
         Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFF3EEE6)) {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(Color(0xFFF8F4EE), Color(0xFFE6DDD1)),
                         ),
-                    )
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
+                val compactLayout = maxWidth < 600.dp
+                val horizontalPadding = if (compactLayout) 0.dp else 16.dp
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(horizontal = horizontalPadding, vertical = 8.dp)
                         .widthIn(max = 920.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "ChessTree",
-                        style = MaterialTheme.typography.headlineMedium,
+                        text = "Сейчас ход:",
+                        style = MaterialTheme.typography.titleMedium,
                         color = Color(0xFF34251D),
                     )
-                    Text(
-                        text = "Шахматы для троих",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF735E50),
+                    TurnPieceIndicator(
+                        player = gameState.turn?.player,
+                        pieceSet = settings.pieceSet,
+                        finishedText = gameState.statusText(),
                     )
                     Text(
-                        text = selectedScenario.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF735E50),
-                    )
-                    Text(
-                        text = gameState.statusText(),
+                        text = "Всего ходов: ${session.moves.size}",
                         style = MaterialTheme.typography.labelMedium,
                         color = Color(0xFF5C4336),
                     )
@@ -234,9 +215,11 @@ fun App(
                     ThreePlayerChessBoard(
                         pieces = pieces,
                         selectedPieceId = selectedPieceId,
-                        moveHints = movementHints,
+                        moveHints = selectedMoveHints.currentPossibleMoves,
+                        moveLineHints = selectedMoveHints.moveLines,
                         trophies = trophies,
-                        pieceSet = pieceSet,
+                        pieceSet = settings.pieceSet,
+                        showDecorativeBirds = gameState.turn == null,
                         onCellSelected = { cell ->
                             if (cell == null) {
                                 selectedPieceId = null
@@ -264,7 +247,7 @@ fun App(
                                             gameState.armies.getValue(piece.army).controller
                                 } == true
                                 selectedPieceId = tappedPiece
-                                    ?.takeIf { showMoveLines || canMovePiece }
+                                    ?.takeIf { settings.showMoveLines || canMovePiece }
                                     ?.id?.value
                             }
                         },
@@ -273,33 +256,36 @@ fun App(
                             .fillMaxWidth(),
                     )
                 }
-                TextButton(
-                    onClick = { controlsExpanded = !controlsExpanded },
-                    modifier = Modifier.align(Alignment.TopStart),
-                ) {
-                    Text(if (controlsExpanded) "Закрыть" else "☰")
-                }
                 if (controlsExpanded) {
+                    val panelMaxHeight = (maxHeight - 56.dp).coerceAtLeast(200.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures { controlsExpanded = false }
+                            },
+                    )
                     Surface(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(top = 48.dp)
-                            .widthIn(max = 320.dp),
+                            .widthIn(min = 280.dp, max = 340.dp)
+                            .heightIn(max = panelMaxHeight)
+                            .pointerInput(Unit) { detectTapGestures { } },
                         color = Color(0xFFFFFBF6),
                         tonalElevation = 8.dp,
                         shadowElevation = 8.dp,
                         shape = MaterialTheme.shapes.medium,
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Text("Управление", style = MaterialTheme.typography.titleMedium)
                             Button(onClick = ::restart, modifier = Modifier.fillMaxWidth()) {
                                 Text("Рестарт")
-                            }
-                            Button(onClick = ::load, modifier = Modifier.fillMaxWidth()) {
-                                Text("Загрузить")
                             }
                             Button(
                                 onClick = { showMultiplayer = true },
@@ -313,12 +299,43 @@ fun App(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
-                                Text("Показывать линии ходов")
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Показывать линии ходов")
+                                    Text(
+                                        "Показывать принципиально возможные направления хода фигур",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
                                 Switch(
-                                    checked = showMoveLines,
+                                    checked = settings.showMoveLines,
                                     onCheckedChange = { enabled ->
-                                        showMoveLines = enabled
-                                        if (!enabled) selectedPieceId = null
+                                        settings = settings.copy(showMoveLines = enabled)
+                                        if (!enabled) {
+                                            val selectedPiece = selectedPieceId
+                                                ?.let(::PieceId)
+                                                ?.let(gameState.position.pieces::get)
+                                            val belongsToCurrentPlayer = selectedPiece?.let { piece ->
+                                                gameState.turn?.player ==
+                                                    gameState.armies.getValue(piece.army).controller
+                                            } == true
+                                            if (!belongsToCurrentPlayer) selectedPieceId = null
+                                        }
+                                    },
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    "Показывать текущие возможные ходы",
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Switch(
+                                    checked = settings.showCurrentPossibleMoves,
+                                    onCheckedChange = { enabled ->
+                                        settings = settings.copy(showCurrentPossibleMoves = enabled)
                                     },
                                 )
                             }
@@ -329,9 +346,15 @@ fun App(
                             ) {
                                 Text("Premium фигуры")
                                 Switch(
-                                    checked = pieceSet == PieceSet.FAIRY,
+                                    checked = settings.pieceSet == PieceSet.FAIRY,
                                     onCheckedChange = { enabled ->
-                                        pieceSet = if (enabled) PieceSet.FAIRY else PieceSet.STANDARD
+                                        settings = settings.copy(
+                                            pieceSet = if (enabled) {
+                                                PieceSet.FAIRY
+                                            } else {
+                                                PieceSet.STANDARD
+                                            },
+                                        )
                                     },
                                 )
                             }
@@ -362,6 +385,12 @@ fun App(
                         }
                     }
                 }
+                TextButton(
+                    onClick = { controlsExpanded = !controlsExpanded },
+                    modifier = Modifier.align(Alignment.TopStart),
+                ) {
+                    Text(if (controlsExpanded) "Закрыть" else "☰")
+                }
             }
         }
         if (pendingPromotionMoves.isNotEmpty()) {
@@ -388,15 +417,55 @@ fun App(
     }
 }
 
+@Composable
+private fun TurnPieceIndicator(
+    player: PlayerId?,
+    pieceSet: PieceSet,
+    finishedText: String,
+) {
+    if (player == null) {
+        Text(
+            text = finishedText,
+            style = MaterialTheme.typography.titleMedium,
+            color = Color(0xFF5C4336),
+            modifier = Modifier.height(64.dp),
+        )
+        return
+    }
+    val resourceName = turnIndicatorAssetName(player, pieceSet)
+    Image(
+        bitmap = imageResource(Res.allDrawableResources.getValue(resourceName)),
+        contentDescription = turnIndicatorDescription(player, pieceSet),
+        modifier = Modifier.size(64.dp),
+        contentScale = ContentScale.Fit,
+    )
+}
+
+internal fun turnIndicatorAssetName(player: PlayerId, pieceSet: PieceSet): String {
+    val index = when (player) {
+        PlayerId.WHITE -> 0
+        PlayerId.RED -> 1
+        PlayerId.BLACK -> 2
+    }
+    return if (pieceSet == PieceSet.FAIRY) "bird_$index" else "king_$index"
+}
+
+private fun turnIndicatorDescription(player: PlayerId, pieceSet: PieceSet): String {
+    val color = when (player) {
+        PlayerId.WHITE -> "Белая"
+        PlayerId.RED -> "Красная"
+        PlayerId.BLACK -> "Чёрная"
+    }
+    val figure = if (pieceSet == PieceSet.FAIRY) "птица" else "фигура короля"
+    return "$color $figure"
+}
+
 private fun PromotionChoice.displayName(): String = when (this) {
     PromotionChoice.QUEEN -> "Ферзь"
     PromotionChoice.ROOK -> "Ладья"
     PromotionChoice.BISHOP -> "Слон"
     PromotionChoice.KNIGHT -> "Конь"
 }
-
-internal fun restorePieceSet(savedName: String): PieceSet =
-    PieceSet.entries.firstOrNull { it.name == savedName } ?: PieceSet.STANDARD
 
 internal fun com.chesstree.game.domain.GameState.statusText(): String {
     val currentPhase = phase

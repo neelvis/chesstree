@@ -10,7 +10,11 @@ import kotlin.test.assertTrue
 class BoardPiecePresentationTest {
     @Test
     fun boardPiecesAreFifteenPercentLarger() {
-        assertEquals(0.084f * 1.15f, boardPieceRadius(boardScale = 1f, isSelected = false))
+        assertEquals(
+            expected = 0.084f * 1.15f,
+            actual = boardPieceRadius(boardScale = 1f, isSelected = false),
+            absoluteTolerance = 0.000001f,
+        )
     }
 
     @Test

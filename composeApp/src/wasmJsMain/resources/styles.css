@@ -6,6 +6,8 @@ body,
     margin: 0;
     padding: 0;
     overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 .authentication-form {
@@ -52,4 +54,18 @@ body,
 .authentication-form button:disabled {
     opacity: 0.38;
     cursor: default;
+}
+
+@media (max-width: 600px) {
+    .authentication-form {
+        gap: 14px;
+        min-width: 0;
+        font-size: 16px;
+    }
+
+    .authentication-form input,
+    .authentication-form button {
+        min-height: 56px;
+        font-size: 16px;
+    }
 }

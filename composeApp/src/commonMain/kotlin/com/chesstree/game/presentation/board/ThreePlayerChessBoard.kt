@@ -69,8 +69,10 @@ fun ThreePlayerChessBoard(
     pieces: List<BoardPiece>,
     selectedPieceId: String?,
     moveHints: List<MoveHint>,
+    moveLineHints: List<MoveHint> = emptyList(),
     trophies: List<BoardTrophy> = emptyList(),
     pieceSet: PieceSet = PieceSet.STANDARD,
+    showDecorativeBirds: Boolean = true,
     onCellSelected: (BoardCellId?) -> Unit,
     modifier: Modifier = Modifier,
     palette: BoardPalette = BoardPalette(),
@@ -88,12 +90,13 @@ fun ThreePlayerChessBoard(
     val piecesByCell = remember(pieces) { pieces.associateBy(BoardPiece::cellId) }
     val hintsByCell = moveHints.associateBy(MoveHint::target)
     val attackedPieceIds = moveHints.mapNotNull(MoveHint::attackedPieceId).toSet()
-    val contentWidth = if (pieceSet == PieceSet.FAIRY) {
+    val showBirdsAroundBoard = pieceSet == PieceSet.FAIRY && showDecorativeBirds
+    val contentWidth = if (showBirdsAroundBoard) {
         FAIRY_BOARD_CONTENT_WIDTH
     } else {
         STANDARD_BOARD_CONTENT_WIDTH
     }
-    val contentHeight = if (pieceSet == PieceSet.FAIRY) {
+    val contentHeight = if (showBirdsAroundBoard) {
         FAIRY_BOARD_CONTENT_HEIGHT
     } else {
         STANDARD_BOARD_CONTENT_HEIGHT
@@ -213,7 +216,7 @@ fun ThreePlayerChessBoard(
             }
         }
 
-        moveHints.forEach { hint ->
+        moveLineHints.forEach { hint ->
             val route =
                 hint.route.mapNotNull { id -> cells.firstOrNull { it.id == id }?.center?.offset() }
             if (route.size != hint.route.size) return@forEach
@@ -222,7 +225,7 @@ fun ThreePlayerChessBoard(
                     color = if (hint.kind == MoveHintKind.CAPTURE) palette.capture else palette.move,
                     start = start,
                     end = end,
-                    strokeWidth = scale * 0.0125f,
+                    strokeWidth = scale * MOVE_DIRECTION_LINE_WIDTH_FACTOR,
                     alpha = 0.55f,
                 )
             }
@@ -287,14 +290,16 @@ fun ThreePlayerChessBoard(
             )
         }
 
-        fairyPieceImages?.birds?.forEach { (army, bird) ->
-            drawImageCentered(
-                image = bird,
-                center = ThreePlayerBoardGeometry.birdPosition(army).offset(),
-                maxWidth = scale * 0.26f,
-                maxHeight = scale * 0.26f,
-                flipHorizontally = army == ArmyColor.BLACK,
-            )
+        if (showBirdsAroundBoard) {
+            fairyPieceImages?.birds?.forEach { (army, bird) ->
+                drawImageCentered(
+                    image = bird,
+                    center = ThreePlayerBoardGeometry.birdPosition(army).offset(),
+                    maxWidth = scale * 0.26f,
+                    maxHeight = scale * 0.26f,
+                    flipHorizontally = army == ArmyColor.BLACK,
+                )
+            }
         }
 
         ArmyColor.entries.forEach { capturingArmy ->
@@ -547,6 +552,7 @@ private fun pieceColor(army: ArmyColor): Color = when (army) {
 }
 
 internal const val BOARD_TEXT_LAYOUT_CACHE_SIZE: Int = 48
+internal const val MOVE_DIRECTION_LINE_WIDTH_FACTOR: Float = 0.00625f
 
 private data class FairyPieceImages(
     val pieces: Map<Pair<PieceType, ArmyColor>, ImageBitmap>,
