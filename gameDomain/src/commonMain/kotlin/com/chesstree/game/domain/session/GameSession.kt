@@ -46,8 +46,23 @@ data class GameSession(
         )
     }
 
+    fun undoLastMove(): GameSession? = moves
+        .takeIf(List<MoveIntent>::isNotEmpty)
+        ?.dropLast(1)
+        ?.let { remainingMoves -> replay(scenario, remainingMoves) }
+
     companion object {
-        fun replay(scenario: GameScenario, moves: List<MoveIntent>): GameSession? {
+        fun replay(scenario: GameScenario, moves: List<MoveIntent>): GameSession? =
+            replay(scenario, moves, finishInsufficientMaterialAtEnd = true)
+
+        fun replayPosition(scenario: GameScenario, moves: List<MoveIntent>): GameSession? =
+            replay(scenario, moves, finishInsufficientMaterialAtEnd = false)
+
+        private fun replay(
+            scenario: GameScenario,
+            moves: List<MoveIntent>,
+            finishInsufficientMaterialAtEnd: Boolean,
+        ): GameSession? {
             var state = scenario.initialState
             val capturedPieces = mutableListOf<CapturedPiece>()
             var insufficientMaterialFirstReachedAt: Int? = null
@@ -67,7 +82,10 @@ data class GameSession(
                     insufficientMaterialFirstReachedAt = index
                 }
             }
-            if (insufficientMaterialFirstReachedAt == moves.lastIndex) {
+            if (
+                finishInsufficientMaterialAtEnd &&
+                insufficientMaterialFirstReachedAt == moves.lastIndex
+            ) {
                 state = checkNotNull(GameReducer.finishIfInsufficientMaterial(state))
             }
             return GameSession(

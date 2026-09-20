@@ -51,6 +51,10 @@ real-time ordering, concurrency/state integrity, public contracts, or repeated
 unexplained failures. Failed required checks or material unresolved findings prevent
 a success claim.
 
+Start that review only after the fix diff is stable. Pass existing validation
+results and keep the reviewer read-only; do not duplicate the full target matrix
+unless a finding requires independent reproduction.
+
 Return root cause and evidence, files changed, regression coverage, exact results by
 target, review outcome, preserved user changes, and remaining risk. Do not commit
 unless authorized and never add agent attribution trailers.

@@ -3,6 +3,7 @@ package com.chesstree.game.presentation.board
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.ArmyControl
 import com.chesstree.game.domain.BoardCoordinate
+import com.chesstree.game.domain.BoardFile
 import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.GameReducer
 import com.chesstree.game.domain.GameState
@@ -17,6 +18,8 @@ import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PieceType
 import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.Position
+import com.chesstree.game.domain.Square
+import com.chesstree.game.domain.ThreePlayerBoardNotation
 import com.chesstree.game.domain.Turn
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
 import kotlin.math.abs
@@ -38,12 +41,8 @@ class BoardGeometryTest {
     }
 
     @Test
-    fun a1AnchorIsDark() {
-        val a1 = BoardCellId(
-            vertex = ThreePlayerBoardGeometry.A1_VERTEX,
-            column = ThreePlayerBoardGeometry.A1_COLUMN,
-            row = ThreePlayerBoardGeometry.A1_ROW,
-        )
+    fun algebraicA1IsDarkOnTheRenderedBoard() {
+        val a1 = checkNotNull(ThreePlayerBoardNotation.coordinate(Square(BoardFile.A, 1)))
 
         assertTrue(ThreePlayerBoardGeometry.cells.first { it.id == a1 }.isDark)
     }
@@ -150,13 +149,9 @@ class BoardGeometryTest {
     }
 
     @Test
-    fun a1AnchorMatchesItsExplicitSvgAnnotation() {
+    fun referenceGeometryContainsTheExpectedRightHandCell() {
         val anchor = ThreePlayerBoardGeometry.cells.first {
-            it.id == BoardCellId(
-                ThreePlayerBoardGeometry.A1_VERTEX,
-                ThreePlayerBoardGeometry.A1_COLUMN,
-                ThreePlayerBoardGeometry.A1_ROW,
-            )
+            it.id == BoardCellId(vertex = 0, column = 2, row = 1)
         }
 
         assertTrue(abs(anchor.center.x - 0.7421875f) < 0.0001f)

@@ -8,6 +8,12 @@ description: Review ChessTree KMP code for correctness, security, cross-platform
 Review as a senior Kotlin Multiplatform and graphical game engineer. Respect the
 requested scope and do not modify files.
 
+Review a stable diff or named revision. If the reviewed files change materially
+during the pass, stop and request a stable snapshot instead of repeatedly rereading
+the worktree. Reuse recorded build/test evidence and do not run broad validation
+unless the user requested it or a specific finding needs reproduction. Keep search,
+file reads, and command output bounded to evidence relevant to the scoped review.
+
 Prioritize:
 
 1. Incorrect checkers rules, invalid state transitions, and data loss/corruption.
@@ -27,4 +33,3 @@ List actionable findings by Critical, High, Medium, then Low. Each finding must 
 affected files/lines, evidence and impact, a concrete remediation, and the missing
 test where applicable. State reviewed and unreviewed scope and explicitly say when
 no material findings exist.
-

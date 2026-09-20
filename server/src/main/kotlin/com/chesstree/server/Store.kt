@@ -14,4 +14,12 @@ interface ChessTreeStore {
     suspend fun findGame(code: String): GameRecord?
     suspend fun findGameState(code: String): GameStateRecord?
     suspend fun submitMove(code: String, userId: UUID, command: GameMoveCommand): SubmitMoveResult
+    suspend fun requestUndo(code: String, userId: UUID, expectedRevision: Int): UndoResult
+    suspend fun voteUndo(
+        code: String,
+        userId: UUID,
+        requestId: UUID,
+        expectedRevision: Int,
+        approve: Boolean,
+    ): UndoResult
 }

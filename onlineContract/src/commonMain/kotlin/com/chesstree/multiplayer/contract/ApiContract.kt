@@ -2,7 +2,8 @@ package com.chesstree.multiplayer.contract
 
 import kotlinx.serialization.Serializable
 
-const val API_VERSION: Int = 1
+const val API_VERSION: Int = 2
+const val API_VERSION_HEADER: String = "X-ChessTree-Protocol-Version"
 
 @Serializable
 data class RegisterRequest(val username: String, val password: String)
@@ -50,14 +51,36 @@ data class MoveEventResponse(
 )
 
 @Serializable
+data class UndoRequestCommand(val expectedRevision: Int)
+
+@Serializable
+data class UndoVoteCommand(
+    val expectedRevision: Int,
+    val requestId: String,
+    val approve: Boolean,
+)
+
+@Serializable
+data class UndoRequestResponse(
+    val id: String,
+    val requestedByUserId: String,
+    val targetMoveCount: Int,
+    val approvedByUserIds: List<String>,
+)
+
+@Serializable
 data class GameStateResponse(
     val game: GameResponse,
     val revision: Int,
     val moves: List<MoveEventResponse>,
+    val undoRequest: UndoRequestResponse? = null,
 )
 
 @Serializable
-data class GameSocketAuthRequest(val accessToken: String)
+data class GameSocketAuthRequest(
+    val accessToken: String,
+    val protocolVersion: Int = 1,
+)
 
 @Serializable
 data class GameStatePush(

@@ -30,4 +30,15 @@ class ApiContractTest {
 
         assertEquals(original, Json.decodeFromString<MoveCommandRequest>(Json.encodeToString(original)))
     }
+
+    @Test
+    fun undoVoteCarriesTheAuthoritativeRevisionAndDecision() {
+        val original = UndoVoteCommand(
+            expectedRevision = 12,
+            requestId = "00000000-0000-0000-0000-000000000001",
+            approve = false,
+        )
+
+        assertEquals(original, Json.decodeFromString<UndoVoteCommand>(Json.encodeToString(original)))
+    }
 }

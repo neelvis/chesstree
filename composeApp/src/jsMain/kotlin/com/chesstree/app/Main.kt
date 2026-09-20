@@ -8,6 +8,7 @@ import com.chesstree.resources.allFontResources
 import com.chesstree.multiplayer.data.KtorChessTreeApi
 import com.chesstree.multiplayer.data.gameCodeFromUrl
 import com.chesstree.multiplayer.presentation.BrowserGameLinkSharer
+import com.chesstree.game.presentation.history.BrowserGameLogExporter
 import kotlinx.browser.window
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.preloadFont
@@ -29,6 +30,7 @@ fun main() {
                 onlineSessionStore = onlineSessionStore,
                 initialGameCode = initialGameCode,
                 gameLinkSharer = BrowserGameLinkSharer(),
+                gameLogExporter = BrowserGameLogExporter(),
             )
         }
     }

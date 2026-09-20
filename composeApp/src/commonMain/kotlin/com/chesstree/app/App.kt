@@ -55,8 +55,13 @@ import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.PieceSet
 import com.chesstree.game.presentation.board.toBoardPieces
+import com.chesstree.game.presentation.history.GameHistoryDialog
+import com.chesstree.game.presentation.history.GameHistoryNavigation
+import com.chesstree.game.presentation.history.GameLogExporter
+import com.chesstree.game.presentation.history.NoOpGameLogExporter
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
 import com.chesstree.game.domain.session.GameSession
+import com.chesstree.game.domain.session.GameLogCodec
 import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.GameSnapshot
@@ -79,6 +84,7 @@ fun App(
     onlineSessionStore: OnlineSessionStore = NoOpOnlineSessionStore,
     initialGameCode: String? = null,
     gameLinkSharer: GameLinkSharer? = null,
+    gameLogExporter: GameLogExporter = NoOpGameLogExporter,
 ) {
     MaterialTheme {
         val scenarios = remember { ManualGameScenarios.all }
@@ -119,8 +125,14 @@ fun App(
         var scenarioMenuExpanded by remember { mutableStateOf(false) }
         var controlsExpanded by remember { mutableStateOf(false) }
         var storageMessage by remember { mutableStateOf<String?>(null) }
+        var historyNavigation by remember { mutableStateOf(GameHistoryNavigation.latest()) }
         val selectedScenario = session.scenario
-        val gameState = session.state
+        val displayedSession = remember(session, historyNavigation) {
+            historyNavigation.displayedSession(session)
+        }
+        val gameState = displayedSession.state
+        val isViewingLatest = historyNavigation.isAtLatest(session)
+        val displayedMoveCount = historyNavigation.displayedMoveCount(session)
         val pieces = remember(gameState) { gameState.toBoardPieces() }
         val selectedMoveHints = remember(gameState, selectedPieceId, settings) {
             movementHintsForSelection(
@@ -130,8 +142,8 @@ fun App(
                 showMoveLines = settings.showMoveLines,
             )
         }
-        val trophies = remember(session.capturedPieces) {
-            session.capturedPieces.map { captured ->
+        val trophies = remember(displayedSession.capturedPieces) {
+            displayedSession.capturedPieces.map { captured ->
                 BoardTrophy(
                     id = captured.id,
                     type = captured.type,
@@ -145,7 +157,15 @@ fun App(
             selectedPieceId = null
             pendingPromotionMoves = emptyList()
         }
+        fun save(updatedSession: GameSession): SaveGameResult {
+            val snapshot = GameSnapshot(
+                scenarioId = updatedSession.scenario.id,
+                moves = updatedSession.moves,
+            )
+            return gameSaveStore.save(GameSnapshotCodec.encode(snapshot))
+        }
         fun applyMove(move: Move) {
+            if (!isViewingLatest) return
             when (val result = session.apply(
                     MoveIntent(
                         actor = move.actor,
@@ -156,15 +176,11 @@ fun App(
                 )) {
                 is SessionMoveResult.Applied -> {
                     session = result.session
-                    val snapshot = GameSnapshot(
-                        scenarioId = result.session.scenario.id,
-                        moves = result.session.moves,
-                    )
-                    storageMessage = when (
-                        val saveResult = gameSaveStore.save(GameSnapshotCodec.encode(snapshot))
-                    ) {
+                    historyNavigation = GameHistoryNavigation.latest()
+                    storageMessage = when (val saveResult = save(result.session)) {
                         SaveGameResult.Saved -> "Партия сохранена"
-                        is SaveGameResult.Failed -> "Не удалось сохранить: ${saveResult.message}"
+                        is SaveGameResult.Failed ->
+                            "Не удалось сохранить: ${saveResult.message}"
                     }
                 }
                 SessionMoveResult.Rejected -> Unit
@@ -173,6 +189,7 @@ fun App(
         }
         fun restart() {
             session = GameSession(session.scenario)
+            historyNavigation = GameHistoryNavigation.latest()
             clearTransientState()
             storageMessage = "Партия перезапущена; последнее сохранение не изменено"
         }
@@ -207,10 +224,56 @@ fun App(
                         finishedText = gameState.statusText(),
                     )
                     Text(
-                        text = "Всего ходов: ${session.moves.size}",
+                        text = if (isViewingLatest) {
+                            "Всего ходов: ${session.moves.size}"
+                        } else {
+                            "Просмотр: $displayedMoveCount из ${session.moves.size} ходов"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         color = Color(0xFF5C4336),
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(
+                            onClick = {
+                                historyNavigation = historyNavigation.back(session)
+                                clearTransientState()
+                            },
+                            enabled = historyNavigation.canGoBack(session),
+                        ) {
+                            Text("Назад")
+                        }
+                        TextButton(
+                            onClick = {
+                                historyNavigation = historyNavigation.forward(session)
+                                clearTransientState()
+                            },
+                            enabled = historyNavigation.canGoForward(session),
+                        ) {
+                            Text("Вперёд")
+                        }
+                        TextButton(
+                            onClick = {
+                                val undone = session.undoLastMove() ?: return@TextButton
+                                storageMessage = when (val saveResult = save(undone)) {
+                                    SaveGameResult.Saved -> {
+                                        session = undone
+                                        historyNavigation = GameHistoryNavigation.latest()
+                                        clearTransientState()
+                                        "Последний ход отменён"
+                                    }
+                                    is SaveGameResult.Failed ->
+                                        "Не удалось отменить ход: ${saveResult.message}"
+                                }
+                            },
+                            enabled = isViewingLatest && session.moves.isNotEmpty(),
+                        ) {
+                            Text("Отменить ход")
+                        }
+                    }
                     Spacer(Modifier.height(8.dp))
                     ThreePlayerChessBoard(
                         pieces = pieces,
@@ -221,6 +284,7 @@ fun App(
                         pieceSet = settings.pieceSet,
                         showDecorativeBirds = gameState.turn == null,
                         onCellSelected = { cell ->
+                            if (!isViewingLatest) return@ThreePlayerChessBoard
                             if (cell == null) {
                                 selectedPieceId = null
                                 return@ThreePlayerChessBoard
@@ -329,6 +393,23 @@ fun App(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
+                                    "Показать историю игры",
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Switch(
+                                    checked = settings.showGameHistory,
+                                    onCheckedChange = { enabled ->
+                                        settings = settings.copy(showGameHistory = enabled)
+                                        if (enabled) controlsExpanded = false
+                                    },
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
                                     "Показывать текущие возможные ходы",
                                     modifier = Modifier.weight(1f),
                                 )
@@ -371,6 +452,7 @@ fun App(
                                             text = { Text(scenario.title) },
                                             onClick = {
                                                 session = GameSession(scenario)
+                                                historyNavigation = GameHistoryNavigation.latest()
                                                 clearTransientState()
                                                 storageMessage = null
                                                 scenarioMenuExpanded = false
@@ -411,6 +493,27 @@ fun App(
                     TextButton(onClick = { pendingPromotionMoves = emptyList() }) {
                         Text("Отмена")
                     }
+                },
+            )
+        }
+        if (settings.showGameHistory) {
+            GameHistoryDialog(
+                log = remember(session) { GameLogCodec.encode(session) },
+                exporter = gameLogExporter,
+                onRestore = { contents ->
+                    val restored = GameLogCodec.restore(session.scenario, contents)
+                    session = restored.session
+                    historyNavigation = GameHistoryNavigation.latest()
+                    clearTransientState()
+                    val snapshot = GameSnapshot(
+                        scenarioId = restored.session.scenario.id,
+                        moves = restored.session.moves,
+                    )
+                    gameSaveStore.save(GameSnapshotCodec.encode(snapshot))
+                    "Восстановлено ${restored.restoredMoves} ходов из ${restored.totalMoves}"
+                },
+                onDismiss = {
+                    settings = settings.copy(showGameHistory = false)
                 },
             )
         }

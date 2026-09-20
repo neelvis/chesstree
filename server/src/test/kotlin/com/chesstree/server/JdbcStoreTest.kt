@@ -34,7 +34,7 @@ class JdbcStoreTest {
             connection.createStatement().use { statement ->
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
                     rows.next()
-                    assertEquals(3, rows.getInt("version"))
+                    assertEquals(4, rows.getInt("version"))
                 }
             }
         }
@@ -58,7 +58,7 @@ class JdbcStoreTest {
             connection.createStatement().use { statement ->
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
                     rows.next()
-                    assertEquals(3, rows.getInt("version"))
+                    assertEquals(4, rows.getInt("version"))
                 }
                 statement.executeQuery("SELECT COUNT(*) FROM game_moves").use { rows ->
                     rows.next()
@@ -83,7 +83,7 @@ class JdbcStoreTest {
             connection.createStatement().use { statement ->
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
                     rows.next()
-                    assertEquals(3, rows.getInt("version"))
+                    assertEquals(4, rows.getInt("version"))
                 }
             }
         }
@@ -133,6 +133,20 @@ class JdbcStoreTest {
         assertIs<SubmitMoveResult.Stale>(
             store.submitMove("ABC1234", first.id, command.copy(commandId = UUID.randomUUID())),
         )
+
+        val requested = assertIs<UndoResult.Updated>(
+            store.requestUndo("ABC1234", first.id, expectedRevision = 1),
+        ).state
+        val requestId = assertNotNull(requested.undoRequest).id
+        val oneApproval = assertIs<UndoResult.Updated>(
+            store.voteUndo("ABC1234", second.id, requestId, requested.revision, approve = true),
+        ).state
+        val undone = assertIs<UndoResult.Updated>(
+            store.voteUndo("ABC1234", third.id, requestId, oneApproval.revision, approve = true),
+        ).state
+        assertEquals(0, undone.moves.size)
+        assertNull(undone.undoRequest)
+        assertEquals(4, undone.revision)
     }
 
     private suspend fun JdbcStore.user(username: String): UserRecord =

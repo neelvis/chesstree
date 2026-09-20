@@ -1,12 +1,16 @@
 package com.chesstree.server
 
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.API_VERSION
+import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameSocketAuthRequest
 import com.chesstree.multiplayer.contract.GameStatePush
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
+import com.chesstree.multiplayer.contract.UndoRequestCommand
+import com.chesstree.multiplayer.contract.UndoVoteCommand
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.scenario.StandardGame
 import io.ktor.client.request.bearerAuth
@@ -31,6 +35,7 @@ import kotlinx.serialization.json.Json
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ApplicationTest {
@@ -208,7 +213,7 @@ class ApplicationTest {
         join(game.code, second.accessToken)
 
         socketClient.webSocket("/api/v1/games/${game.code}/events") {
-            sendSerialized(GameSocketAuthRequest(owner.accessToken))
+            sendSerialized(GameSocketAuthRequest(owner.accessToken, API_VERSION))
             val waiting = receiveDeserialized<GameStatePush>()
             assertEquals("WAITING", waiting.state.game.status)
 
@@ -234,6 +239,155 @@ class ApplicationTest {
             )
             assertEquals(1, receiveDeserialized<GameStatePush>().state.revision)
         }
+    }
+
+    @Test
+    fun legacySocketReceivesProtocolMismatchWithoutTheV2UndoPayload() = testApplication {
+        application { chessTreeModule(testServices()) }
+        val socketClient = createClient {
+            install(WebSockets) {
+                contentConverter = KotlinxWebsocketSerializationConverter(json)
+            }
+        }
+        val users = listOf(
+            register("owner", "correct-horse"),
+            register("second", "correct-horse"),
+            register("third", "correct-horse"),
+        )
+        val game = createGame(users[0].accessToken)
+        join(game.code, users[1].accessToken)
+        val active = join(game.code, users[2].accessToken)
+        val white = users.single { user ->
+            active.players.single { it.color == "WHITE" }.user.id == user.user.id
+        }
+        val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
+        val moved = submitMove(
+            game.code,
+            white.accessToken,
+            MoveCommandRequest(
+                UUID.randomUUID().toString(),
+                0,
+                move.from.response(),
+                move.to.response(),
+                move.promotion?.name,
+            ),
+        )
+        requestUndo(game.code, users[0].accessToken, moved.revision)
+
+        socketClient.webSocket("/api/v1/games/${game.code}/events") {
+            sendSerialized(GameSocketAuthRequest(users[0].accessToken))
+            val mismatch = receiveDeserialized<GameStatePush>()
+            assertEquals(API_VERSION, mismatch.protocolVersion)
+            assertNull(mismatch.state.undoRequest)
+        }
+    }
+
+    @Test
+    fun undoRequiresBothOtherPlayersAndAnyRejectionKeepsTheMove() = testApplication {
+        application { chessTreeModule(testServices()) }
+        val users = listOf(
+            register("owner", "correct-horse"),
+            register("second", "correct-horse"),
+            register("third", "correct-horse"),
+        )
+        val game = createGame(users[0].accessToken)
+        join(game.code, users[1].accessToken)
+        val active = join(game.code, users[2].accessToken)
+        val white = users.single { user ->
+            active.players.single { it.color == "WHITE" }.user.id == user.user.id
+        }
+        val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
+        val moved = submitMove(
+            game.code,
+            white.accessToken,
+            MoveCommandRequest(
+                UUID.randomUUID().toString(),
+                0,
+                move.from.response(),
+                move.to.response(),
+                move.promotion?.name,
+            ),
+        )
+        val requester = users.first()
+        val voters = users.filterNot { it.user.id == requester.user.id }
+
+        val requested = requestUndo(game.code, requester.accessToken, moved.revision)
+        assertEquals(1, requested.moves.size)
+        val request = checkNotNull(requested.undoRequest)
+        val legacyState = client.get("/api/v1/games/${game.code}/state") {
+            bearerAuth(requester.accessToken)
+        }
+        assertEquals(HttpStatusCode.OK, legacyState.status)
+        val legacyBody = legacyState.bodyAsText()
+        assertTrue("undoRequest" !in legacyBody)
+        val legacySnapshot = json.decodeFromString<GameStateResponse>(legacyBody)
+        assertEquals(legacySnapshot.moves.size, legacySnapshot.revision)
+        val currentState = client.get("/api/v1/games/${game.code}/state") {
+            bearerAuth(requester.accessToken)
+            header(API_VERSION_HEADER, API_VERSION.toString())
+        }
+        assertEquals(request.id, json.decodeFromString<GameStateResponse>(currentState.bodyAsText()).undoRequest?.id)
+        val requesterVote = client.post(
+            "/api/v1/games/${game.code}/undo-requests/${request.id}/votes",
+        ) {
+            bearerAuth(requester.accessToken)
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(UndoVoteCommand(requested.revision, request.id, true)))
+        }
+        assertEquals(HttpStatusCode.Conflict, requesterVote.status)
+        assertTrue(requesterVote.bodyAsText().contains("requester_cannot_vote"))
+        val moveWhileVoting = postMove(
+            game.code,
+            white.accessToken,
+            MoveCommandRequest(
+                UUID.randomUUID().toString(),
+                requested.revision,
+                move.from.response(),
+                move.to.response(),
+                move.promotion?.name,
+            ),
+        )
+        assertEquals(HttpStatusCode.Conflict, moveWhileVoting.status)
+        assertTrue(moveWhileVoting.bodyAsText().contains("undo_pending"))
+        val oneApproval = voteUndo(
+            game.code,
+            voters[0].accessToken,
+            requested.revision,
+            request.id,
+            approve = true,
+        )
+        assertEquals(listOf(voters[0].user.id), oneApproval.undoRequest?.approvedByUserIds)
+        val undone = voteUndo(
+            game.code,
+            voters[1].accessToken,
+            oneApproval.revision,
+            request.id,
+            approve = true,
+        )
+        assertEquals(0, undone.moves.size)
+        assertEquals(null, undone.undoRequest)
+
+        val movedAgain = submitMove(
+            game.code,
+            white.accessToken,
+            MoveCommandRequest(
+                UUID.randomUUID().toString(),
+                undone.revision,
+                move.from.response(),
+                move.to.response(),
+                move.promotion?.name,
+            ),
+        )
+        val requestedAgain = requestUndo(game.code, requester.accessToken, movedAgain.revision)
+        val rejected = voteUndo(
+            game.code,
+            voters[0].accessToken,
+            requestedAgain.revision,
+            checkNotNull(requestedAgain.undoRequest).id,
+            approve = false,
+        )
+        assertEquals(1, rejected.moves.size)
+        assertEquals(null, rejected.undoRequest)
     }
 
     private suspend fun io.ktor.server.testing.ApplicationTestBuilder.register(
@@ -278,6 +432,36 @@ class ApplicationTest {
         bearerAuth(token)
         contentType(ContentType.Application.Json)
         setBody(json.encodeToString(command))
+    }
+
+    private suspend fun io.ktor.server.testing.ApplicationTestBuilder.requestUndo(
+        code: String,
+        token: String,
+        expectedRevision: Int,
+    ): GameStateResponse {
+        val response = client.post("/api/v1/games/$code/undo-requests") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(UndoRequestCommand(expectedRevision)))
+        }
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        return json.decodeFromString(response.bodyAsText())
+    }
+
+    private suspend fun io.ktor.server.testing.ApplicationTestBuilder.voteUndo(
+        code: String,
+        token: String,
+        expectedRevision: Int,
+        requestId: String,
+        approve: Boolean,
+    ): GameStateResponse {
+        val response = client.post("/api/v1/games/$code/undo-requests/$requestId/votes") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(UndoVoteCommand(expectedRevision, requestId, approve)))
+        }
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        return json.decodeFromString(response.bodyAsText())
     }
 
     private fun com.chesstree.game.domain.BoardCoordinate.response() = CoordinateResponse(vertex, column, row)

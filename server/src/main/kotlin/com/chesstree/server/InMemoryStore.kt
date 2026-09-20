@@ -9,6 +9,8 @@ class InMemoryStore : ChessTreeStore {
     private val sessions = mutableMapOf<String, Pair<UUID, Instant>>()
     private val games = linkedMapOf<String, MutableGame>()
     private val moves = mutableMapOf<String, MutableList<GameMoveRecord>>()
+    private val revisions = mutableMapOf<String, Int>()
+    private val undoRequests = mutableMapOf<String, UndoRequestRecord>()
 
     override suspend fun createUser(
         username: String,
@@ -49,6 +51,7 @@ class InMemoryStore : ChessTreeStore {
         val game = MutableGame(id, code, mutableListOf(GamePlayer(owner, 0, null)))
         games[code] = game
         moves[code] = mutableListOf()
+        revisions[code] = 0
         game.snapshot()
     }
 
@@ -72,7 +75,7 @@ class InMemoryStore : ChessTreeStore {
     override suspend fun findGame(code: String): GameRecord? = synchronized(this) { games[code]?.snapshot() }
 
     override suspend fun findGameState(code: String): GameStateRecord? = synchronized(this) {
-        games[code]?.let { game -> GameStateRecord(game.snapshot(), moves.getValue(code).toList()) }
+        games[code]?.let { game -> state(code, game) }
     }
 
     override suspend fun submitMove(
@@ -82,12 +85,13 @@ class InMemoryStore : ChessTreeStore {
     ): SubmitMoveResult = synchronized(this) {
         val game = games[code] ?: return@synchronized SubmitMoveResult.Missing
         val gameMoves = moves.getValue(code)
-        val state = GameStateRecord(game.snapshot(), gameMoves.toList())
+        val state = state(code, game)
         when (val evaluation = evaluateMove(state, userId, command)) {
             is MoveEvaluation.Accepted -> {
                 gameMoves += evaluation.move
+                revisions[code] = revisions.getValue(code) + 1
                 if (evaluation.finished) game.status = GameStatus.FINISHED
-                SubmitMoveResult.Applied(GameStateRecord(game.snapshot(), gameMoves.toList()))
+                SubmitMoveResult.Applied(state(code, game))
             }
             MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state)
             MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
@@ -96,8 +100,64 @@ class InMemoryStore : ChessTreeStore {
             MoveEvaluation.NotTurn -> SubmitMoveResult.NotTurn
             MoveEvaluation.IllegalMove -> SubmitMoveResult.IllegalMove
             MoveEvaluation.CommandConflict -> SubmitMoveResult.CommandConflict
+            MoveEvaluation.UndoPending -> SubmitMoveResult.UndoPending
         }
     }
+
+    override suspend fun requestUndo(
+        code: String,
+        userId: UUID,
+        expectedRevision: Int,
+    ): UndoResult = synchronized(this) {
+        val game = games[code] ?: return@synchronized UndoResult.Missing
+        if (game.players.none { it.user.id == userId }) return@synchronized UndoResult.NotParticipant
+        val current = state(code, game)
+        if (expectedRevision != current.revision) return@synchronized UndoResult.Stale(current)
+        if (current.moves.isEmpty()) return@synchronized UndoResult.NotAvailable
+        if (current.undoRequest != null) return@synchronized UndoResult.AlreadyPending
+        undoRequests[code] = UndoRequestRecord(UUID.randomUUID(), userId, current.moves.size)
+        revisions[code] = current.revision + 1
+        UndoResult.Updated(state(code, game))
+    }
+
+    override suspend fun voteUndo(
+        code: String,
+        userId: UUID,
+        requestId: UUID,
+        expectedRevision: Int,
+        approve: Boolean,
+    ): UndoResult = synchronized(this) {
+        val game = games[code] ?: return@synchronized UndoResult.Missing
+        if (game.players.none { it.user.id == userId }) return@synchronized UndoResult.NotParticipant
+        val current = state(code, game)
+        if (expectedRevision != current.revision) return@synchronized UndoResult.Stale(current)
+        val request = current.undoRequest
+            ?.takeIf { it.id == requestId }
+            ?: return@synchronized UndoResult.NotAvailable
+        if (request.requestedByUserId == userId) return@synchronized UndoResult.RequesterCannotVote
+        if (userId in request.approvedByUserIds) return@synchronized UndoResult.AlreadyVoted
+        revisions[code] = current.revision + 1
+        if (!approve) {
+            undoRequests.remove(code)
+            return@synchronized UndoResult.Updated(state(code, game))
+        }
+        val approved = request.approvedByUserIds + userId
+        if (approved.size == game.players.size - 1) {
+            moves.getValue(code).removeLast()
+            undoRequests.remove(code)
+            game.status = GameStatus.ACTIVE
+        } else {
+            undoRequests[code] = request.copy(approvedByUserIds = approved)
+        }
+        UndoResult.Updated(state(code, game))
+    }
+
+    private fun state(code: String, game: MutableGame) = GameStateRecord(
+        game = game.snapshot(),
+        moves = moves.getValue(code).toList(),
+        revision = revisions.getValue(code),
+        undoRequest = undoRequests[code],
+    )
 
     private data class MutableGame(
         val id: UUID,

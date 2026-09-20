@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class GameSessionTest {
     @Test
@@ -56,6 +57,10 @@ class GameSessionTest {
         )
         val currentHistory = assertNotNull(GameSession.replay(bareKingsPractice, listOf(capture)))
         assertIs<GamePhase.Finished>(currentHistory.state.phase)
+        val historicalPosition = assertNotNull(
+            GameSession.replayPosition(bareKingsPractice, listOf(capture)),
+        )
+        assertIs<GamePhase.InProgress>(historicalPosition.state.phase)
 
         val legacyAfterCapture = assertIs<MoveReduction.Applied>(
             GameReducer.reduce(
@@ -91,6 +96,32 @@ class GameSessionTest {
         ).session
         assertIs<GamePhase.Finished>(finished.state.phase)
     }
+
+    @Test
+    fun undoLastMoveRemovesItFromHistoryAndRestoresThePreviousPosition() {
+        val initial = GameSession(capturePractice)
+        val firstMove = LegalMoveGenerator.legalMoves(initial.state).first()
+        val afterFirstMove = assertIs<SessionMoveResult.Applied>(
+            initial.apply(firstMove.toIntent()),
+        ).session
+        val secondMove = LegalMoveGenerator.legalMoves(afterFirstMove.state).first()
+        val afterSecondMove = assertIs<SessionMoveResult.Applied>(
+            afterFirstMove.apply(secondMove.toIntent()),
+        ).session
+
+        val undone = assertNotNull(afterSecondMove.undoLastMove())
+
+        assertEquals(afterFirstMove, undone)
+        assertEquals(listOf(firstMove.toIntent()), undone.moves)
+        assertNull(initial.undoLastMove())
+    }
+
+    private fun com.chesstree.game.domain.Move.toIntent() = MoveIntent(
+        actor = actor,
+        from = from,
+        to = to,
+        promotion = promotion,
+    )
 
     private companion object {
         val capturePractice = gameScenario("capture-practice") {

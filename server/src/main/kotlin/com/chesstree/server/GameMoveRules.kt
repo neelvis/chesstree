@@ -17,6 +17,7 @@ sealed interface MoveEvaluation {
     data object NotTurn : MoveEvaluation
     data object IllegalMove : MoveEvaluation
     data object CommandConflict : MoveEvaluation
+    data object UndoPending : MoveEvaluation
 }
 
 fun evaluateMove(
@@ -39,8 +40,9 @@ fun evaluateMove(
             MoveEvaluation.CommandConflict
         }
     }
+    if (state.undoRequest != null) return MoveEvaluation.UndoPending
     if (state.game.status != GameStatus.ACTIVE || player.color == null) return MoveEvaluation.NotActive
-    if (command.expectedRevision != state.moves.size) return MoveEvaluation.Stale
+    if (command.expectedRevision != state.revision) return MoveEvaluation.Stale
     val session = checkNotNull(GameSession.replay(StandardGame.scenario, state.moves.map(GameMoveRecord::intent))) {
         "Stored move history is invalid"
     }

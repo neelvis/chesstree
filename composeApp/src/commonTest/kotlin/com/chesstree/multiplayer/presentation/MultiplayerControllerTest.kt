@@ -9,10 +9,13 @@ import com.chesstree.multiplayer.contract.GamePlayerResponse
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.multiplayer.contract.UserResponse
+import com.chesstree.multiplayer.contract.UndoRequestCommand
+import com.chesstree.multiplayer.contract.UndoRequestResponse
 import com.chesstree.multiplayer.data.ApiResult
 import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.OnlineSessionStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -183,6 +186,32 @@ class MultiplayerControllerTest {
         assertEquals(1, controller.state.value.remoteState?.revision)
     }
 
+    @Test
+    fun lateUndoHttpResponseCannotOverwriteANewerWebSocketRevision() = runTest {
+        val api = PushApi()
+        val controller = MultiplayerController(api, backgroundScope)
+        controller.setUsername("Alice")
+        controller.setPassword("correct-horse")
+        controller.submitAuthentication()
+        runCurrent()
+        controller.setGameCode("ABC1234")
+        controller.joinGame()
+        runCurrent()
+        api.pushRevisionOne()
+        runCurrent()
+
+        controller.requestUndo()
+        runCurrent()
+        api.pushUndoCompleted()
+        runCurrent()
+        api.completeUndoRequestWithStalePending()
+        runCurrent()
+
+        assertEquals(4, controller.state.value.remoteState?.revision)
+        assertEquals(0, controller.state.value.session?.moves?.size)
+        assertNull(controller.state.value.remoteState?.undoRequest)
+    }
+
     private class FakeApi(
         private val joinFails: Boolean = false,
         private val authFails: Boolean = false,
@@ -280,6 +309,7 @@ class MultiplayerControllerTest {
             players = listOf(GamePlayerResponse(auth.user, "WHITE")),
         )
         private val updates = MutableSharedFlow<ApiResult<GameStateResponse>>(extraBufferCapacity = 1)
+        private val undoResponse = CompletableDeferred<ApiResult<GameStateResponse>>()
 
         override suspend fun register(username: String, password: String) = ApiResult.Success(auth)
         override suspend fun login(username: String, password: String) = ApiResult.Success(auth)
@@ -291,6 +321,8 @@ class MultiplayerControllerTest {
         override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> = updates
         override suspend fun submitMove(token: String, code: String, command: MoveCommandRequest) =
             ApiResult.Success(initialState())
+        override suspend fun requestUndo(token: String, code: String, command: UndoRequestCommand) =
+            undoResponse.await()
 
         fun pushRevisionOne() {
             val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
@@ -325,7 +357,48 @@ class MultiplayerControllerTest {
             updates.tryEmit(ApiResult.Success(initialState()))
         }
 
+        fun pushUndoCompleted() {
+            updates.tryEmit(ApiResult.Success(GameStateResponse(game, revision = 4, moves = emptyList())))
+        }
+
+        fun completeUndoRequestWithStalePending() {
+            undoResponse.complete(
+                ApiResult.Success(
+                    GameStateResponse(
+                        game = game,
+                        revision = 2,
+                        moves = listOf(firstMoveEvent()),
+                        undoRequest = UndoRequestResponse(
+                            id = "00000000-0000-0000-0000-000000000001",
+                            requestedByUserId = auth.user.id,
+                            targetMoveCount = 1,
+                            approvedByUserIds = emptyList(),
+                        ),
+                    ),
+                ),
+            )
+        }
+
         private fun initialState() = GameStateResponse(game, revision = 0, moves = emptyList())
+
+        private fun firstMoveEvent(): MoveEventResponse {
+            val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
+            return MoveEventResponse(
+                revision = 1,
+                actor = move.actor.name,
+                from = com.chesstree.multiplayer.contract.CoordinateResponse(
+                    move.from.vertex,
+                    move.from.column,
+                    move.from.row,
+                ),
+                to = com.chesstree.multiplayer.contract.CoordinateResponse(
+                    move.to.vertex,
+                    move.to.column,
+                    move.to.row,
+                ),
+                promotion = move.promotion?.name,
+            )
+        }
     }
 
     private class FakeSessionStore : OnlineSessionStore {

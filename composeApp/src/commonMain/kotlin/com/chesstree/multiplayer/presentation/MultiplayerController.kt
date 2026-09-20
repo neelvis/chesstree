@@ -5,6 +5,8 @@ import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
+import com.chesstree.multiplayer.contract.UndoRequestCommand
+import com.chesstree.multiplayer.contract.UndoVoteCommand
 import com.chesstree.multiplayer.data.ApiResult
 import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
@@ -152,6 +154,49 @@ class MultiplayerController(
         }
     }
 
+    fun requestUndo() = withToken { token ->
+        val currentRemote = remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
+        when (
+            val result = api.requestUndo(
+                token,
+                currentRemote.game.code,
+                UndoRequestCommand(currentRemote.revision),
+            )
+        ) {
+            is ApiResult.Success -> withRemoteState(result.value)
+            is ApiResult.Failure -> handleStateConflict(token, currentRemote.game.code, result)
+        }
+    }
+
+    fun voteUndo(approve: Boolean) = withToken { token ->
+        val currentRemote = remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
+        val undoRequest = currentRemote.undoRequest
+            ?: return@withToken copy(error = "Запрос на отмену уже закрыт")
+        when (
+            val result = api.voteUndo(
+                token,
+                currentRemote.game.code,
+                UndoVoteCommand(currentRemote.revision, undoRequest.id, approve),
+            )
+        ) {
+            is ApiResult.Success -> withRemoteState(result.value)
+            is ApiResult.Failure -> handleStateConflict(token, currentRemote.game.code, result)
+        }
+    }
+
+    private suspend fun MultiplayerUiState.handleStateConflict(
+        token: String,
+        code: String,
+        failure: ApiResult.Failure,
+    ): MultiplayerUiState = if (failure.code == "stale_revision") {
+        when (val refreshed = api.getGameState(token, code)) {
+            is ApiResult.Success -> withRemoteState(refreshed.value).copy(error = failure.message)
+            is ApiResult.Failure -> copy(error = refreshed.message)
+        }
+    } else {
+        copy(error = failure.message)
+    }
+
     fun logout() {
         val current = mutableState.value
         val token = current.authentication?.accessToken
@@ -213,7 +258,12 @@ class MultiplayerController(
         request = scope.launch {
             try {
                 val updated = mutableState.value.block()
-                mutableState.value = updated.copy(loading = false)
+                val latest = mutableState.value
+                mutableState.value = if (latest.hasNewerRemoteStateThan(updated)) {
+                    latest.copy(loading = false)
+                } else {
+                    updated.copy(loading = false)
+                }
                 afterUpdate(mutableState.value)
             } catch (error: CancellationException) {
                 throw error
@@ -251,8 +301,13 @@ class MultiplayerController(
     }
 }
 
+private fun MultiplayerUiState.hasNewerRemoteStateThan(other: MultiplayerUiState): Boolean {
+    val latestRemote = remoteState ?: return false
+    val otherRemote = other.remoteState ?: return false
+    return latestRemote.game.code == otherRemote.game.code && latestRemote.revision > otherRemote.revision
+}
+
 private fun GameStateResponse.toSession(): GameSession? = runCatching {
-    require(revision == moves.size)
     moves.forEachIndexed { index, move -> require(move.revision == index + 1) }
     GameSession.replay(
         StandardGame.scenario,

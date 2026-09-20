@@ -36,6 +36,13 @@ Establish:
 - stages, file ownership, acceptance criteria, tests, validation, and risks;
 - external API/schema semantics when applicable, including authority and versioning.
 
+Before inventing a coordinate table, notation, serialization format, protocol
+mapping, or other durable representation, locate the repository's authoritative
+tests, reference assets, and existing anchors and reconcile them. If a requested
+format loses state needed for deterministic restore, special moves, or future
+compatibility, surface that limitation before implementation rather than rebuilding
+the codec later.
+
 Use `kmp-design-feature` semantics. Present the plan before implementation unless
 the user explicitly authorized end-to-end execution. A material rules, security,
 protocol, or product ambiguity blocks only the affected slice; ask for the minimum
@@ -70,6 +77,12 @@ reviewer when the change affects authentication/privacy, persistence migration,
 real-time protocol, shared public APIs, concurrency/state integrity, destructive
 behavior, or repeated unexplained failures. Review the changed surface, not the
 whole repository.
+
+Start an independent review only after the intended diff is stable. Give the
+reviewer a read-only snapshot and existing validation results; do not ask it to run
+the full matrix again unless independent reproduction is material to a finding. If
+the user changes the contract during review, stop or defer that review until the new
+contract is implemented.
 
 Use `../../references/validation-matrix.md` for the final gate. Material unresolved
 findings or failed required checks prevent a success claim.

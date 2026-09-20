@@ -33,9 +33,9 @@ data class BoardEdgeLabel(
 
 object ThreePlayerBoardGeometry {
     const val CELL_COUNT: Int = 96
-    const val A1_VERTEX: Int = 0
-    const val A1_COLUMN: Int = 2
-    const val A1_ROW: Int = 1
+    private const val DARK_ANCHOR_VERTEX: Int = 0
+    private const val DARK_ANCHOR_COLUMN: Int = 2
+    private const val DARK_ANCHOR_ROW: Int = 1
 
     private val vertices: List<BoardPoint> = List(6) { index ->
         val angle = index * PI / 3.0
@@ -110,7 +110,7 @@ object ThreePlayerBoardGeometry {
 
         val colors = alternatingColors(drafts)
         val anchorIndex = drafts.indexOfFirst {
-            it.id == BoardCellId(A1_VERTEX, A1_COLUMN, A1_ROW)
+            it.id == BoardCellId(DARK_ANCHOR_VERTEX, DARK_ANCHOR_COLUMN, DARK_ANCHOR_ROW)
         }
         val invert = colors.getValue(anchorIndex) != DARK
 

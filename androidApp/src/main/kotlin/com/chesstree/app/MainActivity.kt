@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity() {
         acceptGameLink(intent)
         val saveStore = AndroidGameSaveStore(applicationContext)
         val onlineSessionStore = AndroidOnlineSessionStore(applicationContext)
+        val gameLogExporter = AndroidGameLogExporter(this)
         setContent {
             val initialGameCode by linkedGameCode.collectAsState()
             App(
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
                 onlineSessionStore = onlineSessionStore,
                 initialGameCode = initialGameCode,
                 gameLinkSharer = AndroidGameLinkSharer(this),
+                gameLogExporter = gameLogExporter,
             )
         }
     }

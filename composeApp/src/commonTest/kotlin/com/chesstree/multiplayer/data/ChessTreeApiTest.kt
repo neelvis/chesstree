@@ -4,6 +4,8 @@ import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
+import com.chesstree.multiplayer.contract.UndoRequestCommand
+import com.chesstree.multiplayer.contract.UndoVoteCommand
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -82,6 +84,32 @@ class ChessTreeApiTest {
         val result = api(engine).submitMove("session-token", "abc1234", command)
 
         assertEquals(0, assertIs<ApiResult.Success<GameStateResponse>>(result).value.revision)
+    }
+
+    @Test
+    fun undoRequestAndVoteUseTheGameScopedEndpoints() = runTest {
+        val visited = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            visited += request.url.toString()
+            respond(
+                content = """{"game":$GAME_JSON,"revision":3,"moves":[]}""",
+                status = HttpStatusCode.OK,
+                headers = JSON_HEADERS,
+            )
+        }
+        val api = api(engine)
+        val requestId = "00000000-0000-0000-0000-000000000001"
+
+        api.requestUndo("session-token", "abc1234", UndoRequestCommand(1))
+        api.voteUndo("session-token", "abc1234", UndoVoteCommand(2, requestId, true))
+
+        assertEquals(
+            listOf(
+                "https://server.test/api/v1/games/ABC1234/undo-requests",
+                "https://server.test/api/v1/games/ABC1234/undo-requests/$requestId/votes",
+            ),
+            visited,
+        )
     }
 
     private fun api(engine: MockEngine): KtorChessTreeApi = KtorChessTreeApi(

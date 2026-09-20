@@ -21,14 +21,6 @@ data class MovementDirection(
 object MovementDirections {
     private val pawnDistances: Map<ArmyColor, Map<BoardCoordinate, Int>> =
         ArmyColor.entries.associateWith(::calculateDistancesFromHome)
-    private val pawnFilesByVertex: List<List<BoardFile>> = listOf(
-        listOf(BoardFile.E, BoardFile.F, BoardFile.G, BoardFile.H),
-        listOf(BoardFile.H, BoardFile.G, BoardFile.F, BoardFile.E),
-        listOf(BoardFile.D, BoardFile.C, BoardFile.B, BoardFile.A),
-        listOf(BoardFile.A, BoardFile.B, BoardFile.C, BoardFile.D),
-        listOf(BoardFile.K, BoardFile.L, BoardFile.M, BoardFile.N),
-        listOf(BoardFile.N, BoardFile.M, BoardFile.L, BoardFile.K),
-    )
 
     fun forPiece(
         type: PieceType,
@@ -126,9 +118,7 @@ object MovementDirections {
     }
 
     private fun pawnFile(coordinate: BoardCoordinate): BoardFile =
-        pawnFilesByVertex[coordinate.vertex][
-            if (coordinate.vertex % 2 == 0) coordinate.column else coordinate.row
-        ]
+        ThreePlayerBoardNotation.square(coordinate).file
 
     private fun calculateDistancesFromHome(army: ArmyColor): Map<BoardCoordinate, Int> {
         val home = homeEdge(army)

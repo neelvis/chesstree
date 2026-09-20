@@ -1,6 +1,8 @@
 package com.chesstree.server
 
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.API_VERSION
+import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GamePlayerResponse
@@ -11,6 +13,9 @@ import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.MoveEventResponse
 import com.chesstree.multiplayer.contract.UserResponse
+import com.chesstree.multiplayer.contract.UndoRequestCommand
+import com.chesstree.multiplayer.contract.UndoRequestResponse
+import com.chesstree.multiplayer.contract.UndoVoteCommand
 import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.PromotionChoice
 import io.ktor.http.HttpStatusCode
@@ -163,7 +168,13 @@ fun Application.chessTreeModule(
                     if (state == null || state.game.players.none { it.user.id == user.id }) {
                         call.respond(HttpStatusCode.NotFound, ErrorResponse("game_not_found", "Игра не найдена"))
                     } else {
-                        call.respond(state.response(services.publicBaseUrl))
+                        call.respond(
+                            state.response(
+                                services.publicBaseUrl,
+                                includeUndoRequest = call.request.headers[API_VERSION_HEADER] ==
+                                        API_VERSION.toString(),
+                            ),
+                        )
                     }
                 }
                 post("/games/{code}/moves") {
@@ -201,7 +212,44 @@ fun Application.chessTreeModule(
                             HttpStatusCode.Conflict,
                             ErrorResponse("command_conflict", "Идентификатор команды уже использован"),
                         )
+                        SubmitMoveResult.UndoPending -> call.respond(
+                            HttpStatusCode.Conflict,
+                            ErrorResponse("undo_pending", "Сначала завершите голосование за отмену хода"),
+                        )
                     }
+                }
+                post("/games/{code}/undo-requests") {
+                    val user = call.authenticatedUser()
+                    val code = call.gameCode()
+                    val command = call.receive<UndoRequestCommand>()
+                    if (command.expectedRevision < 0) throw BadRequestException("Invalid revision")
+                    call.respondUndoResult(
+                        services,
+                        code,
+                        services.store.requestUndo(code, user.id, command.expectedRevision),
+                    )
+                }
+                post("/games/{code}/undo-requests/{requestId}/votes") {
+                    val user = call.authenticatedUser()
+                    val code = call.gameCode()
+                    val command = call.receive<UndoVoteCommand>()
+                    val requestId = runCatching { UUID.fromString(command.requestId) }
+                        .getOrElse { throw BadRequestException("Invalid undo request") }
+                    if (
+                        command.expectedRevision < 0 ||
+                        call.parameters["requestId"] != command.requestId
+                    ) throw BadRequestException("Invalid undo vote")
+                    call.respondUndoResult(
+                        services,
+                        code,
+                        services.store.voteUndo(
+                            code,
+                            user.id,
+                            requestId,
+                            command.expectedRevision,
+                            command.approve,
+                        ),
+                    )
                 }
             }
             webSocket("/games/{code}/events") {
@@ -221,6 +269,19 @@ fun Application.chessTreeModule(
                 }
                 if (initialState == null) {
                     close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Authentication failed"))
+                    return@webSocket
+                }
+                if (authRequest.protocolVersion != API_VERSION) {
+                    sendSerialized(
+                        GameStatePush(
+                            protocolVersion = API_VERSION,
+                            state = initialState.response(
+                                services.publicBaseUrl,
+                                includeUndoRequest = false,
+                            ),
+                        ),
+                    )
+                    close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Protocol mismatch"))
                     return@webSocket
                 }
                 services.updates.updates(code).collect {
@@ -289,9 +350,12 @@ private fun GameRecord.response(publicBaseUrl: String) = GameResponse(
     players = players.map { GamePlayerResponse(it.user.response(), it.color?.name) },
 )
 
-private fun GameStateRecord.response(publicBaseUrl: String) = GameStateResponse(
+private fun GameStateRecord.response(
+    publicBaseUrl: String,
+    includeUndoRequest: Boolean = true,
+) = GameStateResponse(
     game = game.response(publicBaseUrl),
-    revision = moves.size,
+    revision = if (includeUndoRequest) revision else moves.size,
     moves = moves.mapIndexed { index, move ->
         MoveEventResponse(
             revision = index + 1,
@@ -301,7 +365,51 @@ private fun GameStateRecord.response(publicBaseUrl: String) = GameStateResponse(
             promotion = move.intent.promotion?.name,
         )
     },
+    undoRequest = undoRequest?.takeIf { includeUndoRequest }?.let { request ->
+        UndoRequestResponse(
+            id = request.id.toString(),
+            requestedByUserId = request.requestedByUserId.toString(),
+            targetMoveCount = request.targetMoveCount,
+            approvedByUserIds = request.approvedByUserIds.map(UUID::toString).sorted(),
+        )
+    },
 )
+
+private suspend fun ApplicationCall.respondUndoResult(
+    services: ServerServices,
+    code: String,
+    result: UndoResult,
+) {
+    when (result) {
+        is UndoResult.Updated -> {
+            services.updates.publish(code)
+            respond(result.state.response(services.publicBaseUrl))
+        }
+        is UndoResult.Stale -> respond(
+            HttpStatusCode.Conflict,
+            ErrorResponse("stale_revision", "Состояние партии изменилось; обновите его"),
+        )
+        UndoResult.Missing,
+        UndoResult.NotParticipant,
+            -> respond(HttpStatusCode.NotFound, ErrorResponse("game_not_found", "Игра не найдена"))
+        UndoResult.NotAvailable -> respond(
+            HttpStatusCode.Conflict,
+            ErrorResponse("undo_not_available", "Этот запрос на отмену больше недоступен"),
+        )
+        UndoResult.AlreadyPending -> respond(
+            HttpStatusCode.Conflict,
+            ErrorResponse("undo_already_pending", "Запрос на отмену уже рассматривается"),
+        )
+        UndoResult.RequesterCannotVote -> respond(
+            HttpStatusCode.Conflict,
+            ErrorResponse("requester_cannot_vote", "Инициатор не голосует за свой запрос"),
+        )
+        UndoResult.AlreadyVoted -> respond(
+            HttpStatusCode.Conflict,
+            ErrorResponse("already_voted", "Ваш голос уже учтён"),
+        )
+    }
+}
 
 private fun BoardCoordinate.response() = CoordinateResponse(vertex, column, row)
 

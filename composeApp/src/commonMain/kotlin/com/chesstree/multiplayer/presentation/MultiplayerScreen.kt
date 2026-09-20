@@ -22,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -174,11 +175,22 @@ private fun OnlineGame(state: MultiplayerUiState, controller: MultiplayerControl
     val hints = remember(session.state, selectedPieceId) {
         selectedPieceId?.let(::PieceId)?.let { legalMoveHintsFor(session.state, it) }.orEmpty()
     }
-    val canAct = !state.loading && session.state.turn?.player == assignedPlayer
+    val undoRequest = state.remoteState?.undoRequest
+    val canAct = !state.loading && undoRequest == null && session.state.turn?.player == assignedPlayer
+    val currentUserId = state.authentication?.user?.id
+    val isUndoRequester = undoRequest?.requestedByUserId == currentUserId
+    val hasApprovedUndo = currentUserId in undoRequest?.approvedByUserIds.orEmpty()
+    LaunchedEffect(undoRequest?.id) {
+        if (undoRequest != null) {
+            selectedPieceId = null
+            pendingPromotionMoves = emptyList()
+        }
+    }
 
     Text("Ревизия: ${state.remoteState?.revision ?: 0}")
     Text(
         when {
+            undoRequest != null -> "Игра приостановлена: голосование за отмену хода"
             game.status == "FINISHED" -> "Партия завершена"
             canAct -> "Ваш ход"
             else -> "Ожидаем ход другого игрока"
@@ -223,6 +235,39 @@ private fun OnlineGame(state: MultiplayerUiState, controller: MultiplayerControl
         },
         modifier = Modifier.fillMaxWidth().heightIn(min = 360.dp, max = 720.dp),
     )
+    OutlinedButton(
+        onClick = controller::requestUndo,
+        enabled = !state.loading && undoRequest == null && session.moves.isNotEmpty(),
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text("Отменить ход") }
+    if (undoRequest != null) {
+        val requesterName = game.players
+            .firstOrNull { it.user.id == undoRequest.requestedByUserId }
+            ?.user?.username
+            ?: "Участник"
+        if (isUndoRequester) {
+            Text("Запрос отправлен. Ожидаем согласия двух других участников.")
+        } else if (hasApprovedUndo) {
+            Text("Вы согласились. Ожидаем решение второго участника.")
+        } else {
+            Text("$requesterName просит отменить последний ход")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = { controller.voteUndo(true) },
+                    enabled = !state.loading,
+                    modifier = Modifier.weight(1f),
+                ) { Text("Согласен") }
+                OutlinedButton(
+                    onClick = { controller.voteUndo(false) },
+                    enabled = !state.loading,
+                    modifier = Modifier.weight(1f),
+                ) { Text("Не согласен") }
+            }
+        }
+    }
     OutlinedButton(
         onClick = controller::refreshGame,
         enabled = !state.loading,

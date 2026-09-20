@@ -43,7 +43,19 @@ data class GameMoveRecord(
     val intent: MoveIntent,
 )
 
-data class GameStateRecord(val game: GameRecord, val moves: List<GameMoveRecord>)
+data class UndoRequestRecord(
+    val id: UUID,
+    val requestedByUserId: UUID,
+    val targetMoveCount: Int,
+    val approvedByUserIds: Set<UUID> = emptySet(),
+)
+
+data class GameStateRecord(
+    val game: GameRecord,
+    val moves: List<GameMoveRecord>,
+    val revision: Int = moves.size,
+    val undoRequest: UndoRequestRecord? = null,
+)
 
 sealed interface CreateUserResult {
     data class Created(val user: UserRecord) : CreateUserResult
@@ -65,4 +77,16 @@ sealed interface SubmitMoveResult {
     data object NotTurn : SubmitMoveResult
     data object IllegalMove : SubmitMoveResult
     data object CommandConflict : SubmitMoveResult
+    data object UndoPending : SubmitMoveResult
+}
+
+sealed interface UndoResult {
+    data class Updated(val state: GameStateRecord) : UndoResult
+    data class Stale(val state: GameStateRecord) : UndoResult
+    data object Missing : UndoResult
+    data object NotParticipant : UndoResult
+    data object NotAvailable : UndoResult
+    data object AlreadyPending : UndoResult
+    data object RequesterCannotVote : UndoResult
+    data object AlreadyVoted : UndoResult
 }

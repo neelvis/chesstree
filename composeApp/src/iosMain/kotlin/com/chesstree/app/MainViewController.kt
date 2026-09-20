@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import com.chesstree.multiplayer.data.KtorChessTreeApi
 import com.chesstree.multiplayer.data.gameCodeFromUrl
 import com.chesstree.multiplayer.presentation.IosGameLinkSharer
+import com.chesstree.game.presentation.history.IosGameLogExporter
 import kotlinx.coroutines.flow.MutableStateFlow
 import platform.UIKit.UIViewController
 
@@ -22,6 +23,7 @@ fun MainViewController(): UIViewController {
             onlineSessionStore = onlineSessionStore,
             initialGameCode = initialGameCode,
             gameLinkSharer = IosGameLinkSharer { rootViewController },
+            gameLogExporter = IosGameLogExporter { rootViewController },
         )
     }
     return rootViewController

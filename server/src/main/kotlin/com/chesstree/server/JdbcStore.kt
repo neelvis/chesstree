@@ -54,6 +54,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                             public_code CHAR(7) NOT NULL UNIQUE,
                             status VARCHAR(16) NOT NULL,
                             created_by UUID NOT NULL REFERENCES users(id),
+                            revision INTEGER NOT NULL DEFAULT 0,
                             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
                         )
                         """.trimIndent(),
@@ -94,6 +95,26 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                         )
                         """.trimIndent(),
                     )
+                    statement.executeUpdate(
+                        """
+                        CREATE TABLE IF NOT EXISTS game_undo_requests (
+                            game_id UUID PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+                            id UUID NOT NULL UNIQUE,
+                            requested_by UUID NOT NULL REFERENCES users(id),
+                            target_move_count INTEGER NOT NULL,
+                            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        )
+                        """.trimIndent(),
+                    )
+                    statement.executeUpdate(
+                        """
+                        CREATE TABLE IF NOT EXISTS game_undo_votes (
+                            request_id UUID NOT NULL REFERENCES game_undo_requests(id) ON DELETE CASCADE,
+                            user_id UUID NOT NULL REFERENCES users(id),
+                            PRIMARY KEY (request_id, user_id)
+                        )
+                        """.trimIndent(),
+                    )
                     try {
                         statement.executeUpdate(
                             "INSERT INTO schema_metadata (singleton, version) VALUES (TRUE, $SCHEMA_VERSION)",
@@ -109,9 +130,21 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                     }
                     when (schemaVersion) {
                         SCHEMA_VERSION -> Unit
-                        1, 2 -> statement.executeUpdate(
-                            "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
-                        )
+                        1, 2, 3 -> {
+                            statement.executeUpdate(
+                                "ALTER TABLE games ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 0",
+                            )
+                            statement.executeUpdate(
+                                """
+                                UPDATE games SET revision = (
+                                    SELECT COUNT(*) FROM game_moves WHERE game_moves.game_id = games.id
+                                )
+                                """.trimIndent(),
+                            )
+                            statement.executeUpdate(
+                                "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
+                            )
+                        }
                         else -> error("Unsupported database schema version: $schemaVersion")
                     }
                     if (isPostgres) installGameUpdateTriggers(connection)
@@ -275,7 +308,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
     }
 
     override suspend fun findGameState(code: String): GameStateRecord? = io {
-        connection().use { loadGameState(it, code) }
+        readTransaction { connection -> loadGameState(connection, code) }
     }
 
     override suspend fun submitMove(
@@ -323,6 +356,10 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                             statement.executeUpdate()
                         }
                     }
+                    connection.prepareStatement("UPDATE games SET revision = revision + 1 WHERE id = ?").use { statement ->
+                        statement.setObject(1, state.game.id)
+                        statement.executeUpdate()
+                    }
                     SubmitMoveResult.Applied(checkNotNull(loadGameState(connection, code)))
                 }
                 MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state)
@@ -332,13 +369,138 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 MoveEvaluation.NotTurn -> SubmitMoveResult.NotTurn
                 MoveEvaluation.IllegalMove -> SubmitMoveResult.IllegalMove
                 MoveEvaluation.CommandConflict -> SubmitMoveResult.CommandConflict
+                MoveEvaluation.UndoPending -> SubmitMoveResult.UndoPending
             }
+        }
+    }
+
+    override suspend fun requestUndo(
+        code: String,
+        userId: UUID,
+        expectedRevision: Int,
+    ): UndoResult = io {
+        transaction { connection ->
+            val state = lockAndLoadState(connection, code) ?: return@transaction UndoResult.Missing
+            if (state.game.players.none { it.user.id == userId }) return@transaction UndoResult.NotParticipant
+            if (expectedRevision != state.revision) return@transaction UndoResult.Stale(state)
+            if (state.moves.isEmpty()) return@transaction UndoResult.NotAvailable
+            if (state.undoRequest != null) return@transaction UndoResult.AlreadyPending
+            connection.prepareStatement(
+                "INSERT INTO game_undo_requests (game_id, id, requested_by, target_move_count) VALUES (?, ?, ?, ?)",
+            ).use { statement ->
+                statement.setObject(1, state.game.id)
+                statement.setObject(2, UUID.randomUUID())
+                statement.setObject(3, userId)
+                statement.setInt(4, state.moves.size)
+                statement.executeUpdate()
+            }
+            incrementRevision(connection, state.game.id)
+            UndoResult.Updated(checkNotNull(loadGameState(connection, code)))
+        }
+    }
+
+    override suspend fun voteUndo(
+        code: String,
+        userId: UUID,
+        requestId: UUID,
+        expectedRevision: Int,
+        approve: Boolean,
+    ): UndoResult = io {
+        transaction { connection ->
+            val state = lockAndLoadState(connection, code) ?: return@transaction UndoResult.Missing
+            if (state.game.players.none { it.user.id == userId }) return@transaction UndoResult.NotParticipant
+            if (expectedRevision != state.revision) return@transaction UndoResult.Stale(state)
+            val request = state.undoRequest?.takeIf { it.id == requestId }
+                ?: return@transaction UndoResult.NotAvailable
+            if (request.requestedByUserId == userId) return@transaction UndoResult.RequesterCannotVote
+            if (userId in request.approvedByUserIds) return@transaction UndoResult.AlreadyVoted
+            if (!approve) {
+                deleteUndoRequest(connection, request.id)
+                incrementRevision(connection, state.game.id)
+                return@transaction UndoResult.Updated(checkNotNull(loadGameState(connection, code)))
+            }
+            connection.prepareStatement(
+                "INSERT INTO game_undo_votes (request_id, user_id) VALUES (?, ?)",
+            ).use { statement ->
+                statement.setObject(1, request.id)
+                statement.setObject(2, userId)
+                statement.executeUpdate()
+            }
+            if (request.approvedByUserIds.size + 1 == state.game.players.size - 1) {
+                connection.prepareStatement(
+                    "DELETE FROM game_moves WHERE game_id = ? AND revision = ?",
+                ).use { statement ->
+                    statement.setObject(1, state.game.id)
+                    statement.setInt(2, request.targetMoveCount)
+                    check(statement.executeUpdate() == 1)
+                }
+                deleteUndoRequest(connection, request.id)
+                connection.prepareStatement(
+                    "UPDATE games SET status = 'ACTIVE', revision = revision + 1 WHERE id = ?",
+                ).use { statement ->
+                    statement.setObject(1, state.game.id)
+                    statement.executeUpdate()
+                }
+            } else {
+                incrementRevision(connection, state.game.id)
+            }
+            UndoResult.Updated(checkNotNull(loadGameState(connection, code)))
         }
     }
 
     private fun loadGameState(connection: Connection, code: String): GameStateRecord? {
         val game = loadGame(connection, code) ?: return null
-        return GameStateRecord(game, loadMoves(connection, game.id))
+        val revision = connection.prepareStatement("SELECT revision FROM games WHERE id = ?").use { statement ->
+            statement.setObject(1, game.id)
+            statement.executeQuery().use { rows -> check(rows.next()); rows.getInt("revision") }
+        }
+        return GameStateRecord(game, loadMoves(connection, game.id), revision, loadUndoRequest(connection, game.id))
+    }
+
+    private fun lockAndLoadState(connection: Connection, code: String): GameStateRecord? {
+        connection.prepareStatement("SELECT id FROM games WHERE public_code = ? FOR UPDATE").use { statement ->
+            statement.setString(1, code)
+            statement.executeQuery().use { rows -> if (!rows.next()) return null }
+        }
+        return loadGameState(connection, code)
+    }
+
+    private fun loadUndoRequest(connection: Connection, gameId: UUID): UndoRequestRecord? =
+        connection.prepareStatement(
+            "SELECT id, requested_by, target_move_count FROM game_undo_requests WHERE game_id = ?",
+        ).use { statement ->
+            statement.setObject(1, gameId)
+            statement.executeQuery().use { rows ->
+                if (!rows.next()) return@use null
+                val id = rows.getObject("id", UUID::class.java)
+                UndoRequestRecord(
+                    id = id,
+                    requestedByUserId = rows.getObject("requested_by", UUID::class.java),
+                    targetMoveCount = rows.getInt("target_move_count"),
+                    approvedByUserIds = connection.prepareStatement(
+                        "SELECT user_id FROM game_undo_votes WHERE request_id = ?",
+                    ).use { votes ->
+                        votes.setObject(1, id)
+                        votes.executeQuery().use { voteRows ->
+                            buildSet { while (voteRows.next()) add(voteRows.getObject("user_id", UUID::class.java)) }
+                        }
+                    },
+                )
+            }
+        }
+
+    private fun deleteUndoRequest(connection: Connection, requestId: UUID) {
+        connection.prepareStatement("DELETE FROM game_undo_requests WHERE id = ?").use { statement ->
+            statement.setObject(1, requestId)
+            statement.executeUpdate()
+        }
+    }
+
+    private fun incrementRevision(connection: Connection, gameId: UUID) {
+        connection.prepareStatement("UPDATE games SET revision = revision + 1 WHERE id = ?").use { statement ->
+            statement.setObject(1, gameId)
+            statement.executeUpdate()
+        }
     }
 
     private fun loadMoves(connection: Connection, gameId: UUID): List<GameMoveRecord> =
@@ -474,6 +636,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 Triple("games", "chesstree_games_notify_update", "chesstree_notify_game_row_update"),
                 Triple("game_players", "chesstree_game_players_notify_update", "chesstree_notify_game_child_update"),
                 Triple("game_moves", "chesstree_game_moves_notify_update", "chesstree_notify_game_child_update"),
+                Triple("game_undo_requests", "chesstree_game_undo_requests_notify_update", "chesstree_notify_game_child_update"),
             ).forEach { (table, trigger, function) ->
                 statement.execute(
                     """
@@ -505,12 +668,24 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         }
     }
 
+    private fun <T> readTransaction(block: (Connection) -> T): T = connection().use { connection ->
+        connection.autoCommit = false
+        connection.isReadOnly = true
+        connection.transactionIsolation = Connection.TRANSACTION_REPEATABLE_READ
+        try {
+            block(connection).also { connection.commit() }
+        } catch (error: Throwable) {
+            connection.rollback()
+            throw error
+        }
+    }
+
     private suspend fun <T> io(block: () -> T): T = withContext(Dispatchers.IO) { block() }
 
     private companion object {
         const val UNIQUE_VIOLATION = "23505"
         const val PLAYER_COUNT = 3
-        const val SCHEMA_VERSION = 3
+        const val SCHEMA_VERSION = 4
         const val SCHEMA_LOCK_KEY = 0x4348455353545245L
     }
 }
