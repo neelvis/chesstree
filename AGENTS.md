@@ -26,8 +26,9 @@ well-supported default can be selected from project evidence and official docs.
 - Read this file, the invoked skill, and only task-related project documentation
   before modifying code.
 - Keep changes tightly scoped. Preserve user-owned edits and generated files.
-- Treat `.agents/skills` as the Codex project skill set. Do not create Claude or
-  Cursor adapters unless the user later asks for them.
+- Use the user-level software-delivery skills from
+  `/Users/k/Documents/Codex/codex-skills`. Keep only ChessTree-specific skills in
+  `.agents/skills` and project routing in `.agents/references/project-profile.md`.
 - Before dependency, Gradle, Kotlin, Compose Multiplatform, Android, iOS, or Web
   configuration changes, verify the current compatible APIs in official
   documentation. Prefer stable releases compatible with the repository; do not
@@ -124,14 +125,4 @@ well-supported default can be selected from project evidence and official docs.
   platform boundary. Record the reason for a new dependency.
 - Avoid deprecated and experimental APIs unless the benefit is explicit, support
   across required targets is verified, and opt-in/migration risk is documented.
-
-## Multi-agent work
-
-Use project roles only when the task is substantial enough to benefit from them.
-Keep the root agent as coordinator, delegate bounded independent discovery or
-review, assign one writer per file, and reconcile all findings before completion.
-Routine bounded changes should stay in one context.
-
-For large or cross-target work, define intended behavior, files, stages, acceptance
-criteria, target-specific validation, and material risks before implementation.
 

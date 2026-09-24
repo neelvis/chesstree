@@ -1,24 +1,24 @@
-# ChessTree Codex skill set
+# ChessTree Codex project configuration
 
-This directory is the project-local source of Codex skills. Codex discovers skills
-directly from `.agents/skills` and applies repository rules from root `AGENTS.md`.
+Reusable workflows come from `/Users/k/Documents/Codex/codex-skills`. This
+directory contains only ChessTree-specific skills and references; Codex also
+applies repository rules from root `AGENTS.md`.
 
-This setup is intentionally Codex-only. It does not generate `.claude` or `.cursor`
-files and has no vendor synchronization layer.
+Do not copy generic delivery, debugging, testing, review, documentation, or commit
+skills back into this repository.
 
 ## Layout
 
 ```text
 .agents/
-  skills/<name>/SKILL.md    Codex workflows
-  references/               Shared conditional guidance
+  skills/<name>/SKILL.md    ChessTree/checkers-specific workflows only
+  references/               Project profile and KMP-specific guidance
   evals/                    Representative behavior checks
 .codex/
   agents/*.toml             Optional Codex worker roles
   config.toml               Project-local Codex configuration
 ```
 
-When changing a skill, edit its canonical file under `.agents/skills`, run the
-skill-creator validator, and check that the representative prompts still route to
-the intended workflow.
-
+When changing a local domain skill, run the skill-creator validator. Change common
+workflows in `/Users/k/Documents/Codex/codex-skills` and check that repository
+routing still resolves through `references/project-profile.md`.
