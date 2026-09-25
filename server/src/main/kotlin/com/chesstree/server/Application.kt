@@ -7,6 +7,7 @@ import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GamePlayerResponse
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.GameHistoryResponse
 import com.chesstree.multiplayer.contract.GameSocketAuthRequest
 import com.chesstree.multiplayer.contract.GameStatePush
 import com.chesstree.multiplayer.contract.GameStateResponse
@@ -134,6 +135,10 @@ fun Application.chessTreeModule(
                     val game = createUniqueGame(services, user)
                     services.updates.publish(game.code)
                     call.respond(HttpStatusCode.Created, game.response(services.publicBaseUrl))
+                }
+                get("/games") {
+                    val user = call.authenticatedUser()
+                    call.respond(services.store.findGamesForUser(user.id).map { it.historyResponse() })
                 }
                 post("/games/{code}/join") {
                     val user = call.authenticatedUser()
@@ -348,6 +353,14 @@ private fun GameRecord.response(publicBaseUrl: String) = GameResponse(
     shareUrl = "${publicBaseUrl.trimEnd('/')}/g/$code",
     status = status.name,
     players = players.map { GamePlayerResponse(it.user.response(), it.color?.name) },
+)
+
+private fun GameRecord.historyResponse() = GameHistoryResponse(
+    id = id.toString(),
+    code = code,
+    status = status.name,
+    players = players.map { GamePlayerResponse(it.user.response(), it.color?.name) },
+    startedAt = startedAt.toString(),
 )
 
 private fun GameStateRecord.response(

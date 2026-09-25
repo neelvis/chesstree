@@ -89,6 +89,12 @@ class InMemoryStore : ChessTreeStore {
 
     override suspend fun findGame(code: String): GameRecord? = synchronized(this) { games[code]?.snapshot() }
 
+    override suspend fun findGamesForUser(userId: UUID): List<GameRecord> = synchronized(this) {
+        games.values.filter { game -> game.players.any { it.user.id == userId } }
+            .map { it.snapshot() }
+            .sortedByDescending { it.startedAt }
+    }
+
     override suspend fun findGameState(code: String): GameStateRecord? = synchronized(this) {
         games[code]?.let { game -> state(code, game) }
     }
@@ -178,6 +184,7 @@ class InMemoryStore : ChessTreeStore {
         val id: UUID,
         val code: String,
         val players: MutableList<GamePlayer>,
+        val startedAt: Instant = Instant.now(),
         var status: GameStatus = GameStatus.WAITING,
     ) {
         fun snapshot() = GameRecord(
@@ -189,6 +196,7 @@ class InMemoryStore : ChessTreeStore {
                 else -> GameStatus.WAITING
             },
             players = players.toList(),
+            startedAt = startedAt,
         )
     }
 

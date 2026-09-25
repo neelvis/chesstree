@@ -76,6 +76,7 @@ fun ThreePlayerChessBoard(
     onCellSelected: (BoardCellId?) -> Unit,
     modifier: Modifier = Modifier,
     palette: BoardPalette = BoardPalette(),
+    onZoomChanged: (Float) -> Unit = {},
 ) {
     val cells = ThreePlayerBoardGeometry.cells
     val labels = ThreePlayerBoardGeometry.labels
@@ -102,6 +103,7 @@ fun ThreePlayerChessBoard(
         STANDARD_BOARD_CONTENT_HEIGHT
     }
     val currentOnCellSelected by rememberUpdatedState(onCellSelected)
+    val currentOnZoomChanged by rememberUpdatedState(onZoomChanged)
     var viewport by remember { mutableStateOf(BoardViewport()) }
 
     Canvas(
@@ -127,7 +129,7 @@ fun ThreePlayerChessBoard(
             }
             .pointerInput(contentWidth, contentHeight) {
                 detectTwoFingerBoardTransformGestures { centroid, pan, zoomChange ->
-                    viewport = transformBoardViewport(
+                    val transformed = transformBoardViewport(
                         viewport = viewport,
                         viewportWidth = size.width.toFloat(),
                         viewportHeight = size.height.toFloat(),
@@ -137,6 +139,9 @@ fun ThreePlayerChessBoard(
                         contentWidth = contentWidth,
                         contentHeight = contentHeight,
                     )
+                    val zoomChanged = transformed.zoom != viewport.zoom
+                    viewport = transformed
+                    if (zoomChanged) currentOnZoomChanged(transformed.zoom)
                 }
             }
             .pointerInput(contentWidth, contentHeight, selectedPieceId, piecesByCell) {
@@ -329,6 +334,17 @@ fun ThreePlayerChessBoard(
                 }
         }
     }
+}
+
+fun threePlayerBoardAspectRatio(
+    pieceSet: PieceSet,
+    showDecorativeBirds: Boolean,
+    zoom: Float,
+): Float {
+    val showBirdsAroundBoard = pieceSet == PieceSet.FAIRY && showDecorativeBirds
+    val contentWidth = if (showBirdsAroundBoard) FAIRY_BOARD_CONTENT_WIDTH else STANDARD_BOARD_CONTENT_WIDTH
+    val contentHeight = if (showBirdsAroundBoard) FAIRY_BOARD_CONTENT_HEIGHT else STANDARD_BOARD_CONTENT_HEIGHT
+    return contentWidth / (contentHeight * zoom.coerceIn(MIN_BOARD_ZOOM, MAX_BOARD_ZOOM))
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPiece(

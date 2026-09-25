@@ -5,6 +5,7 @@ import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.GameHistoryResponse
 import com.chesstree.multiplayer.contract.GameSocketAuthRequest
 import com.chesstree.multiplayer.contract.GameStatePush
 import com.chesstree.multiplayer.contract.GameStateResponse
@@ -43,6 +44,8 @@ interface ChessTreeApi {
     suspend fun login(username: String, password: String): ApiResult<AuthResponse>
     suspend fun logout(token: String): ApiResult<Unit>
     suspend fun createGame(token: String): ApiResult<GameResponse>
+    suspend fun getMyGames(token: String): ApiResult<List<GameHistoryResponse>> =
+        ApiResult.Failure("unsupported", "История игр недоступна")
     suspend fun joinGame(token: String, code: String): ApiResult<GameResponse>
     suspend fun getGame(token: String, code: String): ApiResult<GameResponse>
     suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse>
@@ -97,6 +100,10 @@ class KtorChessTreeApi(
 
     override suspend fun createGame(token: String): ApiResult<GameResponse> = request {
         client.post("$apiBaseUrl/games") { bearerAuth(token) }.decode()
+    }
+
+    override suspend fun getMyGames(token: String): ApiResult<List<GameHistoryResponse>> = request {
+        client.get("$apiBaseUrl/games") { bearerAuth(token) }.decode()
     }
 
     override suspend fun joinGame(token: String, code: String): ApiResult<GameResponse> = request {

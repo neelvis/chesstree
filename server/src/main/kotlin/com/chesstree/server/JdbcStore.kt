@@ -339,6 +339,20 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         connection().use { loadGame(it, code) }
     }
 
+    override suspend fun findGamesForUser(userId: UUID): List<GameRecord> = io {
+        connection().use { connection ->
+            val codes = connection.prepareStatement(
+                "SELECT g.public_code FROM games g JOIN game_players p ON p.game_id = g.id WHERE p.user_id = ? ORDER BY g.created_at DESC",
+            ).use { statement ->
+                statement.setObject(1, userId)
+                statement.executeQuery().use { rows ->
+                    buildList { while (rows.next()) add(rows.getString("public_code").trim()) }
+                }
+            }
+            codes.mapNotNull { code -> loadGame(connection, code) }
+        }
+    }
+
     override suspend fun findGameState(code: String): GameStateRecord? = io {
         readTransaction { connection -> loadGameState(connection, code) }
     }
@@ -576,15 +590,17 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
 
     private fun loadGame(connection: Connection, code: String): GameRecord? {
         val game = connection.prepareStatement(
-            "SELECT id, public_code, status FROM games WHERE public_code = ?",
+            "SELECT id, public_code, status, created_at FROM games WHERE public_code = ?",
         ).use { statement ->
             statement.setString(1, code)
             statement.executeQuery().use { rows ->
                 if (!rows.next()) return null
-                Triple(
-                    rows.getObject("id", UUID::class.java),
-                    rows.getString("public_code").trim(),
-                    GameStatus.valueOf(rows.getString("status")),
+                GameRecord(
+                    id = rows.getObject("id", UUID::class.java),
+                    code = rows.getString("public_code").trim(),
+                    status = GameStatus.valueOf(rows.getString("status")),
+                    players = emptyList(),
+                    startedAt = rows.getTimestamp("created_at").toInstant(),
                 )
             }
         }
@@ -595,7 +611,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
             WHERE p.game_id = ? ORDER BY p.joined_order
             """.trimIndent(),
         ).use { statement ->
-            statement.setObject(1, game.first)
+            statement.setObject(1, game.id)
             statement.executeQuery().use { rows ->
                 buildList {
                     while (rows.next()) {
@@ -610,7 +626,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 }
             }
         }
-        return GameRecord(game.first, game.second, game.third, players)
+        return game.copy(players = players)
     }
 
     private fun ResultSet.user() = UserRecord(

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -55,6 +56,7 @@ import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.PieceSet
 import com.chesstree.game.presentation.board.toBoardPieces
+import com.chesstree.game.presentation.board.threePlayerBoardAspectRatio
 import com.chesstree.game.presentation.history.GameHistoryDialog
 import com.chesstree.game.presentation.history.GameHistoryNavigation
 import com.chesstree.game.presentation.history.GameLogExporter
@@ -137,6 +139,7 @@ fun App(
         var pendingPromotionMoves by remember { mutableStateOf(emptyList<Move>()) }
         var scenarioMenuExpanded by remember { mutableStateOf(false) }
         var controlsExpanded by remember { mutableStateOf(false) }
+        var boardZoom by remember { mutableStateOf(1f) }
         var storageMessage by remember { mutableStateOf<String?>(null) }
         var historyNavigation by remember { mutableStateOf(GameHistoryNavigation.latest()) }
         val selectedScenario = session.scenario
@@ -222,6 +225,7 @@ fun App(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .then(if (compactLayout) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                         .padding(horizontal = horizontalPadding, vertical = 8.dp)
                         .widthIn(max = 920.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -328,9 +332,20 @@ fun App(
                                     ?.id?.value
                             }
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
+                        modifier = if (compactLayout) {
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(
+                                    threePlayerBoardAspectRatio(
+                                        settings.pieceSet,
+                                        gameState.turn == null,
+                                        boardZoom,
+                                    ),
+                                )
+                        } else {
+                            Modifier.weight(1f).fillMaxWidth()
+                        },
+                        onZoomChanged = { boardZoom = it },
                     )
                 }
                 if (controlsExpanded) {

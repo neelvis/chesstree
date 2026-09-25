@@ -30,6 +30,15 @@ data class GameResponse(
 )
 
 @Serializable
+data class GameHistoryResponse(
+    val id: String,
+    val code: String,
+    val status: String,
+    val players: List<GamePlayerResponse>,
+    val startedAt: String,
+)
+
+@Serializable
 data class CoordinateResponse(val vertex: Int, val column: Int, val row: Int)
 
 @Serializable

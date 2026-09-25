@@ -26,6 +26,7 @@ data class GameRecord(
     val code: String,
     val status: GameStatus,
     val players: List<GamePlayer>,
+    val startedAt: Instant = Instant.EPOCH,
 )
 
 data class GameMoveCommand(

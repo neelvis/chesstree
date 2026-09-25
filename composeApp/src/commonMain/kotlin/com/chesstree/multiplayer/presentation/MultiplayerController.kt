@@ -3,6 +3,7 @@ package com.chesstree.multiplayer.presentation
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.contract.GameHistoryResponse
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.UndoRequestCommand
@@ -17,6 +18,7 @@ import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.domain.session.GameSession
+import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.domain.scenario.StandardGame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -37,9 +39,12 @@ data class MultiplayerUiState(
     val authentication: AuthResponse? = null,
     val gameCode: String = "",
     val game: GameResponse? = null,
+    val games: List<GameHistoryResponse> = emptyList(),
+    val syncing: Boolean = false,
     val remoteState: GameStateResponse? = null,
     val session: GameSession? = null,
     val loading: Boolean = false,
+    val submittingMove: Boolean = false,
     val reconnecting: Boolean = false,
     val error: String? = null,
 )
@@ -57,12 +62,14 @@ class MultiplayerController(
     val state: StateFlow<MultiplayerUiState> = mutableState.asStateFlow()
     private var request: Job? = null
     private var observation: Job? = null
+    private var sync: Job? = null
 
     init {
         scope.launch {
             try {
                 val authentication = sessionStore.load() ?: return@launch
                 mutableState.value = mutableState.value.copy(authentication = authentication)
+                loadGames(authentication.accessToken)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
@@ -118,6 +125,27 @@ class MultiplayerController(
         }
     }
 
+    fun loadGames() {
+        val token = mutableState.value.authentication?.accessToken ?: return
+        scope.launch { loadGames(token) }
+    }
+
+    fun openGame(code: String) = withToken(observeAfterSuccess = true) { token ->
+        when (val result = api.getGame(token, code)) {
+            is ApiResult.Success -> withRemoteGame(token, result.value)
+            is ApiResult.Failure -> copy(error = result.message)
+        }
+    }
+
+    private suspend fun loadGames(token: String) {
+        when (val result = api.getMyGames(token)) {
+            is ApiResult.Success -> update {
+                if (authentication?.accessToken == token) copy(games = result.value) else this
+            }
+            is ApiResult.Failure -> Unit
+        }
+    }
+
     fun joinGame() = withToken(observeAfterSuccess = true) { token ->
         when (val result = api.joinGame(token, mutableState.value.gameCode)) {
             is ApiResult.Success -> withRemoteGame(token, result.value)
@@ -125,32 +153,68 @@ class MultiplayerController(
         }
     }
 
-    fun refreshGame() = withToken { token ->
-        val code = mutableState.value.game?.code ?: return@withToken copy()
-        when (val result = api.getGameState(token, code)) {
-            is ApiResult.Success -> withRemoteState(result.value)
-            is ApiResult.Failure -> copy(error = result.message)
+    fun refreshGame() {
+        val current = mutableState.value
+        val token = current.authentication?.accessToken ?: return
+        val code = current.game?.code ?: return
+        if (sync?.isActive == true) return
+        sync = scope.launch {
+            mutableState.value = mutableState.value.copy(syncing = true)
+            try {
+                when (val result = api.getGameState(token, code)) {
+                    is ApiResult.Success -> {
+                        val latest = mutableState.value
+                        mutableState.value = if (latest.game?.code == code) {
+                            latest.withRemoteState(result.value).copy(syncing = false)
+                        } else {
+                            latest.copy(syncing = false)
+                        }
+                    }
+                    is ApiResult.Failure -> mutableState.value = mutableState.value.copy(syncing = false, error = result.message)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                mutableState.value = mutableState.value.copy(syncing = false, error = "Не удалось выполнить запрос")
+            }
         }
     }
 
-    fun submitMove(intent: MoveIntent) = withToken { token ->
-        val currentRemote = remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
-        val command = MoveCommandRequest(
-            commandId = commandId(),
-            expectedRevision = currentRemote.revision,
-            from = intent.from.response(),
-            to = intent.to.response(),
-            promotion = intent.promotion?.name,
-        )
-        when (val result = api.submitMove(token, currentRemote.game.code, command)) {
-            is ApiResult.Success -> withRemoteState(result.value)
-            is ApiResult.Failure -> if (result.code == "stale_revision") {
-                when (val refreshed = api.getGameState(token, currentRemote.game.code)) {
-                    is ApiResult.Success -> withRemoteState(refreshed.value).copy(error = result.message)
-                    is ApiResult.Failure -> copy(error = refreshed.message)
+    fun submitMove(intent: MoveIntent) {
+        val current = mutableState.value
+        if (current.loading) return
+        val token = current.authentication?.accessToken ?: return
+        val confirmedSession = current.session ?: return
+        val confirmedRemote = current.remoteState
+        if (confirmedRemote == null) {
+            update { copy(error = "Сначала обновите состояние партии") }
+            return
+        }
+        val optimisticSession = (confirmedSession.apply(intent) as? SessionMoveResult.Applied)?.session
+            ?: return
+        mutableState.value = current.copy(session = optimisticSession)
+        launchRequest(submittingMove = true) {
+            val currentRemote = remoteState ?: return@launchRequest copy(error = "Сначала обновите состояние партии")
+            val command = MoveCommandRequest(
+                commandId = commandId(),
+                expectedRevision = currentRemote.revision,
+                from = intent.from.response(),
+                to = intent.to.response(),
+                promotion = intent.promotion?.name,
+            )
+            when (val result = api.submitMove(token, currentRemote.game.code, command)) {
+                is ApiResult.Success -> withRemoteState(result.value)
+                is ApiResult.Failure -> if (result.code == "stale_revision") {
+                    when (val refreshed = api.getGameState(token, currentRemote.game.code)) {
+                        is ApiResult.Success -> withRemoteState(refreshed.value).copy(error = result.message)
+                        is ApiResult.Failure -> copy(
+                            session = remoteState.toSession(),
+                            error = refreshed.message,
+                        )
+                    }
+                } else {
+                    copy(session = remoteState.toSession(), error = result.message)
                 }
-            } else {
-                copy(error = result.message)
             }
         }
     }
@@ -203,6 +267,7 @@ class MultiplayerController(
         val token = current.authentication?.accessToken
         request?.cancel()
         observation?.cancel()
+        sync?.cancel()
         request = scope.launch {
             if (token != null) api.logout(token)
             runCatching { sessionStore.clear() }
@@ -251,26 +316,38 @@ class MultiplayerController(
     }
 
     private fun launchRequest(
+        submittingMove: Boolean = false,
         afterUpdate: (MultiplayerUiState) -> Unit = {},
         block: suspend MultiplayerUiState.() -> MultiplayerUiState,
     ) {
         if (mutableState.value.loading) return
-        mutableState.value = mutableState.value.copy(loading = true, error = null)
+        mutableState.value = mutableState.value.copy(
+            loading = true,
+            submittingMove = submittingMove,
+            error = null,
+        )
         request = scope.launch {
             try {
                 val updated = mutableState.value.block()
                 val latest = mutableState.value
                 mutableState.value = if (latest.hasNewerRemoteStateThan(updated)) {
-                    latest.copy(loading = false)
+                    latest.copy(loading = false, submittingMove = false)
                 } else {
-                    updated.copy(loading = false)
+                    updated.copy(loading = false, submittingMove = false)
                 }
                 afterUpdate(mutableState.value)
+                if (mutableState.value.authentication != null) loadGames(mutableState.value.authentication!!.accessToken)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
                 mutableState.value = mutableState.value.copy(
                     loading = false,
+                    submittingMove = false,
+                    session = if (submittingMove) {
+                        mutableState.value.remoteState?.toSession() ?: mutableState.value.session
+                    } else {
+                        mutableState.value.session
+                    },
                     error = "Не удалось выполнить запрос",
                 )
             }
