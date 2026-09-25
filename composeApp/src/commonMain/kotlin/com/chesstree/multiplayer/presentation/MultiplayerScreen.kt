@@ -75,7 +75,7 @@ fun MultiplayerScreen(
     LaunchedEffect(state.game?.code, state.game?.status) {
         if (state.game?.status == "ACTIVE") {
             while (true) {
-                delay(5_000)
+                delay(2_000)
                 controller.refreshGame()
             }
         }

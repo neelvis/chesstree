@@ -301,10 +301,13 @@ class MultiplayerController(
     }
 
     private fun MultiplayerUiState.withRemoteState(remote: GameStateResponse): MultiplayerUiState {
-        if (remoteState?.game?.code == remote.game.code && remote.revision < remoteState.revision) {
-            return copy(game = remote.game, reconnecting = false)
+        val currentRemoteState = remoteState
+        if (currentRemoteState?.game?.code == remote.game.code) {
+            if (remote.revision < currentRemoteState.revision) {
+                return copy(game = remote.game, reconnecting = false)
+            }
         }
-        val replayed = remote.toSession()
+        val replayed = remote.toSession(session)
             ?: return copy(error = "Сервер вернул несовместимое состояние партии")
         return copy(
             game = remote.game,
@@ -385,19 +388,36 @@ private fun MultiplayerUiState.hasNewerRemoteStateThan(other: MultiplayerUiState
     return latestRemote.game.code == otherRemote.game.code && latestRemote.revision > otherRemote.revision
 }
 
-private fun GameStateResponse.toSession(): GameSession? = runCatching {
-    moves.forEachIndexed { index, move -> require(move.revision == index + 1) }
-    GameSession.replay(
-        StandardGame.scenario,
-        moves.map { move ->
-            MoveIntent(
-                actor = PlayerId.valueOf(move.actor),
-                from = move.from.toDomain(),
-                to = move.to.toDomain(),
-                promotion = move.promotion?.let(PromotionChoice::valueOf),
-            )
-        },
-    )
+private fun GameStateResponse.toSession(
+    currentSession: GameSession? = null,
+): GameSession? = runCatching {
+    val intents = moves.mapIndexed { index, move ->
+        require(move.revision == index + 1)
+        MoveIntent(
+            actor = PlayerId.valueOf(move.actor),
+            from = move.from.toDomain(),
+            to = move.to.toDomain(),
+            promotion = move.promotion?.let(PromotionChoice::valueOf),
+        )
+    }
+    val current = currentSession
+    if (current != null) {
+        // Reuse derived state for unchanged history; apply only an appended suffix.
+        if (current.moves == intents) return@runCatching current
+        val currentMoveCount = current.moves.size
+        if (
+            intents.size > currentMoveCount &&
+            current.moves.indices.all { index -> intents[index] == current.moves[index] }
+        ) {
+            var advanced = current
+            intents.drop(currentMoveCount).forEach { intent ->
+                advanced = (advanced?.apply(intent) as? SessionMoveResult.Applied)?.session
+                    ?: return@runCatching null
+            }
+            return@runCatching advanced
+        }
+    }
+    GameSession.replay(StandardGame.scenario, intents)
 }.getOrNull()
 
 private fun CoordinateResponse.toDomain() = BoardCoordinate(vertex, column, row)
