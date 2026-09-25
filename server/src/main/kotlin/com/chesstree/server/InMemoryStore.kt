@@ -41,6 +41,21 @@ class InMemoryStore : ChessTreeStore {
         users[userId]?.let { SessionRecord(it, expiresAt) }
     }
 
+    override suspend fun renewSession(
+        tokenHash: String,
+        now: Instant,
+        expiresAt: Instant,
+    ): SessionRecord? = synchronized(this) {
+        val (userId, currentExpiresAt) = sessions[tokenHash] ?: return@synchronized null
+        if (!currentExpiresAt.isAfter(now)) {
+            sessions.remove(tokenHash)
+            return@synchronized null
+        }
+        val user = users[userId] ?: return@synchronized null
+        sessions[tokenHash] = userId to expiresAt
+        SessionRecord(user, expiresAt)
+    }
+
     override suspend fun deleteSession(tokenHash: String) {
         synchronized(this) { sessions.remove(tokenHash) }
     }

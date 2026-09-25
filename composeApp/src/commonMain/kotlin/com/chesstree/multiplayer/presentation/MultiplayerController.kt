@@ -11,6 +11,7 @@ import com.chesstree.multiplayer.data.ApiResult
 import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
+import com.chesstree.multiplayer.data.OnlineSessionStoreException
 import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PlayerId
@@ -77,11 +78,7 @@ class MultiplayerController(
         copy(gameCode = value.uppercase().filter { it.isLetterOrDigit() }.take(7), error = null)
     }
 
-    fun submitAuthentication(onSuccess: () -> Unit = {}) = launchRequest(
-        afterUpdate = { updated ->
-            if (updated.authentication != null) onSuccess()
-        },
-    ) {
+    fun submitAuthentication(onSuccess: suspend () -> Unit = {}) = launchRequest {
         val current = mutableState.value
         val result = when (current.authMode) {
             AuthMode.LOGIN -> api.login(current.username, current.password)
@@ -94,9 +91,13 @@ class MultiplayerController(
                     null
                 } catch (error: CancellationException) {
                     throw error
+                } catch (error: OnlineSessionStoreException) {
+                    "Вход выполнен, но не удалось безопасно сохранить сессию (${error.safeReason})"
                 } catch (_: Throwable) {
                     "Вход выполнен, но не удалось безопасно сохранить сессию"
                 }
+                // Commit platform autofill while the credential fields are still on screen.
+                onSuccess()
                 copy(
                     authentication = result.value,
                     password = "",

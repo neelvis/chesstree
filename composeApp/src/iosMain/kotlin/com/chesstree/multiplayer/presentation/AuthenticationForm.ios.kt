@@ -19,7 +19,7 @@ internal actual fun AuthenticationForm(
     enabled: Boolean,
     onUsernameChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-    onSubmit: (onSuccess: () -> Unit) -> Unit,
+    onSubmit: (onSuccess: suspend () -> Unit) -> Unit,
 ) {
     ComposeAuthenticationForm(
         mode = mode,

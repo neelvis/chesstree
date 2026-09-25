@@ -79,8 +79,10 @@ class AuthService(
         return if (user != null && valid) sessionFor(user) else AuthResult.InvalidCredentials
     }
 
-    suspend fun authenticate(token: String): UserRecord? =
-        store.findSession(hashToken(token), clock.instant())?.user
+    suspend fun authenticate(token: String): UserRecord? {
+        val now = clock.instant()
+        return store.renewSession(hashToken(token), now, now.plus(SESSION_DURATION))?.user
+    }
 
     suspend fun logout(token: String) = store.deleteSession(hashToken(token))
 

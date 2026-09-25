@@ -221,6 +221,38 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         }
     }
 
+    override suspend fun renewSession(
+        tokenHash: String,
+        now: Instant,
+        expiresAt: Instant,
+    ): SessionRecord? = io {
+        connection().use { connection ->
+            val updated = connection.prepareStatement(
+                "UPDATE sessions SET expires_at = ? WHERE token_hash = ? AND expires_at > ?",
+            ).use { statement ->
+                statement.setTimestamp(1, Timestamp.from(expiresAt))
+                statement.setString(2, tokenHash)
+                statement.setTimestamp(3, Timestamp.from(now))
+                statement.executeUpdate()
+            }
+            if (updated == 0) {
+                null
+            } else connection.prepareStatement(
+                """
+                SELECT u.id, u.username, u.normalized_username, u.password_hash, s.expires_at
+                FROM sessions s JOIN users u ON u.id = s.user_id
+                WHERE s.token_hash = ? AND s.expires_at > ?
+                """.trimIndent(),
+            ).use { statement ->
+                statement.setString(1, tokenHash)
+                statement.setTimestamp(2, Timestamp.from(now))
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) SessionRecord(rows.user(), rows.getTimestamp("expires_at").toInstant()) else null
+                }
+            }
+        }
+    }
+
     override suspend fun deleteSession(tokenHash: String): Unit = io {
         connection().use { connection ->
             connection.prepareStatement("DELETE FROM sessions WHERE token_hash = ?").use { statement ->

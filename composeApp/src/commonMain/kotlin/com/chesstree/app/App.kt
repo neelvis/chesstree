@@ -75,6 +75,7 @@ import com.chesstree.multiplayer.presentation.GameLinkSharer
 import com.chesstree.multiplayer.presentation.MultiplayerScreen
 import com.chesstree.resources.Res
 import com.chesstree.resources.allDrawableResources
+import kotlinx.coroutines.CancellationException
 import org.jetbrains.compose.resources.imageResource
 
 @Composable
@@ -109,6 +110,18 @@ fun App(
         var showMultiplayer by rememberSaveable { mutableStateOf(initialGameCode != null) }
         LaunchedEffect(initialGameCode) {
             if (initialGameCode != null) showMultiplayer = true
+        }
+        LaunchedEffect(onlineApi, onlineSessionStore, initialGameCode) {
+            if (onlineApi != null && initialGameCode == null) {
+                val shouldOpenMultiplayer = try {
+                    onlineSessionStore.load() != null
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Throwable) {
+                    true
+                }
+                if (shouldOpenMultiplayer) showMultiplayer = true
+            }
         }
         if (showMultiplayer && onlineApi != null) {
             MultiplayerScreen(
