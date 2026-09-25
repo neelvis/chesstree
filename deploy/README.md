@@ -555,11 +555,9 @@ curl -fsS https://chess-tree.online/health
 Ожидается JSON со статусом `ok`. Старые releases оставляются для rollback;
 удаляйте их только после проверки `readlink -f /opt/chesstree/current`.
 
-Web-клиент использует origin открытой страницы и после такой выкладки обращается к
-`https://chess-tree.online`. Android и iOS entry points пока содержат адреса
-локальной разработки (`10.0.2.2` и `127.0.0.1`); серверная настройка сама по себе
-не переводит мобильные сборки на production URL. Перед публикацией приложений им
-нужна отдельная build-конфигурация API URL.
+Web-клиент использует origin открытой страницы, а Android и iOS используют общий
+production URL `https://chess-tree.online` из shared Kotlin-кода. Для локальной
+разработки мобильные клиенты пока также обращаются к production-серверу.
 
 ## 11. Ежедневный `pg_dump` на standby
 
