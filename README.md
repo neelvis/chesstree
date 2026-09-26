@@ -91,8 +91,11 @@ joins that room automatically; a saved native session joins without showing the
 authentication form. Android now declares the production App Link, and iOS has the
 Associated Domains entitlement. The Apple association file is included in both web
 browser distributions. Android App Link verification still needs the release
-signing certificate SHA-256 added to `/.well-known/assetlinks.json` on the public
-domain. The web server must serve both association files directly over HTTPS.
+signing certificate SHA-256 substituted for the placeholder in
+`/.well-known/assetlinks.json` on the public domain. The Android association file
+template is included in both browser distributions. The web server must serve both
+association files directly over HTTPS. Keep Firebase/APNs private keys in server
+secret storage; never place them in the public web root.
 
 System push notifications are not configured yet. They need an Apple Push
 Notification service/Firebase project, Android and iOS client configuration, and
