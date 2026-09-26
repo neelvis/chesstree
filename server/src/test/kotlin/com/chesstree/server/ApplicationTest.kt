@@ -56,7 +56,7 @@ class ApplicationTest {
             setBody(credentials("missing", "correct-horse"))
         }
         assertEquals(HttpStatusCode.Unauthorized, failedLogin.status)
-        assertTrue(failedLogin.bodyAsText().contains("Неверный логин или пароль"))
+        assertTrue(failedLogin.bodyAsText().contains("invalid_credentials"))
     }
 
     @Test
@@ -121,6 +121,34 @@ class ApplicationTest {
             HttpStatusCode.Unauthorized,
             client.post("/api/v1/games") { bearerAuth(user.accessToken) }.status,
         )
+    }
+
+    @Test
+    fun pushDeviceRegistrationRequiresAuthenticationAndCanBeRemoved() = testApplication {
+        application { chessTreeModule(testServices()) }
+
+        val payload = """{"token":"${"x".repeat(40)}","platform":"ANDROID"}"""
+        assertEquals(
+            HttpStatusCode.Unauthorized,
+            client.post("/api/v1/push/devices") {
+                contentType(ContentType.Application.Json)
+                setBody(payload)
+            }.status,
+        )
+        val user = register("pushuser", "correct-horse")
+        val registration = client.post("/api/v1/push/devices") {
+            bearerAuth(user.accessToken)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+        assertEquals(HttpStatusCode.NoContent, registration.status)
+
+        val removal = client.post("/api/v1/push/devices/unregister") {
+            bearerAuth(user.accessToken)
+            contentType(ContentType.Application.Json)
+            setBody("""{"token":"${"x".repeat(40)}"}""")
+        }
+        assertEquals(HttpStatusCode.NoContent, removal.status)
     }
 
     @Test

@@ -34,6 +34,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.argon2.jvm)
     implementation(libs.postgresql)
+    implementation(libs.firebase.admin)
     runtimeOnly(libs.logback.classic)
 
     testImplementation(kotlin("test"))

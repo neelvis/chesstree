@@ -3,6 +3,8 @@ package com.chesstree.server
 import java.time.Instant
 import java.util.UUID
 
+const val MAX_PUSH_DEVICES_PER_USER = 20
+
 interface ChessTreeStore {
     suspend fun createUser(
         username: String,
@@ -34,4 +36,8 @@ interface ChessTreeStore {
         expectedRevision: Int,
         approve: Boolean,
     ): UndoResult
+
+    suspend fun registerPushDevice(device: PushDevice): Boolean
+    suspend fun removePushDevice(userId: UUID, token: String)
+    suspend fun findPushDevices(userIds: Set<UUID>): List<PushDevice>
 }

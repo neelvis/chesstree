@@ -36,7 +36,7 @@ class JdbcStoreTest {
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
                     .use { rows ->
                         rows.next()
-                        assertEquals(4, rows.getInt("version"))
+                        assertEquals(5, rows.getInt("version"))
                     }
             }
         }
@@ -62,7 +62,7 @@ class JdbcStoreTest {
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
                     .use { rows ->
                         rows.next()
-                        assertEquals(4, rows.getInt("version"))
+                        assertEquals(5, rows.getInt("version"))
                     }
                 statement.executeQuery("SELECT COUNT(*) FROM game_moves").use { rows ->
                     rows.next()
@@ -89,7 +89,7 @@ class JdbcStoreTest {
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
                     .use { rows ->
                         rows.next()
-                        assertEquals(4, rows.getInt("version"))
+                        assertEquals(5, rows.getInt("version"))
                     }
             }
         }

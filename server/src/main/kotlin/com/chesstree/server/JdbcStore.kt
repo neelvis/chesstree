@@ -49,6 +49,19 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                     )
                     statement.executeUpdate(
                         """
+                        CREATE TABLE IF NOT EXISTS push_devices (
+                            fcm_token TEXT PRIMARY KEY,
+                            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                            platform VARCHAR(16) NOT NULL,
+                            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        )
+                        """.trimIndent(),
+                    )
+                    statement.executeUpdate(
+                        "CREATE INDEX IF NOT EXISTS push_devices_user_id_idx ON push_devices(user_id)",
+                    )
+                    statement.executeUpdate(
+                        """
                         CREATE TABLE IF NOT EXISTS games (
                             id UUID PRIMARY KEY,
                             public_code CHAR(7) NOT NULL UNIQUE,
@@ -130,6 +143,9 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                     }
                     when (schemaVersion) {
                         SCHEMA_VERSION -> Unit
+                        4 -> statement.executeUpdate(
+                            "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
+                        )
                         1, 2, 3 -> {
                             statement.executeUpdate(
                                 "ALTER TABLE games ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 0",
@@ -271,6 +287,89 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         }
     }
 
+    override suspend fun registerPushDevice(device: PushDevice): Boolean = io {
+        transaction { connection ->
+            val userExists = connection.prepareStatement("SELECT id FROM users WHERE id = ? FOR UPDATE")
+                .use { statement ->
+                    statement.setObject(1, device.userId)
+                    statement.executeQuery().use(ResultSet::next)
+                }
+            if (!userExists) return@transaction false
+
+            val alreadyOwned = connection.prepareStatement(
+                "SELECT 1 FROM push_devices WHERE fcm_token = ? AND user_id = ?",
+            ).use { statement ->
+                statement.setString(1, device.token)
+                statement.setObject(2, device.userId)
+                statement.executeQuery().use(ResultSet::next)
+            }
+            if (!alreadyOwned) {
+                val deviceCount = connection.prepareStatement(
+                    "SELECT COUNT(*) FROM push_devices WHERE user_id = ?",
+                ).use { statement ->
+                    statement.setObject(1, device.userId)
+                    statement.executeQuery().use { rows ->
+                        check(rows.next())
+                        rows.getInt(1)
+                    }
+                }
+                if (deviceCount >= com.chesstree.server.MAX_PUSH_DEVICES_PER_USER) {
+                    return@transaction false
+                }
+            }
+            connection.prepareStatement("DELETE FROM push_devices WHERE fcm_token = ?")
+                .use { statement ->
+                    statement.setString(1, device.token)
+                    statement.executeUpdate()
+                }
+            connection.prepareStatement(
+                "INSERT INTO push_devices (fcm_token, user_id, platform) VALUES (?, ?, ?)",
+            ).use { statement ->
+                statement.setString(1, device.token)
+                statement.setObject(2, device.userId)
+                statement.setString(3, device.platform.name)
+                statement.executeUpdate()
+            }
+            true
+        }
+    }
+
+    override suspend fun removePushDevice(userId: UUID, token: String): Unit = io {
+        connection().use { connection ->
+            connection.prepareStatement("DELETE FROM push_devices WHERE user_id = ? AND fcm_token = ?")
+                .use { statement ->
+                    statement.setObject(1, userId)
+                    statement.setString(2, token)
+                    statement.executeUpdate()
+                }
+        }
+    }
+
+    override suspend fun findPushDevices(userIds: Set<UUID>): List<PushDevice> = io {
+        if (userIds.isEmpty()) return@io emptyList()
+        connection().use { connection ->
+            val placeholders = userIds.joinToString(",") { "?" }
+            connection.prepareStatement(
+                "SELECT user_id, fcm_token, platform FROM push_devices WHERE user_id IN ($placeholders)",
+            ).use { statement ->
+                userIds.forEachIndexed { index, userId -> statement.setObject(index + 1, userId) }
+                statement.executeQuery().use { rows ->
+                    buildList {
+                        while (rows.next()) {
+                            add(
+                                PushDevice(
+                                    userId = rows.getObject("user_id", UUID::class.java),
+                                    token = rows.getString("fcm_token"),
+                                    platform = PushPlatform.valueOf(rows.getString("platform")),
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     override suspend fun createGame(id: UUID, code: String, ownerId: UUID): GameRecord? = io {
         try {
             transaction { connection ->
@@ -341,7 +440,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                         statement.executeUpdate()
                     }
             }
-            JoinGameResult.Joined(checkNotNull(loadGame(connection, code)))
+            JoinGameResult.Joined(checkNotNull(loadGame(connection, code)), newlyJoined = true)
         }
     }
 
@@ -422,7 +521,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                     SubmitMoveResult.Applied(checkNotNull(loadGameState(connection, code)))
                 }
 
-                MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state)
+                MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state, wasDuplicate = true)
                 MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
                 MoveEvaluation.NotActive -> SubmitMoveResult.NotActive
                 MoveEvaluation.NotParticipant -> SubmitMoveResult.NotParticipant
@@ -784,7 +883,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
     private companion object {
         const val UNIQUE_VIOLATION = "23505"
         const val PLAYER_COUNT = 3
-        const val SCHEMA_VERSION = 4
+        const val SCHEMA_VERSION = 5
         const val SCHEMA_LOCK_KEY = 0x4348455353545245L
     }
 }

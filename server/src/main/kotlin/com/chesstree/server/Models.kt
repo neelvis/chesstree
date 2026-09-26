@@ -3,6 +3,7 @@ package com.chesstree.server
 import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PromotionChoice
+import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.util.UUID
 
@@ -20,6 +21,16 @@ enum class GameStatus { WAITING, ACTIVE, FINISHED }
 enum class PlayerColor { WHITE, RED, BLACK }
 
 data class GamePlayer(val user: UserRecord, val joinedOrder: Int, val color: PlayerColor?)
+
+enum class PushPlatform { ANDROID, IOS }
+
+data class PushDevice(val userId: UUID, val token: String, val platform: PushPlatform)
+
+@Serializable
+data class PushDeviceRegistrationRequest(val token: String, val platform: String)
+
+@Serializable
+data class PushDeviceRemovalRequest(val token: String)
 
 data class GameRecord(
     val id: UUID,
@@ -64,13 +75,13 @@ sealed interface CreateUserResult {
 }
 
 sealed interface JoinGameResult {
-    data class Joined(val game: GameRecord) : JoinGameResult
+    data class Joined(val game: GameRecord, val newlyJoined: Boolean = false) : JoinGameResult
     data object Missing : JoinGameResult
     data object Full : JoinGameResult
 }
 
 sealed interface SubmitMoveResult {
-    data class Applied(val state: GameStateRecord) : SubmitMoveResult
+    data class Applied(val state: GameStateRecord, val wasDuplicate: Boolean = false) : SubmitMoveResult
     data class Stale(val state: GameStateRecord) : SubmitMoveResult
     data object Missing : SubmitMoveResult
     data object NotActive : SubmitMoveResult

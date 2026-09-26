@@ -11,6 +11,7 @@ class InMemoryStore : ChessTreeStore {
     private val moves = mutableMapOf<String, MutableList<GameMoveRecord>>()
     private val revisions = mutableMapOf<String, Int>()
     private val undoRequests = mutableMapOf<String, UndoRequestRecord>()
+    private val pushDevices = linkedMapOf<String, PushDevice>()
 
     override suspend fun createUser(
         username: String,
@@ -86,7 +87,7 @@ class InMemoryStore : ChessTreeStore {
         if (game.players.size == PLAYER_COUNT) {
             game.players.replaceAll { player -> player.copy(color = shuffledColors[player.joinedOrder]) }
         }
-        JoinGameResult.Joined(game.snapshot())
+        JoinGameResult.Joined(game.snapshot(), newlyJoined = true)
     }
 
     override suspend fun findGame(code: String): GameRecord? =
@@ -118,7 +119,7 @@ class InMemoryStore : ChessTreeStore {
                 SubmitMoveResult.Applied(state(code, game))
             }
 
-            MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state)
+            MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state, wasDuplicate = true)
             MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
             MoveEvaluation.NotActive -> SubmitMoveResult.NotActive
             MoveEvaluation.NotParticipant -> SubmitMoveResult.NotParticipant
@@ -175,6 +176,28 @@ class InMemoryStore : ChessTreeStore {
             undoRequests[code] = request.copy(approvedByUserIds = approved)
         }
         UndoResult.Updated(state(code, game))
+    }
+
+    override suspend fun registerPushDevice(device: PushDevice): Boolean = synchronized(this) {
+        val alreadyRegistered = pushDevices[device.token]?.userId == device.userId
+        if (
+            !alreadyRegistered &&
+            pushDevices.values.count { it.userId == device.userId } >= MAX_PUSH_DEVICES_PER_USER
+        ) {
+            return@synchronized false
+        }
+        pushDevices[device.token] = device
+        true
+    }
+
+    override suspend fun removePushDevice(userId: UUID, token: String) {
+        synchronized(this) {
+            if (pushDevices[token]?.userId == userId) pushDevices.remove(token)
+        }
+    }
+
+    override suspend fun findPushDevices(userIds: Set<UUID>): List<PushDevice> = synchronized(this) {
+        pushDevices.values.filter { it.userId in userIds }
     }
 
     private fun state(code: String, game: MutableGame) = GameStateRecord(

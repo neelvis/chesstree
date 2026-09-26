@@ -15,6 +15,7 @@ argon2 = "2.12"
 postgresql = "42.7.10"
 logback = "1.5.18"
 h2 = "2.5.250"
+firebase-admin = "9.11.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
@@ -49,6 +50,7 @@ argon2-jvm = { module = "de.mkammerer:argon2-jvm", version.ref = "argon2" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
+firebase-admin = { module = "com.google.firebase:firebase-admin", version.ref = "firebase-admin" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

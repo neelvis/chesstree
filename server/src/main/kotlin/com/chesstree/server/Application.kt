@@ -62,6 +62,7 @@ data class ServerServices(
     val tokens: TokenGenerator,
     val publicBaseUrl: String,
     val updates: GameUpdateHub = GameUpdateHub(),
+    val pushNotifications: PushNotifications = NoOpPushNotifications,
 )
 
 data class AuthenticatedUserPrincipal(val user: UserRecord, val token: String)
@@ -129,6 +130,35 @@ fun Application.chessTreeModule(
                 post("/auth/login") { call.respondAuth(services.auth.login(call.receive())) }
             }
             authenticate(AUTH_PROVIDER) {
+                post("/push/devices") {
+                    val user = call.authenticatedUser()
+                    val request = call.receive<PushDeviceRegistrationRequest>()
+                    if (request.token.length !in MIN_PUSH_TOKEN_LENGTH..MAX_PUSH_TOKEN_LENGTH) {
+                        throw BadRequestException("Invalid push token")
+                    }
+                    val platform = runCatching { PushPlatform.valueOf(request.platform) }
+                        .getOrElse { throw BadRequestException("Invalid push platform") }
+                    val registered = services.store.registerPushDevice(
+                        PushDevice(user.id, request.token, platform),
+                    )
+                    if (!registered) {
+                        call.respond(
+                            HttpStatusCode.Conflict,
+                            ErrorResponse("push_device_limit", "Достигнут лимит устройств для уведомлений"),
+                        )
+                    } else {
+                        call.respond(HttpStatusCode.NoContent)
+                    }
+                }
+                post("/push/devices/unregister") {
+                    val user = call.authenticatedUser()
+                    val request = call.receive<PushDeviceRemovalRequest>()
+                    if (request.token.length !in MIN_PUSH_TOKEN_LENGTH..MAX_PUSH_TOKEN_LENGTH) {
+                        throw BadRequestException("Invalid push token")
+                    }
+                    services.store.removePushDevice(user.id, request.token)
+                    call.respond(HttpStatusCode.NoContent)
+                }
                 post("/auth/logout") {
                     services.auth.logout(checkNotNull(call.principal<AuthenticatedUserPrincipal>()).token)
                     call.respond(HttpStatusCode.NoContent)
@@ -150,6 +180,9 @@ fun Application.chessTreeModule(
                     when (val result =
                         services.store.joinGame(code, user.id, services.tokens.shuffledColors())) {
                         is JoinGameResult.Joined -> {
+                            if (result.newlyJoined && result.game.status == GameStatus.ACTIVE) {
+                                services.pushNotifications.gameStarted(result.game)
+                            }
                             services.updates.publish(code)
                             call.respond(result.game.response(services.publicBaseUrl))
                         }
@@ -201,6 +234,9 @@ fun Application.chessTreeModule(
                     val command = call.receive<MoveCommandRequest>().toDomainCommand()
                     when (val result = services.store.submitMove(code, user.id, command)) {
                         is SubmitMoveResult.Applied -> {
+                            if (!result.wasDuplicate) {
+                                services.pushNotifications.gameStateChanged(result.state)
+                            }
                             services.updates.publish(code)
                             call.respond(result.state.response(services.publicBaseUrl))
                         }
@@ -485,5 +521,7 @@ private fun MoveCommandRequest.toDomainCommand(): GameMoveCommand = try {
 }
 
 private const val AUTH_PROVIDER = "auth-bearer"
+private const val MIN_PUSH_TOKEN_LENGTH = 20
+private const val MAX_PUSH_TOKEN_LENGTH = 4096
 private val AUTH_RATE_LIMIT = RateLimitName("authentication")
 private val GAME_CODE = Regex("[0-9A-HJKMNP-TV-Z]{7}")

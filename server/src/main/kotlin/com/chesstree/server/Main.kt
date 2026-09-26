@@ -3,6 +3,7 @@ package com.chesstree.server
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.runBlocking
+import java.util.logging.Logger
 
 fun main() {
     val environment = System.getenv()
@@ -15,12 +16,19 @@ fun main() {
     runBlocking { store.initialize() }
     val tokens = TokenGenerator()
     val updates = GameUpdateHub(PostgresGameUpdateTransport(databaseConfig))
+    val pushNotifications = FcmPushNotifications.fromServiceAccountFile(
+        store = store,
+        serviceAccountFile = environment["CHESSTREE_FCM_SERVICE_ACCOUNT_FILE"],
+        publicBaseUrl = environment["CHESSTREE_PUBLIC_BASE_URL"] ?: "http://localhost:8080",
+        logWarning = Logger.getLogger("com.chesstree.push")::warning,
+    ) ?: NoOpPushNotifications
     val services = ServerServices(
         store = store,
         auth = AuthService(store, Argon2PasswordHasher(), tokens),
         tokens = tokens,
         publicBaseUrl = environment["CHESSTREE_PUBLIC_BASE_URL"] ?: "http://localhost:8080",
         updates = updates,
+        pushNotifications = pushNotifications,
     )
     try {
         embeddedServer(
@@ -38,6 +46,7 @@ fun main() {
             },
         ).start(wait = true)
     } finally {
+        (pushNotifications as? AutoCloseable)?.close()
         updates.close()
     }
 }
