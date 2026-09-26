@@ -22,7 +22,9 @@ import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.domain.scenario.StandardGame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,14 +40,15 @@ data class MultiplayerUiState(
     val password: String = "",
     val authentication: AuthResponse? = null,
     val gameCode: String = "",
+    val openingGameCode: String? = null,
     val game: GameResponse? = null,
     val games: List<GameHistoryResponse> = emptyList(),
+    val loadingGames: Boolean = false,
     val syncing: Boolean = false,
     val remoteState: GameStateResponse? = null,
     val session: GameSession? = null,
     val loading: Boolean = false,
     val submittingMove: Boolean = false,
-    val reconnecting: Boolean = false,
     val error: String? = null,
 )
 
@@ -63,6 +66,7 @@ class MultiplayerController(
     private var request: Job? = null
     private var observation: Job? = null
     private var sync: Job? = null
+    private var gamesLoadId = 0
 
     init {
         scope.launch {
@@ -85,7 +89,14 @@ class MultiplayerController(
         copy(gameCode = value.uppercase().filter { it.isLetterOrDigit() }.take(7), error = null)
     }
 
-    fun submitAuthentication(onSuccess: suspend () -> Unit = {}) = launchRequest {
+    fun submitAuthentication(
+        onSuccess: suspend () -> Unit = {},
+        onAuthenticated: (AuthResponse) -> Unit = {},
+    ) = launchRequest(
+        afterUpdate = { updated ->
+            updated.authentication?.let(onAuthenticated)
+        },
+    ) {
         val current = mutableState.value
         val result = when (current.authMode) {
             AuthMode.LOGIN -> api.login(current.username, current.password)
@@ -130,19 +141,33 @@ class MultiplayerController(
         scope.launch { loadGames(token) }
     }
 
-    fun openGame(code: String) = withToken(observeAfterSuccess = true) { token ->
-        when (val result = api.getGame(token, code)) {
-            is ApiResult.Success -> withRemoteGame(token, result.value)
-            is ApiResult.Failure -> copy(error = result.message)
+    fun openGame(code: String) {
+        if (mutableState.value.loading || mutableState.value.authentication == null) return
+        update { copy(openingGameCode = code, error = null) }
+        withToken(observeAfterSuccess = true) { token ->
+            when (val result = api.getGame(token, code)) {
+                is ApiResult.Success -> withRemoteGame(token, result.value).copy(openingGameCode = null)
+                is ApiResult.Failure -> copy(error = result.message, openingGameCode = null)
+            }
         }
     }
 
     private suspend fun loadGames(token: String) {
-        when (val result = api.getMyGames(token)) {
-            is ApiResult.Success -> update {
-                if (authentication?.accessToken == token) copy(games = result.value) else this
+        val loadId = ++gamesLoadId
+        update { copy(loadingGames = true) }
+        try {
+            when (val result = api.getMyGames(token)) {
+                is ApiResult.Success -> update {
+                    if (authentication?.accessToken == token) copy(games = result.value) else this
+                }
+                is ApiResult.Failure -> Unit
             }
-            is ApiResult.Failure -> Unit
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            // Keep history loading isolated from the rest of the lobby.
+        } finally {
+            if (loadId == gamesLoadId) update { copy(loadingGames = false) }
         }
     }
 
@@ -163,12 +188,8 @@ class MultiplayerController(
             try {
                 when (val result = api.getGameState(token, code)) {
                     is ApiResult.Success -> {
-                        val latest = mutableState.value
-                        mutableState.value = if (latest.game?.code == code) {
-                            latest.withRemoteState(result.value).copy(syncing = false)
-                        } else {
-                            latest.copy(syncing = false)
-                        }
+                        applyRemoteState(result.value, expectedGameCode = code)
+                        mutableState.value = mutableState.value.copy(syncing = false)
                     }
                     is ApiResult.Failure -> mutableState.value = mutableState.value.copy(syncing = false, error = result.message)
                 }
@@ -265,6 +286,7 @@ class MultiplayerController(
     fun logout() {
         val current = mutableState.value
         val token = current.authentication?.accessToken
+        gamesLoadId++
         request?.cancel()
         observation?.cancel()
         sync?.cancel()
@@ -274,8 +296,22 @@ class MultiplayerController(
             mutableState.value = MultiplayerUiState(
                 authMode = current.authMode,
                 gameCode = current.gameCode,
+                loadingGames = false,
             )
         }
+    }
+
+    fun returnToLobby() {
+        if (mutableState.value.loading) return
+        observation?.cancel()
+        sync?.cancel()
+        mutableState.value = mutableState.value.copy(
+            game = null,
+            remoteState = null,
+            session = null,
+            syncing = false,
+            error = null,
+        )
     }
 
     private fun withToken(
@@ -300,11 +336,11 @@ class MultiplayerController(
         }
     }
 
-    private fun MultiplayerUiState.withRemoteState(remote: GameStateResponse): MultiplayerUiState {
+    private suspend fun MultiplayerUiState.withRemoteState(remote: GameStateResponse): MultiplayerUiState {
         val currentRemoteState = remoteState
         if (currentRemoteState?.game?.code == remote.game.code) {
             if (remote.revision < currentRemoteState.revision) {
-                return copy(game = remote.game, reconnecting = false)
+                return copy(game = remote.game)
             }
         }
         val replayed = remote.toSession(session)
@@ -315,6 +351,28 @@ class MultiplayerController(
             remoteState = remote,
             session = replayed,
             error = null,
+        )
+    }
+
+    /**
+     * Replaying a remote history runs off the UI thread and can overlap a newer WebSocket or poll
+     * update. Re-check the revision after replay so a slower, older response cannot roll the
+     * displayed turn back and leave every client waiting for the wrong player.
+     */
+    private suspend fun applyRemoteState(remote: GameStateResponse, expectedGameCode: String? = null) {
+        val beforeReplay = mutableState.value
+        if (expectedGameCode != null && beforeReplay.game?.code != expectedGameCode) return
+        val updated = beforeReplay.withRemoteState(remote)
+        val latest = mutableState.value
+        val latestRemote = latest.remoteState
+        if (
+            latest.game?.code != remote.game.code ||
+            (latestRemote?.game?.code == remote.game.code && latestRemote.revision > remote.revision)
+        ) return
+        mutableState.value = updated.copy(
+            loading = latest.loading,
+            submittingMove = latest.submittingMove,
+            syncing = latest.syncing,
         )
     }
 
@@ -346,6 +404,7 @@ class MultiplayerController(
                 mutableState.value = mutableState.value.copy(
                     loading = false,
                     submittingMove = false,
+                    openingGameCode = null,
                     session = if (submittingMove) {
                         mutableState.value.remoteState?.toSession() ?: mutableState.value.session
                     } else {
@@ -361,16 +420,16 @@ class MultiplayerController(
         observation?.cancel()
         val authentication = mutableState.value.authentication ?: return
         val game = mutableState.value.game ?: return
-        mutableState.value = mutableState.value.copy(reconnecting = true)
         observation = scope.launch {
             api.observeGame(authentication.accessToken, game.code).collect { result ->
                 when (result) {
                     is ApiResult.Success -> {
-                        val current = mutableState.value
-                        mutableState.value = current.withRemoteState(result.value).copy(reconnecting = false)
+                        applyRemoteState(result.value)
                     }
                     is ApiResult.Failure -> {
-                        mutableState.value = mutableState.value.copy(reconnecting = true)
+                        if (result.code != "connection_lost") {
+                            mutableState.value = mutableState.value.copy(error = result.message)
+                        }
                     }
                 }
             }
@@ -388,37 +447,40 @@ private fun MultiplayerUiState.hasNewerRemoteStateThan(other: MultiplayerUiState
     return latestRemote.game.code == otherRemote.game.code && latestRemote.revision > otherRemote.revision
 }
 
-private fun GameStateResponse.toSession(
+private suspend fun GameStateResponse.toSession(
     currentSession: GameSession? = null,
-): GameSession? = runCatching {
-    val intents = moves.mapIndexed { index, move ->
-        require(move.revision == index + 1)
-        MoveIntent(
-            actor = PlayerId.valueOf(move.actor),
-            from = move.from.toDomain(),
-            to = move.to.toDomain(),
-            promotion = move.promotion?.let(PromotionChoice::valueOf),
-        )
-    }
-    val current = currentSession
-    if (current != null) {
-        // Reuse derived state for unchanged history; apply only an appended suffix.
-        if (current.moves == intents) return@runCatching current
-        val currentMoveCount = current.moves.size
-        if (
-            intents.size > currentMoveCount &&
-            current.moves.indices.all { index -> intents[index] == current.moves[index] }
-        ) {
-            var advanced = current
-            intents.drop(currentMoveCount).forEach { intent ->
-                advanced = (advanced?.apply(intent) as? SessionMoveResult.Applied)?.session
-                    ?: return@runCatching null
-            }
-            return@runCatching advanced
+): GameSession? = withContext(Dispatchers.Default) {
+    runCatching {
+        val intents = moves.mapIndexed { index, move ->
+            require(move.revision == index + 1)
+            MoveIntent(
+                actor = PlayerId.valueOf(move.actor),
+                from = move.from.toDomain(),
+                to = move.to.toDomain(),
+                promotion = move.promotion?.let(PromotionChoice::valueOf),
+            )
         }
+        val current = currentSession
+        if (current != null) {
+            // Reuse derived state for unchanged history; apply only an appended suffix.
+            if (current.moves == intents) return@runCatching current
+            val currentMoveCount = current.moves.size
+            if (
+                intents.size > currentMoveCount &&
+                current.moves.indices.all { index -> intents[index] == current.moves[index] }
+            ) {
+                var advanced = current
+                intents.drop(currentMoveCount).forEach { intent ->
+                    advanced = (advanced?.apply(intent) as? SessionMoveResult.Applied)?.session
+                        ?: return@runCatching null
+                }
+                return@runCatching advanced
+            }
+        }
+        GameSession.replay(StandardGame.scenario, intents)
     }
-    GameSession.replay(StandardGame.scenario, intents)
-}.getOrNull()
+        .getOrNull()
+}
 
 private fun CoordinateResponse.toDomain() = BoardCoordinate(vertex, column, row)
 

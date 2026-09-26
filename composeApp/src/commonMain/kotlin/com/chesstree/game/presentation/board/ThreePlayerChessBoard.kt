@@ -81,12 +81,8 @@ fun ThreePlayerChessBoard(
     val cells = ThreePlayerBoardGeometry.cells
     val labels = ThreePlayerBoardGeometry.labels
     val textMeasurer = rememberTextMeasurer(cacheSize = BOARD_TEXT_LAYOUT_CACHE_SIZE)
-    val standardPieceFontResource = Font(
-        Res.allFontResources.getValue("noto_sans_symbols_2_regular"),
-    )
-    val standardPieceFont = remember(standardPieceFontResource) {
-        FontFamily(standardPieceFontResource)
-    }
+    val standardPieceFontResource = Font(Res.allFontResources.getValue("noto_sans_symbols_2_regular"))
+    val standardPieceFont = remember(standardPieceFontResource) { FontFamily(standardPieceFontResource) }
     val fairyPieceImages = if (pieceSet == PieceSet.FAIRY) loadFairyPieceImages() else null
     val piecesByCell = remember(pieces) { pieces.associateBy(BoardPiece::cellId) }
     val hintsByCell = moveHints.associateBy(MoveHint::target)

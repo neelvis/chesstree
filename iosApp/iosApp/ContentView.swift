@@ -12,6 +12,7 @@ struct ComposeView: UIViewControllerRepresentable {
 struct ContentView: View {
     var body: some View {
         ComposeView()
+            .ignoresSafeArea(.container, edges: .all)
             .ignoresSafeArea(.keyboard)
             .onOpenURL { url in
                 MainViewControllerKt.OpenGameLink(url: url.absoluteString)

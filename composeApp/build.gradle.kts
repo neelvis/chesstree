@@ -52,6 +52,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
+            implementation(libs.compose.ui.tooling.preview)
             implementation(libs.compose.components.resources)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
@@ -69,6 +70,7 @@ kotlin {
         }
 
         androidMain.dependencies {
+            implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.credentials)
         }
@@ -78,6 +80,10 @@ kotlin {
         }
 
     }
+}
+
+dependencies {
+    "androidRuntimeClasspath"(libs.androidx.compose.ui.tooling)
 }
 
 compose.resources {
