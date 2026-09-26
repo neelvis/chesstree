@@ -28,6 +28,7 @@ SSH primary доступен на TCP `2222`; SSH standby остаётся на 
 | `/etc/nginx/sites-available/chesstree`         | Активный Nginx-конфиг           |
 | `/etc/letsencrypt/live/chess-tree.online/`     | Сертификат и ключ Certbot       |
 | `/etc/chesstree/server.env`                    | Постоянные env Ktor и пароль БД |
+| `/etc/chesstree/secrets/firebase-service-account.json` | Firebase Admin credentials (root:chesstree, mode 640) |
 | `/etc/systemd/system/chesstree-server.service` | systemd unit Ktor               |
 | `/opt/chesstree/releases/<release-id>/`        | Версии Web и backend            |
 | `/opt/chesstree/current`                       | Ссылка на активный release      |
@@ -45,7 +46,12 @@ SSH primary доступен на TCP `2222`; SSH standby остаётся на 
 | `/etc/systemd/system/chesstree-pg-backup.*` | service и timer бэкапа                     |
 
 Секреты нельзя коммитить в Git, класть в `deploy/` или передавать в аргументах
-команд. Значения `<...>` ниже всегда заменяются реальными значениями.
+команд. Значения `<...>` ниже всегда заменяются реальными значениями. Для
+автоматического production deploy положите локальный ключ в корень checkout как
+`firebase-service-account.json`; файл должен оставаться в `.gitignore`. Скрипт
+передаст его по SSH в staging, а активация установит его в указанный путь с
+ограниченными правами и удалит staging-копию. Не включайте этот файл в архивы
+сборки или публичные каталоги.
 
 ## 1. Предварительные проверки
 

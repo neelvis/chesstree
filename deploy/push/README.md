@@ -26,18 +26,26 @@ private; it does not belong in the website's `/.well-known/` directory.
 
 ## Configure the backend
 
-Set `CHESSTREE_FCM_SERVICE_ACCOUNT_FILE` in the server environment to the path of
-the real service-account JSON, for example:
+The production deploy script expects the real key at the repository root as
+`firebase-service-account.json` (ignored by Git). It transfers the file over SSH
+to the temporary release staging directory, then the remote activation step
+installs it as
+`/etc/chesstree/secrets/firebase-service-account.json` with restricted
+permissions and removes the staging copy. Keep the local source file private and
+never place it in a web-served directory.
+
+The deploy activation step also adds or updates this setting in
+`/etc/chesstree/server.env` while preserving its other variables:
 
 ```text
 CHESSTREE_FCM_SERVICE_ACCOUNT_FILE=/etc/chesstree/secrets/firebase-service-account.json
 ```
 
-The backend uses Firebase Admin SDK to send FCM messages. Leave this variable
-unset to run without push delivery. The service account should belong to the
-same Firebase project as the mobile apps and have permission to send Firebase
-Cloud Messaging messages. Do not put the actual JSON in the repository or in a
-web-served directory.
+The backend uses Firebase Admin SDK to send FCM messages. Without the service
+account file, it starts with push delivery disabled. The service account should
+belong to the same Firebase project as the mobile apps and have permission to
+send Firebase Cloud Messaging messages. Do not put the actual JSON in the
+repository or in a web-served directory.
 
 Authenticated clients register a token with `POST /api/v1/push/devices`, sending
 `{"token":"…","platform":"ANDROID"}` or `{"token":"…","platform":"IOS"}`.

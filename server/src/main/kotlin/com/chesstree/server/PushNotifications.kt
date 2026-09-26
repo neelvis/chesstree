@@ -23,6 +23,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import java.io.File
 import java.io.FileInputStream
 import java.util.UUID
 
@@ -148,6 +149,10 @@ class FcmPushNotifications private constructor(
             logWarning: (String) -> Unit,
         ): FcmPushNotifications? {
             val file = serviceAccountFile?.takeIf(String::isNotBlank) ?: return null
+            if (!File(file).isFile) {
+                logWarning("Firebase service-account file is unavailable; push notifications are disabled")
+                return null
+            }
             val projectId = FileInputStream(file).use { input ->
                 Json.parseToJsonElement(input.reader().readText())
                     .let { (it as? kotlinx.serialization.json.JsonObject)?.get("project_id") }

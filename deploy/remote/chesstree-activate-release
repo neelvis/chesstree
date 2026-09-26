@@ -22,9 +22,37 @@ remote_root=/opt/chesstree
 staging="/home/$deploy_user/chesstree-upload/$release_id"
 release_dir="$remote_root/releases/$release_id"
 current_link="$remote_root/current"
+staged_firebase_key="$staging/secrets/firebase-service-account.json"
+server_env=/etc/chesstree/server.env
+server_env_tmp=""
+
+cleanup_staged_firebase_key() {
+    rm -f "$staged_firebase_key"
+    rmdir "$staging/secrets" 2>/dev/null || true
+    if [[ -n "$server_env_tmp" ]]; then
+        rm -f "$server_env_tmp"
+    fi
+}
+trap cleanup_staged_firebase_key EXIT
 
 test -d "$staging/web"
 test -x "$staging/server/bin/server"
+if [[ -s "$staged_firebase_key" ]]; then
+    install -d -o root -g chesstree -m 750 /etc/chesstree/secrets
+    install -o root -g chesstree -m 640 "$staged_firebase_key" \
+        /etc/chesstree/secrets/firebase-service-account.json
+fi
+
+test -f "$server_env"
+server_env_tmp="$(mktemp /etc/chesstree/server.env.XXXXXX)"
+awk '!/^CHESSTREE_FCM_SERVICE_ACCOUNT_FILE=/' "$server_env" > "$server_env_tmp"
+printf '%s\n' \
+    'CHESSTREE_FCM_SERVICE_ACCOUNT_FILE=/etc/chesstree/secrets/firebase-service-account.json' \
+    >> "$server_env_tmp"
+chown --reference="$server_env" "$server_env_tmp"
+chmod --reference="$server_env" "$server_env_tmp"
+mv -f "$server_env_tmp" "$server_env"
+server_env_tmp=""
 
 install -d -m 755 "$remote_root/releases" "$release_dir/web" "$release_dir/server"
 rsync -a --delete "$staging/web/" "$release_dir/web/"

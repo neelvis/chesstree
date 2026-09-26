@@ -18,7 +18,8 @@ fun main() {
     val updates = GameUpdateHub(PostgresGameUpdateTransport(databaseConfig))
     val pushNotifications = FcmPushNotifications.fromServiceAccountFile(
         store = store,
-        serviceAccountFile = environment["CHESSTREE_FCM_SERVICE_ACCOUNT_FILE"],
+        serviceAccountFile = environment["CHESSTREE_FCM_SERVICE_ACCOUNT_FILE"]
+            ?: DEFAULT_FCM_SERVICE_ACCOUNT_FILE,
         publicBaseUrl = environment["CHESSTREE_PUBLIC_BASE_URL"] ?: "http://localhost:8080",
         logWarning = Logger.getLogger("com.chesstree.push")::warning,
     ) ?: NoOpPushNotifications
@@ -50,6 +51,9 @@ fun main() {
         updates.close()
     }
 }
+
+private const val DEFAULT_FCM_SERVICE_ACCOUNT_FILE =
+    "/etc/chesstree/secrets/firebase-service-account.json"
 
 private fun Map<String, String>.required(name: String): String =
     get(name)?.takeIf(String::isNotBlank)
