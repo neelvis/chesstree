@@ -20,6 +20,8 @@ import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStoreException
+import com.chesstree.multiplayer.data.isValidGameCode
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,9 +59,11 @@ class MultiplayerController(
     initialGameCode: String = "",
     private val sessionStore: OnlineSessionStore = NoOpOnlineSessionStore,
     private val commandId: () -> String = ::randomCommandId,
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
+    private val inviteCode = initialGameCode.uppercase().takeIf(::isValidGameCode)
     private val mutableState = MutableStateFlow(
-        MultiplayerUiState(gameCode = initialGameCode.uppercase().take(7)),
+        MultiplayerUiState(gameCode = inviteCode.orEmpty()),
     )
     val state: StateFlow<MultiplayerUiState> = mutableState.asStateFlow()
     private var request: Job? = null
@@ -73,6 +77,7 @@ class MultiplayerController(
                 val authentication = sessionStore.load() ?: return@launch
                 mutableState.value = mutableState.value.copy(authentication = authentication)
                 loadGames(authentication.accessToken)
+                if (inviteCode != null) joinGame()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
@@ -95,6 +100,7 @@ class MultiplayerController(
     ) = launchRequest(
         afterUpdate = { updated ->
             updated.authentication?.let(onAuthenticated)
+            if (updated.authentication != null && inviteCode != null) joinGame()
         },
     ) {
         val current = mutableState.value
@@ -240,12 +246,15 @@ class MultiplayerController(
                     when (val refreshed = api.getGameState(token, currentRemote.game.code)) {
                         is ApiResult.Success -> withRemoteState(refreshed.value).copy(error = result.toUiMessage())
                         is ApiResult.Failure -> copy(
-                            session = remoteState.toSession(),
+                            session = remoteState.toSession(dispatcher = computationDispatcher),
                             error = refreshed.toUiMessage(),
                         )
                     }
                 } else {
-                    copy(session = remoteState.toSession(), error = result.toUiMessage())
+                    copy(
+                        session = remoteState.toSession(dispatcher = computationDispatcher),
+                        error = result.toUiMessage(),
+                    )
                 }
             }
         }
@@ -356,7 +365,7 @@ class MultiplayerController(
                 return copy(game = remote.game)
             }
         }
-        val replayed = remote.toSession(session)
+        val replayed = remote.toSession(session, computationDispatcher)
             ?: return copy(error = "i18n:incompatible_game_state")
         return copy(
             game = remote.game,
@@ -422,7 +431,8 @@ class MultiplayerController(
                     submittingMove = false,
                     openingGameCode = null,
                     session = if (submittingMove) {
-                        mutableState.value.remoteState?.toSession() ?: mutableState.value.session
+                        mutableState.value.remoteState?.toSession(dispatcher = computationDispatcher)
+                            ?: mutableState.value.session
                     } else {
                         mutableState.value.session
                     },
@@ -466,7 +476,8 @@ private fun MultiplayerUiState.hasNewerRemoteStateThan(other: MultiplayerUiState
 
 private suspend fun GameStateResponse.toSession(
     currentSession: GameSession? = null,
-): GameSession? = withContext(Dispatchers.Default) {
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
+): GameSession? = withContext(dispatcher) {
     runCatching {
         val intents = moves.mapIndexed { index, move ->
             require(move.revision == index + 1)

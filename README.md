@@ -85,10 +85,19 @@ resynchronize their active local games. `LISTEN` uses a dedicated long-lived JDB
 connection, so both servers must connect directly to PostgreSQL or through a proxy
 configured for session pooling rather than transaction pooling.
 
-Web and the native entry points recognize `/g/{code}` URLs. Android App Links and
-iOS Universal Links still require the production HTTPS domain, Android release
-certificate SHA-256, Apple Team ID, and the corresponding hosted association files
-before operating-system verification can be enabled.
+Web and the native entry points recognize `/g/{code}` URLs. When a user opens an
+invitation, the app preserves the room code through login or registration and then
+joins that room automatically; a saved native session joins without showing the
+authentication form. Android now declares the production App Link, and iOS has the
+Associated Domains entitlement. The Apple association file is included in both web
+browser distributions. Android App Link verification still needs the release
+signing certificate SHA-256 added to `/.well-known/assetlinks.json` on the public
+domain. The web server must serve both association files directly over HTTPS.
+
+System push notifications are not configured yet. They need an Apple Push
+Notification service/Firebase project, Android and iOS client configuration, and
+server credentials. The existing WebSocket updates only reach clients while the
+game app is running; they do not produce operating-system notifications.
 
 The planned single-backend/two-database-host production topology, firewall rules,
 Nginx configuration, and PostgreSQL streaming-replication procedure are documented

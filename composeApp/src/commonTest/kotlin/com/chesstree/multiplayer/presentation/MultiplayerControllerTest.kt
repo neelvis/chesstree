@@ -19,6 +19,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -82,7 +83,7 @@ class MultiplayerControllerTest {
         runCurrent()
 
         assertEquals("ABC1234", controller.state.value.gameCode)
-        assertEquals("Игра не найдена", controller.state.value.error)
+        assertEquals("i18n:game_not_found", controller.state.value.error)
         assertNull(controller.state.value.game)
     }
 
@@ -99,6 +100,34 @@ class MultiplayerControllerTest {
 
         assertNull(controller.state.value.authentication)
         assertEquals("ABC1234", controller.state.value.gameCode)
+    }
+
+    @Test
+    fun inviteJoinsImmediatelyAfterAuthentication() = runTest {
+        val api = FakeApi()
+        val controller = MultiplayerController(api, this, initialGameCode = "abc1234")
+        controller.setUsername("Alice")
+        controller.setPassword("correct-horse")
+
+        controller.submitAuthentication()
+        runCurrent()
+
+        assertEquals("ABC1234", api.joinedCode)
+        assertEquals("ABC1234", controller.state.value.game?.code)
+    }
+
+    @Test
+    fun restoredSessionJoinsInviteAutomatically() = runTest {
+        val api = FakeApi()
+        val store = FakeSessionStore().apply {
+            authentication = AuthResponse("token", UserResponse("user-id", "Alice"))
+        }
+        val controller = MultiplayerController(api, this, initialGameCode = "ABC1234", sessionStore = store)
+
+        runCurrent()
+
+        assertEquals("ABC1234", api.joinedCode)
+        assertEquals("ABC1234", controller.state.value.game?.code)
     }
 
     @Test
@@ -123,8 +152,12 @@ class MultiplayerControllerTest {
     @Test
     fun acceptedServerMoveAdvancesReplayedSession() = runTest {
         val api = MoveApi()
-        val controller =
-            MultiplayerController(api, this, commandId = { "00000000-0000-0000-0000-000000000001" })
+        val controller = MultiplayerController(
+            api,
+            this,
+            commandId = { "00000000-0000-0000-0000-000000000001" },
+            computationDispatcher = StandardTestDispatcher(testScheduler),
+        )
         controller.setUsername("Alice")
         controller.setPassword("correct-horse")
         controller.submitAuthentication()
@@ -153,7 +186,11 @@ class MultiplayerControllerTest {
     @Test
     fun staleMoveRefreshesAuthoritativeHistory() = runTest {
         val api = MoveApi(staleOnSubmit = true)
-        val controller = MultiplayerController(api, this)
+        val controller = MultiplayerController(
+            api,
+            this,
+            computationDispatcher = StandardTestDispatcher(testScheduler),
+        )
         controller.setUsername("Alice")
         controller.setPassword("correct-horse")
         controller.submitAuthentication()
@@ -174,13 +211,17 @@ class MultiplayerControllerTest {
         runCurrent()
 
         assertEquals(1, controller.state.value.remoteState?.revision)
-        assertEquals("Состояние партии изменилось; обновите его", controller.state.value.error)
+        assertEquals("i18n:state_changed_refresh", controller.state.value.error)
     }
 
     @Test
     fun pushedStateUpdatesGameWithoutManualRefresh() = runTest {
         val api = PushApi()
-        val controller = MultiplayerController(api, backgroundScope)
+        val controller = MultiplayerController(
+            api,
+            backgroundScope,
+            computationDispatcher = StandardTestDispatcher(testScheduler),
+        )
         controller.setUsername("Alice")
         controller.setPassword("correct-horse")
         controller.submitAuthentication()
@@ -194,7 +235,7 @@ class MultiplayerControllerTest {
 
         assertEquals(1, controller.state.value.remoteState?.revision)
         assertEquals(1, controller.state.value.session?.moves?.size)
-        assertFalse(controller.state.value.reconnecting)
+        assertFalse(controller.state.value.syncing)
 
         api.pushInitialState()
         runCurrent()
@@ -204,7 +245,11 @@ class MultiplayerControllerTest {
     @Test
     fun lateUndoHttpResponseCannotOverwriteANewerWebSocketRevision() = runTest {
         val api = PushApi()
-        val controller = MultiplayerController(api, backgroundScope)
+        val controller = MultiplayerController(
+            api,
+            backgroundScope,
+            computationDispatcher = StandardTestDispatcher(testScheduler),
+        )
         controller.setUsername("Alice")
         controller.setPassword("correct-horse")
         controller.submitAuthentication()
@@ -231,6 +276,7 @@ class MultiplayerControllerTest {
         private val joinFails: Boolean = false,
         private val authFails: Boolean = false,
     ) : ChessTreeApi {
+        var joinedCode: String? = null
         private val auth = AuthResponse("token", UserResponse("user-id", "Alice"))
         private val game = GameResponse(
             id = "game-id",
@@ -248,11 +294,13 @@ class MultiplayerControllerTest {
 
         override suspend fun logout(token: String) = ApiResult.Success(Unit)
         override suspend fun createGame(token: String) = ApiResult.Success(game)
-        override suspend fun joinGame(token: String, code: String): ApiResult<GameResponse> =
-            if (joinFails) ApiResult.Failure(
+        override suspend fun joinGame(token: String, code: String): ApiResult<GameResponse> {
+            joinedCode = code
+            return if (joinFails) ApiResult.Failure(
                 "game_not_found",
                 "Игра не найдена"
             ) else ApiResult.Success(game)
+        }
 
         override suspend fun getGame(token: String, code: String) = ApiResult.Success(game)
         override suspend fun getGameState(token: String, code: String) = ApiResult.Success(

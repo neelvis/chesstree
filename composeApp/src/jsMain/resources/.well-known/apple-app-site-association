@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["VLH4QVCW62.com.chesstree.app"],
+        "components": [
+          { "/": "/g/*", "comment": "ChessTree game invitations" }
+        ]
+      }
+    ]
+  }
+}
