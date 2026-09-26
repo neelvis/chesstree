@@ -83,6 +83,8 @@ kotlin {
 }
 
 dependencies {
+    add("androidMainImplementation", platform(libs.firebase.bom))
+    add("androidMainImplementation", libs.firebase.messaging)
     "androidRuntimeClasspath"(libs.androidx.compose.ui.tooling)
 }
 

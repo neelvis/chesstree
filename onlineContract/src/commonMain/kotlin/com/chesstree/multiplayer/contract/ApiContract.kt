@@ -12,6 +12,12 @@ data class RegisterRequest(val username: String, val password: String)
 data class LoginRequest(val username: String, val password: String)
 
 @Serializable
+data class PushDeviceRegistrationRequest(val token: String, val platform: String)
+
+@Serializable
+data class PushDeviceRemovalRequest(val token: String)
+
+@Serializable
 data class UserResponse(val id: String, val username: String)
 
 @Serializable

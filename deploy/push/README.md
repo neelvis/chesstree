@@ -26,8 +26,8 @@ private; it does not belong in the website's `/.well-known/` directory.
 
 ## Configure the backend
 
-The production deploy script expects the real key at the repository root as
-`firebase-service-account.json` (ignored by Git). It transfers the file over SSH
+The production deploy script expects the real key at
+`secrets/firebase-service-account.json` (ignored by Git). It transfers the file over SSH
 to the temporary release staging directory, then the remote activation step
 installs it as
 `/etc/chesstree/secrets/firebase-service-account.json` with restricted

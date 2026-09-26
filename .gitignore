@@ -12,3 +12,6 @@ iosApp/DerivedData/
 xcuserdata/
 /root@151.247.208.76/
 /assets/
+/secrets/
+androidApp/google-services.json
+iosApp/iosApp/GoogleService-Info.plist

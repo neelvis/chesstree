@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.chesstree.app",
-      "sha256_cert_fingerprints": ["<ANDROID_RELEASE_CERTIFICATE_SHA256>"]
+      "sha256_cert_fingerprints": ["85:B2:1F:8E:F9:39:FB:6A:68:07:73:58:F7:DE:7F:48:02:5B:8C:2C:BB:B3:2C:50:2C:3E:21:E2:5A:0F:92:96"]
     }
   }
 ]

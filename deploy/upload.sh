@@ -12,7 +12,7 @@ validate_release_id "$release_id"
 
 web_source="$CHESSTREE_PROJECT_ROOT/composeApp/build/dist/composeWebCompatibility/productionExecutable/"
 server_source="$CHESSTREE_PROJECT_ROOT/server/build/install/server/"
-firebase_service_account="$CHESSTREE_PROJECT_ROOT/firebase-service-account.json"
+firebase_service_account="$CHESSTREE_PROJECT_ROOT/secrets/firebase-service-account.json"
 test -d "$web_source"
 test -x "${server_source}bin/server"
 

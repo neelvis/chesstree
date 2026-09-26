@@ -70,6 +70,8 @@ import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
+import com.chesstree.multiplayer.data.NoOpPushTokenProvider
+import com.chesstree.multiplayer.data.PushTokenProvider
 import com.chesstree.multiplayer.presentation.GameLinkSharer
 import com.chesstree.multiplayer.presentation.MultiplayerScreen
 import com.chesstree.resources.Res
@@ -83,6 +85,7 @@ fun App(
     gameSaveStore: GameSaveStore = NoOpGameSaveStore,
     onlineApi: ChessTreeApi? = null,
     onlineSessionStore: OnlineSessionStore = NoOpOnlineSessionStore,
+    pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
     initialGameCode: String? = null,
     gameLinkSharer: GameLinkSharer? = null,
     gameLogExporter: GameLogExporter = NoOpGameLogExporter,
@@ -141,6 +144,23 @@ fun App(
                 }
             }
         }
+        LaunchedEffect(onlineApi, authenticatedUser?.accessToken, pushTokenProvider) {
+            val api = onlineApi ?: return@LaunchedEffect
+            val authToken = authenticatedUser?.accessToken ?: return@LaunchedEffect
+            try {
+                if (!pushTokenProvider.requestPermission()) return@LaunchedEffect
+                pushTokenProvider.currentToken()?.let { deviceToken ->
+                    api.registerPushDevice(authToken, deviceToken, pushTokenProvider.platform)
+                }
+                pushTokenProvider.tokenUpdates().collect { deviceToken ->
+                    api.registerPushDevice(authToken, deviceToken, pushTokenProvider.platform)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                // Push registration is optional and retried on the next launch or token refresh.
+            }
+        }
         val profileContent: @Composable (Modifier) -> Unit = { modifier ->
             SettingsScreen(
                 settings = settings,
@@ -154,6 +174,19 @@ fun App(
                         accountScope.launch {
                             accountLoading = true
                             try {
+                                if (authentication != null) {
+                                    try {
+                                        pushTokenProvider.currentToken()?.let { deviceToken ->
+                                            onlineApi.unregisterPushDevice(
+                                                authentication.accessToken,
+                                                deviceToken,
+                                            )
+                                        }
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (_: Throwable) {
+                                    }
+                                }
                                 if (authentication != null) onlineApi.logout(authentication.accessToken)
                                 onlineSessionStore.clear()
                                 authenticatedUser = null

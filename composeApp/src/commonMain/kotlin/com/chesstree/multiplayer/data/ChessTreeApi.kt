@@ -11,6 +11,8 @@ import com.chesstree.multiplayer.contract.GameStatePush
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.LoginRequest
 import com.chesstree.multiplayer.contract.MoveCommandRequest
+import com.chesstree.multiplayer.contract.PushDeviceRegistrationRequest
+import com.chesstree.multiplayer.contract.PushDeviceRemovalRequest
 import com.chesstree.multiplayer.contract.RegisterRequest
 import com.chesstree.multiplayer.contract.UndoRequestCommand
 import com.chesstree.multiplayer.contract.UndoVoteCommand
@@ -43,6 +45,13 @@ interface ChessTreeApi {
     suspend fun register(username: String, password: String): ApiResult<AuthResponse>
     suspend fun login(username: String, password: String): ApiResult<AuthResponse>
     suspend fun logout(token: String): ApiResult<Unit>
+    suspend fun registerPushDevice(
+        sessionToken: String,
+        deviceToken: String,
+        platform: String,
+    ): ApiResult<Unit> = ApiResult.Failure("unsupported", "i18n:push_unavailable")
+    suspend fun unregisterPushDevice(token: String, deviceToken: String): ApiResult<Unit> =
+        ApiResult.Failure("unsupported", "i18n:push_unavailable")
     suspend fun createGame(token: String): ApiResult<GameResponse>
     suspend fun getMyGames(token: String): ApiResult<List<GameHistoryResponse>> =
         ApiResult.Failure("unsupported", "i18n:history_unavailable")
@@ -100,6 +109,28 @@ class KtorChessTreeApi(
 
     override suspend fun logout(token: String): ApiResult<Unit> = request {
         val response = client.post("$apiBaseUrl/auth/logout") { bearerAuth(token) }
+        if (response.status == HttpStatusCode.NoContent) ApiResult.Success(Unit) else response.failure()
+    }
+
+    override suspend fun registerPushDevice(
+        sessionToken: String,
+        deviceToken: String,
+        platform: String,
+    ): ApiResult<Unit> = request {
+        val response = client.post("$apiBaseUrl/push/devices") {
+            bearerAuth(sessionToken)
+            contentType(ContentType.Application.Json)
+            setBody(PushDeviceRegistrationRequest(token = deviceToken, platform = platform))
+        }
+        if (response.status == HttpStatusCode.NoContent) ApiResult.Success(Unit) else response.failure()
+    }
+
+    override suspend fun unregisterPushDevice(token: String, deviceToken: String): ApiResult<Unit> = request {
+        val response = client.post("$apiBaseUrl/push/devices/unregister") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(PushDeviceRemovalRequest(deviceToken))
+        }
         if (response.status == HttpStatusCode.NoContent) ApiResult.Success(Unit) else response.failure()
     }
 

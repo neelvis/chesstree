@@ -22,6 +22,7 @@ fun MainViewController(): UIViewController {
             gameSaveStore = saveStore,
             onlineApi = onlineApi,
             onlineSessionStore = onlineSessionStore,
+            pushTokenProvider = IosPushTokenProvider,
             initialGameCode = initialGameCode,
             gameLinkSharer = IosGameLinkSharer { rootViewController },
             gameLogExporter = IosGameLogExporter { rootViewController },
@@ -31,7 +32,12 @@ fun MainViewController(): UIViewController {
 }
 
 private val linkedGameCode = MutableStateFlow<String?>(null)
+internal val iosPushToken = MutableStateFlow<String?>(null)
 
 fun OpenGameLink(url: String) {
     gameCodeFromUrl(url)?.let { linkedGameCode.value = it }
+}
+
+fun PushTokenUpdated(token: String?) {
+    iosPushToken.value = token
 }

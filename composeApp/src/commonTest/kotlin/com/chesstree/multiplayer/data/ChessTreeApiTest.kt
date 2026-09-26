@@ -87,6 +87,32 @@ class ChessTreeApiTest {
     }
 
     @Test
+    fun pushDevicesUseAuthenticatedRegistrationAndRemovalEndpoints() = runTest {
+        val visited = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            assertEquals("Bearer session-token", request.headers[HttpHeaders.Authorization])
+            visited += request.url.toString()
+            respond("", HttpStatusCode.NoContent)
+        }
+
+        val api = api(engine)
+        assertIs<ApiResult.Success<Unit>>(
+            api.registerPushDevice("session-token", "fcm-device-token", "ANDROID"),
+        )
+        assertIs<ApiResult.Success<Unit>>(
+            api.unregisterPushDevice("session-token", "fcm-device-token"),
+        )
+
+        assertEquals(
+            listOf(
+                "https://server.test/api/v1/push/devices",
+                "https://server.test/api/v1/push/devices/unregister",
+            ),
+            visited,
+        )
+    }
+
+    @Test
     fun undoRequestAndVoteUseTheGameScopedEndpoints() = runTest {
         val visited = mutableListOf<String>()
         val engine = MockEngine { request ->
