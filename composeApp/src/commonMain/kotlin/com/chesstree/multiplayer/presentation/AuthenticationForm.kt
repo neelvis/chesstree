@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.chesstree.app.localized
 
 @Composable
 internal expect fun AuthenticationForm(
@@ -37,7 +38,7 @@ internal fun ComposeAuthenticationForm(
     OutlinedTextField(
         value = username,
         onValueChange = onUsernameChange,
-        label = { Text("Логин") },
+        label = { Text(localized("username")) },
         singleLine = true,
         keyboardOptions = usernameKeyboardOptions,
         modifier = usernameModifier.fillMaxWidth(),
@@ -45,7 +46,7 @@ internal fun ComposeAuthenticationForm(
     OutlinedTextField(
         value = password,
         onValueChange = onPasswordChange,
-        label = { Text("Пароль") },
+        label = { Text(localized("password")) },
         singleLine = true,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = passwordKeyboardOptions,
@@ -56,6 +57,6 @@ internal fun ComposeAuthenticationForm(
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(if (mode == AuthMode.LOGIN) "Войти" else "Создать аккаунт")
+        Text(localized(if (mode == AuthMode.LOGIN) "login" else "create_account"))
     }
 }

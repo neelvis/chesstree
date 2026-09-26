@@ -21,8 +21,6 @@ import com.chesstree.game.domain.Turn
 
 class GameScenario internal constructor(
     val id: String,
-    val title: String,
-    val description: String,
     val initialState: GameState,
 )
 
@@ -34,9 +32,6 @@ fun gameScenario(
 class GameScenarioBuilder internal constructor(
     private val id: String,
 ) {
-    var title: String = id
-    var description: String = ""
-
     private val pieces = linkedMapOf<PieceId, Piece>()
     private val participants = PlayerId.entries.associateWith(::Participant).toMutableMap()
     private val armies = ArmyColor.entries.associateWith { army ->
@@ -152,7 +147,6 @@ class GameScenarioBuilder internal constructor(
     }
 
     internal fun build(): GameScenario {
-        require(title.isNotBlank()) { "Scenario title must not be blank: $id" }
         val position = Position(
             pieces = pieces,
             castlingRights = castlingRights,
@@ -168,8 +162,6 @@ class GameScenarioBuilder internal constructor(
         validateScenarioState(state)
         return GameScenario(
             id = id,
-            title = title,
-            description = description,
             initialState = state,
         )
     }

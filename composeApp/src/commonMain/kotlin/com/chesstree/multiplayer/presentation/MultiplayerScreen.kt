@@ -49,6 +49,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chesstree.app.AppTab
+import com.chesstree.app.localized
+import com.chesstree.app.localizedMessage
 import com.chesstree.app.AppTabBar
 import com.chesstree.app.ChessTreeColors
 import com.chesstree.app.ChessTreeTheme
@@ -148,13 +150,13 @@ fun MultiplayerScreen(
                                 horizontalArrangement = Arrangement.Start,
                             ) {
                                 if (isGameStarted) {
-                                    TextButton(onClick = ::handleBack) { Text("‹ Назад") }
+                                    TextButton(onClick = ::handleBack) { Text(localized("back_with_chevron")) }
                                 } else {
                                     TextButton(
                                         onClick = controller::returnToLobby,
                                         enabled = !state.loading
                                     ) {
-                                        Text("‹ Назад")
+                                        Text(localized("back_with_chevron"))
                                     }
                                 }
                             }
@@ -164,7 +166,7 @@ fun MultiplayerScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             Text(
-                                "Партия ${state.game?.code}",
+                                localized("game_title_code", state.game?.code.orEmpty()),
                                 style = MaterialTheme.typography.headlineMedium
                             )
                             if (isGameStarted) {
@@ -177,7 +179,7 @@ fun MultiplayerScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Text("Ваш цвет:")
+                                        Text(localized("your_color"))
                                         ArmyQueenGlyph(userArmy)
                                     }
                                 }
@@ -191,11 +193,11 @@ fun MultiplayerScreen(
                                         showCurrentPossibleMoves = showCurrentPossibleMoves,
                                         showMoveLines = showMoveLines,
                                     )
-                                } else Text("Загружаем позицию партии…")
+                                } else Text(localized("loading_game_position"))
                             } else {
                                 GameLobby(checkNotNull(state.game), controller, gameLinkSharer)
                             }
-                            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            state.error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
                             if (state.loading && !state.submittingMove && state.openingGameCode == null) {
                                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                             }
@@ -205,13 +207,13 @@ fun MultiplayerScreen(
                             modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("Онлайн-игра", style = MaterialTheme.typography.headlineMedium)
+                            Text(localized("online_game"), style = MaterialTheme.typography.headlineMedium)
                             if (!hasSystemBackNavigation) {
                                 TextButton(
                                     onClick = ::handleBack,
                                     modifier = Modifier.align(Alignment.CenterStart)
                                 ) {
-                                    Text("‹ Назад")
+                                    Text(localized("back_with_chevron"))
                                 }
                             }
                         }
@@ -269,11 +271,11 @@ private fun AuthenticationMenu(
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (state.authMode == AuthMode.LOGIN) {
-            Button(onClick = { onAuthModeChange(AuthMode.LOGIN) }) { Text("Вход") }
-            OutlinedButton(onClick = { onAuthModeChange(AuthMode.REGISTER) }) { Text("Регистрация") }
+            Button(onClick = { onAuthModeChange(AuthMode.LOGIN) }) { Text(localized("login")) }
+            OutlinedButton(onClick = { onAuthModeChange(AuthMode.REGISTER) }) { Text(localized("registration")) }
         } else {
-            OutlinedButton(onClick = { onAuthModeChange(AuthMode.LOGIN) }) { Text("Вход") }
-            Button(onClick = { onAuthModeChange(AuthMode.REGISTER) }) { Text("Регистрация") }
+            OutlinedButton(onClick = { onAuthModeChange(AuthMode.LOGIN) }) { Text(localized("login")) }
+            Button(onClick = { onAuthModeChange(AuthMode.REGISTER) }) { Text(localized("registration")) }
         }
     }
     AuthenticationForm(
@@ -311,23 +313,23 @@ private fun LobbyMenu(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Создать игру", style = MaterialTheme.typography.titleMedium)
+            Text(localized("create_game"), style = MaterialTheme.typography.titleMedium)
             Button(
                 onClick = onCreateGame,
                 enabled = !state.loading,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Создать игру")
+                Text(localized("create_game"))
             }
         }
     }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Присоединиться к игре", style = MaterialTheme.typography.titleMedium)
+            Text(localized("join_game"), style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = state.gameCode,
                 onValueChange = onGameCodeChange,
-                label = { Text("Код игры") },
+                label = { Text(localized("game_code")) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -336,7 +338,7 @@ private fun LobbyMenu(
                 enabled = !state.loading && state.gameCode.length == 7,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Присоединиться")
+                Text(localized("join"))
             }
         }
     }
@@ -351,9 +353,9 @@ private fun LoginMenuPreview() {
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("Онлайн-игра", style = MaterialTheme.typography.headlineMedium)
+                Text(localized("online_game"), style = MaterialTheme.typography.headlineMedium)
                 AuthenticationMenu(
-                    state = MultiplayerUiState(username = "игрок"),
+                    state = MultiplayerUiState(username = localized("player")),
                     onAuthModeChange = {},
                     onUsernameChange = {},
                     onPasswordChange = {},
@@ -373,7 +375,7 @@ private fun MultiplayerMenuPreview() {
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("Онлайн-игра", style = MaterialTheme.typography.headlineMedium)
+                Text(localized("online_game"), style = MaterialTheme.typography.headlineMedium)
                 LobbyMenu(
                     state = MultiplayerUiState(gameCode = "AB12CDE"),
                     onCreateGame = {},
@@ -393,13 +395,13 @@ private fun GameHistory(state: MultiplayerUiState, controller: MultiplayerContro
     val finished = state.games.filter { it.status == "FINISHED" }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("История игр", style = MaterialTheme.typography.titleMedium)
+            Text(localized("games_history"), style = MaterialTheme.typography.titleMedium)
             if (state.loadingGames) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
-            Text("Незавершённые", style = MaterialTheme.typography.titleSmall)
+            Text(localized("unfinished_games"), style = MaterialTheme.typography.titleSmall)
             if (unfinished.isEmpty()) Text(
-                "Нет незавершённых игр",
+                localized("no_unfinished_games"),
                 style = MaterialTheme.typography.bodySmall
             )
             if (showAllUnfinished) {
@@ -418,12 +420,12 @@ private fun GameHistory(state: MultiplayerUiState, controller: MultiplayerContro
             }
             if (unfinished.size > 5) {
                 TextButton(onClick = { showAllUnfinished = !showAllUnfinished }) {
-                    Text(if (showAllUnfinished) "Свернуть" else "Показать ещё")
+                    Text(localized(if (showAllUnfinished) "collapse" else "show_more"))
                 }
             }
-            Text("Завершённые", style = MaterialTheme.typography.titleSmall)
+            Text(localized("finished_games"), style = MaterialTheme.typography.titleSmall)
             if (finished.isEmpty()) Text(
-                "Нет завершённых игр",
+                localized("no_finished_games"),
                 style = MaterialTheme.typography.bodySmall
             )
             if (showAllFinished) {
@@ -449,7 +451,7 @@ private fun GameHistory(state: MultiplayerUiState, controller: MultiplayerContro
             }
             if (finished.size > 5) {
                 TextButton(onClick = { showAllFinished = !showAllFinished }) {
-                    Text(if (showAllFinished) "Свернуть" else "Показать ещё")
+                    Text(localized(if (showAllFinished) "collapse" else "show_more"))
                 }
             }
         }
@@ -474,7 +476,7 @@ private fun HistoryGameRow(
                 Spacer(Modifier.size(8.dp))
             }
             Column {
-                Text("${game.code} · ${game.startedAt.take(10).ifBlank { "Дата неизвестна" }}")
+                Text("${game.code} · ${game.startedAt.take(10).ifBlank { localized("unknown_date") }}")
                 Text(
                     game.players.joinToString(" · ") { it.user.username },
                     style = MaterialTheme.typography.bodySmall,
@@ -534,7 +536,7 @@ private fun OnlineGame(
         }
     }
 
-    Text("Ревизия: ${state.remoteState?.revision ?: 0}")
+    Text(localized("revision", state.remoteState?.revision ?: 0))
     val turnPlayer = session.state.turn?.player
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -542,10 +544,10 @@ private fun OnlineGame(
     ) {
         Text(
             when {
-                undoRequest != null -> "Игра приостановлена: голосование за отмену хода"
-                game.status == "FINISHED" -> "Партия завершена"
-                canAct -> "Ваш ход"
-                else -> "Ожидаем ход другого игрока:"
+                undoRequest != null -> localized("paused_for_undo_vote")
+                game.status == "FINISHED" -> localized("game_finished")
+                canAct -> localized("your_turn")
+                else -> localized("waiting_for_other_turn")
             },
         )
         turnPlayer?.let { ArmyQueenGlyph(ArmyColor.valueOf(it.name)) }
@@ -613,18 +615,18 @@ private fun OnlineGame(
         onClick = controller::requestUndo,
         enabled = !state.loading && undoRequest == null && session.moves.isNotEmpty(),
         modifier = Modifier.fillMaxWidth(),
-    ) { Text("Отменить ход") }
+    ) { Text(localized("undo_move")) }
     if (undoRequest != null) {
         val requesterName = game.players
             .firstOrNull { it.user.id == undoRequest.requestedByUserId }
             ?.user?.username
-            ?: "Участник"
+            ?: localized("participant")
         if (isUndoRequester) {
-            Text("Запрос отправлен. Ожидаем согласия двух других участников.")
+            Text(localized("request_sent_waiting"))
         } else if (hasApprovedUndo) {
-            Text("Вы согласились. Ожидаем решение второго участника.")
+            Text(localized("agreed_waiting"))
         } else {
-            Text("$requesterName просит отменить последний ход")
+            Text(localized("requester_undo", requesterName))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -633,20 +635,20 @@ private fun OnlineGame(
                     onClick = { controller.voteUndo(true) },
                     enabled = !state.loading,
                     modifier = Modifier.weight(1f),
-                ) { Text("Согласен") }
+                ) { Text(localized("agree")) }
                 OutlinedButton(
                     onClick = { controller.voteUndo(false) },
                     enabled = !state.loading,
                     modifier = Modifier.weight(1f),
-                ) { Text("Не согласен") }
+                ) { Text(localized("disagree")) }
             }
         }
     }
     if (pendingPromotionMoves.isNotEmpty()) {
         AlertDialog(
             onDismissRequest = { pendingPromotionMoves = emptyList() },
-            title = { Text("Превращение пешки") },
-            text = { Text("Выберите новую фигуру") },
+            title = { Text(localized("promotion_title")) },
+            text = { Text(localized("promotion_prompt")) },
             confirmButton = {
                 Column {
                     pendingPromotionMoves.forEach { move ->
@@ -668,7 +670,7 @@ private fun OnlineGame(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingPromotionMoves = emptyList() }) { Text("Отмена") }
+                TextButton(onClick = { pendingPromotionMoves = emptyList() }) { Text(localized("cancel")) }
             },
         )
     }
@@ -716,7 +718,7 @@ private fun GameLobby(
     var shareMessage by remember(game.shareUrl) { mutableStateOf<String?>(null) }
     var sharing by remember(game.shareUrl) { mutableStateOf(false) }
     Spacer(Modifier.height(8.dp))
-    Text("Код: ${game.code}", style = MaterialTheme.typography.titleLarge)
+    Text(localized("game_code_value", game.code), style = MaterialTheme.typography.titleLarge)
     Text(game.shareUrl, style = MaterialTheme.typography.bodySmall)
     if (gameLinkSharer != null) {
         OutlinedButton(
@@ -726,13 +728,13 @@ private fun GameLobby(
                     sharing = true
                     try {
                         shareMessage = when (gameLinkSharer.share(game.shareUrl)) {
-                            GameLinkShareResult.COPIED -> "Ссылка скопирована"
+                            GameLinkShareResult.COPIED -> "i18n:link_copied"
                             GameLinkShareResult.SHARE_SHEET_OPENED -> null
                         }
                     } catch (error: CancellationException) {
                         throw error
                     } catch (_: Throwable) {
-                        shareMessage = "Не удалось поделиться ссылкой"
+                        shareMessage = "i18n:share_failed"
                     } finally {
                         sharing = false
                     }
@@ -740,11 +742,11 @@ private fun GameLobby(
             },
             enabled = !sharing,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Поделиться") }
+        ) { Text(localized("share")) }
         shareMessage?.let { message ->
             Text(
-                message,
-                color = if (message == "Ссылка скопирована") {
+                localizedMessage(message),
+                color = if (message == "i18n:link_copied") {
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.error
@@ -752,15 +754,16 @@ private fun GameLobby(
             )
         }
     }
-    Text(if (game.status == "ACTIVE") "Игра готова" else "Ожидаем игроков: ${game.players.size}/3")
+    Text(if (game.status == "ACTIVE") localized("game_ready") else localized("waiting_players", game.players.size))
     game.players.forEach { player ->
         Text("${player.user.username}${player.color?.let { " — $it" }.orEmpty()}")
     }
 }
 
+@Composable
 private fun PromotionChoice.displayName(): String = when (this) {
-    PromotionChoice.QUEEN -> "Ферзь"
-    PromotionChoice.ROOK -> "Ладья"
-    PromotionChoice.BISHOP -> "Слон"
-    PromotionChoice.KNIGHT -> "Конь"
+    PromotionChoice.QUEEN -> localized("queen")
+    PromotionChoice.ROOK -> localized("rook")
+    PromotionChoice.BISHOP -> localized("bishop")
+    PromotionChoice.KNIGHT -> localized("knight")
 }

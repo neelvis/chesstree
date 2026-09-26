@@ -23,8 +23,6 @@ object StandardGame {
     }
 
     val scenario: GameScenario = gameScenario("standard") {
-        title = "Обычное начало"
-        description = "Три полных армии; ход белых."
         pieces.forEach { piece ->
             piece(piece.id, piece.army, piece.type, piece.coordinate)
         }

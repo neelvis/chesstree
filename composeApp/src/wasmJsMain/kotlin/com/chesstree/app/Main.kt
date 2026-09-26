@@ -10,11 +10,13 @@ import com.chesstree.multiplayer.presentation.BrowserGameLinkSharer
 import com.chesstree.resources.Res
 import com.chesstree.resources.allFontResources
 import kotlinx.browser.window
+import kotlinx.browser.document
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.preloadFont
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalResourceApi::class)
 fun main() {
+    document.documentElement?.setAttribute("lang", supportedDocumentLanguage())
     val saveStore = BrowserGameSaveStore()
     val onlineSessionStore = BrowserOnlineSessionStore()
     val onlineApi = KtorChessTreeApi(serverBaseUrl())
@@ -35,6 +37,9 @@ fun main() {
         }
     }
 }
+
+private fun supportedDocumentLanguage(): String =
+    window.navigator.language.substringBefore('-').lowercase().takeIf { it == "en" || it == "de" } ?: "ru"
 
 private fun serverBaseUrl(): String =
     if (window.location.hostname in setOf("localhost", "127.0.0.1")) {

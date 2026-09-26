@@ -12,7 +12,7 @@ class AndroidGameSaveStore(context: Context) : GameSaveStore {
         preferences.edit().putString(SAVE_KEY, contents).apply()
         SaveGameResult.Saved
     }.getOrElse { error ->
-        SaveGameResult.Failed(error.message ?: "неизвестная ошибка")
+        SaveGameResult.Failed(error.message ?: "i18n:unknown_error")
     }
 
     override fun load(): LoadGameResult = runCatching {
@@ -20,7 +20,7 @@ class AndroidGameSaveStore(context: Context) : GameSaveStore {
             ?.let(LoadGameResult::Loaded)
             ?: LoadGameResult.Missing
     }.getOrElse { error ->
-        LoadGameResult.Failed(error.message ?: "неизвестная ошибка")
+        LoadGameResult.Failed(error.message ?: "i18n:unknown_error")
     }
 
     private companion object {

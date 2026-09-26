@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.PieceType
 import com.chesstree.resources.Res
+import com.chesstree.app.localized
 import com.chesstree.resources.allDrawableResources
 import com.chesstree.resources.allFontResources
 import org.jetbrains.compose.resources.Font
@@ -103,6 +104,18 @@ fun ThreePlayerChessBoard(
     val currentOnCellSelected by rememberUpdatedState(onCellSelected)
     val currentOnZoomChanged by rememberUpdatedState(onZoomChanged)
     var viewport by remember { mutableStateOf(BoardViewport()) }
+    val boardDescription = localized(
+        "checkers_board_description",
+        localized(if (pieceSet == PieceSet.FAIRY) "premium_pieces" else "standard_pieces"),
+    )
+    val selectionDescription = localized(
+        if (selectedPieceId == null) "piece_not_selected" else "piece_selected",
+    )
+    val zoomDescription = localized(
+        "zoom_percent",
+        selectionDescription,
+        (viewport.zoom * 100).roundToInt(),
+    )
 
     Canvas(
         modifier = modifier
@@ -118,12 +131,8 @@ fun ThreePlayerChessBoard(
                 if (coerced != viewport) viewport = coerced
             }
             .semantics {
-                contentDescription = "Доска для шахмат на троих, 96 клеток, " +
-                        if (pieceSet == PieceSet.FAIRY) "Premium фигуры" else "стандартные фигуры"
-                val selection =
-                    if (selectedPieceId == null) "Фигура не выбрана" else "Фигура выбрана"
-                stateDescription =
-                    "$selection, масштаб ${(viewport.zoom * 100).roundToInt()} процентов"
+                contentDescription = boardDescription
+                stateDescription = zoomDescription
             }
             .pointerInput(contentWidth, contentHeight) {
                 detectTwoFingerBoardTransformGestures { centroid, pan, zoomChange ->

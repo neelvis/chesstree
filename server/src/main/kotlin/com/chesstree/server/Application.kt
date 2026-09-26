@@ -349,17 +349,17 @@ private suspend fun ApplicationCall.respondAuth(result: AuthResult) {
 
         is AuthResult.Invalid -> respond(
             HttpStatusCode.BadRequest,
-            ErrorResponse("invalid_credentials_format", result.message),
+            ErrorResponse(result.reason.apiCode, result.reason.apiCode),
         )
 
         AuthResult.UsernameTaken -> respond(
             HttpStatusCode.Conflict,
-            ErrorResponse("username_taken", "Этот логин уже занят"),
+            ErrorResponse("username_taken", "username_taken"),
         )
 
         AuthResult.InvalidCredentials -> respond(
             HttpStatusCode.Unauthorized,
-            ErrorResponse("invalid_credentials", "Неверный логин или пароль"),
+            ErrorResponse("invalid_credentials", "invalid_credentials"),
         )
     }
 }

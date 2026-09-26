@@ -17,6 +17,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.chesstree.app.localized
+import com.chesstree.app.localizedMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -39,15 +41,15 @@ fun GameHistoryDialog(
             exportInProgress = true
             message = try {
                 when (exporter.action(log)) {
-                    GameLogExportResult.COPIED -> "Логи скопированы"
-                    GameLogExportResult.FILE_SAVED -> "Файл с логами сохранён"
-                    GameLogExportResult.FILE_DIALOG_OPENED -> "Выберите место для сохранения файла"
-                    GameLogExportResult.UNAVAILABLE -> "Действие недоступно на этой платформе"
+                    GameLogExportResult.COPIED -> "i18n:logs_copied"
+                    GameLogExportResult.FILE_SAVED -> "i18n:logs_saved"
+                    GameLogExportResult.FILE_DIALOG_OPENED -> "i18n:choose_save_location"
+                    GameLogExportResult.UNAVAILABLE -> "i18n:action_unavailable"
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
-                "Не удалось выполнить действие"
+                "i18n:action_failed"
             } finally {
                 exportInProgress = false
             }
@@ -56,7 +58,7 @@ fun GameHistoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (importMode) "Восстановление партии" else "История игры") },
+        title = { Text(localized(if (importMode) "restore_dialog_title" else "history_dialog_title")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -64,16 +66,16 @@ fun GameHistoryDialog(
                     onValueChange = { value -> if (importMode) importText = value },
                     readOnly = !importMode,
                     label = {
-                        Text(if (importMode) "Вставьте лог или его часть" else "Ходы")
+                        Text(localized(if (importMode) "paste_log" else "history_moves"))
                     },
                     placeholder = {
-                        Text(if (importMode) "1: W.e4" else "Ходов пока нет")
+                        Text(if (importMode) "1: W.e4" else localized("no_moves"))
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 180.dp, max = 360.dp),
                 )
-                message?.let { Text(it) }
+                message?.let { Text(localizedMessage(it)) }
             }
         },
         confirmButton = {
@@ -85,9 +87,9 @@ fun GameHistoryDialog(
                             importMode = false
                         },
                     ) {
-                        Text("Восстановить")
+                        Text(localized("restore"))
                     }
-                    TextButton(onClick = { importMode = false }) { Text("Назад") }
+                    TextButton(onClick = { importMode = false }) { Text(localized("back")) }
                 }
             } else {
                 Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
@@ -96,13 +98,13 @@ fun GameHistoryDialog(
                             onClick = { export(GameLogExporter::save) },
                             enabled = !exportInProgress,
                         ) {
-                            Text("Сохранить")
+                            Text(localized("save"))
                         }
                         TextButton(
                             onClick = { export(GameLogExporter::copy) },
                             enabled = !exportInProgress,
                         ) {
-                            Text("Скопировать")
+                            Text(localized("copy"))
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -113,9 +115,9 @@ fun GameHistoryDialog(
                                 importMode = true
                             },
                         ) {
-                            Text("Восстановить из лога")
+                            Text(localized("restore_from_log"))
                         }
-                        TextButton(onClick = onDismiss) { Text("Закрыть") }
+                        TextButton(onClick = onDismiss) { Text(localized("close")) }
                     }
                 }
             }

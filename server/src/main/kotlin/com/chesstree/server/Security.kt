@@ -94,9 +94,9 @@ class AuthService(
         return AuthResult.Authenticated(token, user)
     }
 
-    private fun validateCredentials(username: String, password: String): String? = when {
-        !USERNAME.matches(username) -> "Логин должен содержать 3–24 латинских символа, цифры или подчёркивания"
-        password.length !in 10..128 -> "Пароль должен содержать от 10 до 128 символов"
+    private fun validateCredentials(username: String, password: String): CredentialValidationError? = when {
+        !USERNAME.matches(username) -> CredentialValidationError.INVALID_USERNAME
+        password.length !in 10..128 -> CredentialValidationError.INVALID_PASSWORD
         else -> null
     }
 
@@ -109,7 +109,12 @@ class AuthService(
 
 sealed interface AuthResult {
     data class Authenticated(val token: String, val user: UserRecord) : AuthResult
-    data class Invalid(val message: String) : AuthResult
+    data class Invalid(val reason: CredentialValidationError) : AuthResult
     data object UsernameTaken : AuthResult
     data object InvalidCredentials : AuthResult
+}
+
+enum class CredentialValidationError(val apiCode: String) {
+    INVALID_USERNAME("invalid_username"),
+    INVALID_PASSWORD("invalid_password"),
 }

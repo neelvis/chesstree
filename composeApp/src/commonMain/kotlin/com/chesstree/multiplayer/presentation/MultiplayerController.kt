@@ -77,7 +77,7 @@ class MultiplayerController(
                 throw error
             } catch (_: Throwable) {
                 mutableState.value =
-                    mutableState.value.copy(error = "Не удалось восстановить сохранённый вход")
+                    mutableState.value.copy(error = "i18n:saved_login_restore_failed")
             }
         }
     }
@@ -110,9 +110,9 @@ class MultiplayerController(
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: OnlineSessionStoreException) {
-                    "Вход выполнен, но не удалось безопасно сохранить сессию (${error.safeReason})"
+                    "i18n:login_save_failed_reason|${error.safeReason}"
                 } catch (_: Throwable) {
-                    "Вход выполнен, но не удалось безопасно сохранить сессию"
+                    "i18n:login_save_failed"
                 }
                 // Commit platform autofill while the credential fields are still on screen.
                 onSuccess()
@@ -126,14 +126,14 @@ class MultiplayerController(
                 )
             }
 
-            is ApiResult.Failure -> copy(error = result.message)
+            is ApiResult.Failure -> copy(error = result.toUiMessage())
         }
     }
 
     fun createGame() = withToken(observeAfterSuccess = true) { token ->
         when (val result = api.createGame(token)) {
             is ApiResult.Success -> withRemoteGame(token, result.value)
-            is ApiResult.Failure -> copy(error = result.message)
+            is ApiResult.Failure -> copy(error = result.toUiMessage())
         }
     }
 
@@ -152,7 +152,7 @@ class MultiplayerController(
                     result.value
                 ).copy(openingGameCode = null)
 
-                is ApiResult.Failure -> copy(error = result.message, openingGameCode = null)
+                is ApiResult.Failure -> copy(error = result.toUiMessage(), openingGameCode = null)
             }
         }
     }
@@ -180,7 +180,7 @@ class MultiplayerController(
     fun joinGame() = withToken(observeAfterSuccess = true) { token ->
         when (val result = api.joinGame(token, mutableState.value.gameCode)) {
             is ApiResult.Success -> withRemoteGame(token, result.value)
-            is ApiResult.Failure -> copy(error = result.message)
+            is ApiResult.Failure -> copy(error = result.toUiMessage())
         }
     }
 
@@ -199,13 +199,13 @@ class MultiplayerController(
                     }
 
                     is ApiResult.Failure -> mutableState.value =
-                        mutableState.value.copy(syncing = false, error = result.message)
+                        mutableState.value.copy(syncing = false, error = result.toUiMessage())
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
                 mutableState.value =
-                    mutableState.value.copy(syncing = false, error = "Не удалось выполнить запрос")
+                    mutableState.value.copy(syncing = false, error = "i18n:request_failed")
             }
         }
     }
@@ -217,7 +217,7 @@ class MultiplayerController(
         val confirmedSession = current.session ?: return
         val confirmedRemote = current.remoteState
         if (confirmedRemote == null) {
-            update { copy(error = "Сначала обновите состояние партии") }
+            update { copy(error = "i18n:state_refresh_first") }
             return
         }
         val optimisticSession =
@@ -226,7 +226,7 @@ class MultiplayerController(
         mutableState.value = current.copy(session = optimisticSession)
         launchRequest(submittingMove = true) {
             val currentRemote = remoteState
-                ?: return@launchRequest copy(error = "Сначала обновите состояние партии")
+                ?: return@launchRequest copy(error = "i18n:state_refresh_first")
             val command = MoveCommandRequest(
                 commandId = commandId(),
                 expectedRevision = currentRemote.revision,
@@ -238,14 +238,14 @@ class MultiplayerController(
                 is ApiResult.Success -> withRemoteState(result.value)
                 is ApiResult.Failure -> if (result.code == "stale_revision") {
                     when (val refreshed = api.getGameState(token, currentRemote.game.code)) {
-                        is ApiResult.Success -> withRemoteState(refreshed.value).copy(error = result.message)
+                        is ApiResult.Success -> withRemoteState(refreshed.value).copy(error = result.toUiMessage())
                         is ApiResult.Failure -> copy(
                             session = remoteState.toSession(),
-                            error = refreshed.message,
+                            error = refreshed.toUiMessage(),
                         )
                     }
                 } else {
-                    copy(session = remoteState.toSession(), error = result.message)
+                    copy(session = remoteState.toSession(), error = result.toUiMessage())
                 }
             }
         }
@@ -253,7 +253,7 @@ class MultiplayerController(
 
     fun requestUndo() = withToken { token ->
         val currentRemote =
-            remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
+            remoteState ?: return@withToken copy(error = "i18n:state_refresh_first")
         when (
             val result = api.requestUndo(
                 token,
@@ -268,9 +268,9 @@ class MultiplayerController(
 
     fun voteUndo(approve: Boolean) = withToken { token ->
         val currentRemote =
-            remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
+            remoteState ?: return@withToken copy(error = "i18n:state_refresh_first")
         val undoRequest = currentRemote.undoRequest
-            ?: return@withToken copy(error = "Запрос на отмену уже закрыт")
+            ?: return@withToken copy(error = "i18n:undo_request_closed")
         when (
             val result = api.voteUndo(
                 token,
@@ -289,11 +289,11 @@ class MultiplayerController(
         failure: ApiResult.Failure,
     ): MultiplayerUiState = if (failure.code == "stale_revision") {
         when (val refreshed = api.getGameState(token, code)) {
-            is ApiResult.Success -> withRemoteState(refreshed.value).copy(error = failure.message)
-            is ApiResult.Failure -> copy(error = refreshed.message)
+            is ApiResult.Success -> withRemoteState(refreshed.value).copy(error = failure.toUiMessage())
+            is ApiResult.Failure -> copy(error = refreshed.toUiMessage())
         }
     } else {
-        copy(error = failure.message)
+        copy(error = failure.toUiMessage())
     }
 
     fun logout() {
@@ -345,7 +345,7 @@ class MultiplayerController(
         if (game.status != "ACTIVE" && game.status != "FINISHED") return updated
         return when (val stateResult = api.getGameState(token, game.code)) {
             is ApiResult.Success -> updated.withRemoteState(stateResult.value)
-            is ApiResult.Failure -> updated.copy(error = stateResult.message)
+            is ApiResult.Failure -> updated.copy(error = stateResult.toUiMessage())
         }
     }
 
@@ -357,7 +357,7 @@ class MultiplayerController(
             }
         }
         val replayed = remote.toSession(session)
-            ?: return copy(error = "Сервер вернул несовместимое состояние партии")
+            ?: return copy(error = "i18n:incompatible_game_state")
         return copy(
             game = remote.game,
             gameCode = remote.game.code,
@@ -426,7 +426,7 @@ class MultiplayerController(
                     } else {
                         mutableState.value.session
                     },
-                    error = "Не удалось выполнить запрос",
+                    error = "i18n:request_failed",
                 )
             }
         }
@@ -445,7 +445,7 @@ class MultiplayerController(
 
                     is ApiResult.Failure -> {
                         if (result.code != "connection_lost") {
-                            mutableState.value = mutableState.value.copy(error = result.message)
+                            mutableState.value = mutableState.value.copy(error = result.toUiMessage())
                         }
                     }
                 }
@@ -511,3 +511,25 @@ private fun randomCommandId(): String {
 }
 
 private const val HEX = "0123456789abcdef"
+
+private fun ApiResult.Failure.toUiMessage(): String = when (code) {
+    "invalid_request" -> "i18n:invalid_request"
+    "internal_error" -> "i18n:internal_error"
+    "invalid_credentials" -> "i18n:invalid_credentials"
+    "invalid_username" -> "i18n:invalid_username"
+    "invalid_password" -> "i18n:invalid_password"
+    "game_not_found" -> "i18n:game_not_found"
+    "game_full" -> "i18n:game_already_full"
+    "stale_revision" -> "i18n:state_changed_refresh"
+    "game_not_active" -> "i18n:game_not_active"
+    "not_your_turn" -> "i18n:not_your_turn"
+    "illegal_move" -> "i18n:illegal_move"
+    "command_conflict" -> "i18n:command_conflict"
+    "undo_pending" -> "i18n:undo_pending"
+    "undo_not_available" -> "i18n:undo_not_available"
+    "undo_already_pending" -> "i18n:undo_already_pending"
+    "requester_cannot_vote" -> "i18n:requester_cannot_vote"
+    "already_voted" -> "i18n:already_voted"
+    "username_taken" -> "i18n:username_taken"
+    else -> message
+}

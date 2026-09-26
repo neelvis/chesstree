@@ -45,7 +45,7 @@ interface ChessTreeApi {
     suspend fun logout(token: String): ApiResult<Unit>
     suspend fun createGame(token: String): ApiResult<GameResponse>
     suspend fun getMyGames(token: String): ApiResult<List<GameHistoryResponse>> =
-        ApiResult.Failure("unsupported", "История игр недоступна")
+        ApiResult.Failure("unsupported", "i18n:history_unavailable")
 
     suspend fun joinGame(token: String, code: String): ApiResult<GameResponse>
     suspend fun getGame(token: String, code: String): ApiResult<GameResponse>
@@ -61,13 +61,13 @@ interface ChessTreeApi {
         token: String,
         code: String,
         command: UndoRequestCommand,
-    ): ApiResult<GameStateResponse> = ApiResult.Failure("unsupported", "Отмена хода недоступна")
+    ): ApiResult<GameStateResponse> = ApiResult.Failure("unsupported", "i18n:undo_unavailable")
 
     suspend fun voteUndo(
         token: String,
         code: String,
         command: UndoVoteCommand,
-    ): ApiResult<GameStateResponse> = ApiResult.Failure("unsupported", "Голосование недоступно")
+    ): ApiResult<GameStateResponse> = ApiResult.Failure("unsupported", "i18n:vote_unavailable")
 }
 
 sealed interface ApiResult<out T> {
@@ -145,7 +145,7 @@ class KtorChessTreeApi(
                                 emit(
                                     ApiResult.Failure(
                                         "protocol_mismatch",
-                                        "Требуется обновить приложение"
+                                        "i18n:update_required"
                                     )
                                 )
                                 protocolSupported = false
@@ -162,7 +162,7 @@ class KtorChessTreeApi(
                 emit(
                     ApiResult.Failure(
                         "connection_lost",
-                        "Связь с партией потеряна; переподключаемся"
+                        "i18n:connection_lost"
                     )
                 )
                 delay(retryDelayMillis)
@@ -217,7 +217,7 @@ class KtorChessTreeApi(
     } catch (error: CancellationException) {
         throw error
     } catch (_: Throwable) {
-        ApiResult.Failure("network_error", "Не удалось связаться с сервером")
+        ApiResult.Failure("network_error", "i18n:network_unavailable")
     }
 
     private suspend inline fun <reified T> io.ktor.client.statement.HttpResponse.decode(): ApiResult<T> =
@@ -227,7 +227,7 @@ class KtorChessTreeApi(
         runCatching { body<ErrorResponse>() }
             .getOrNull()
             ?.let { ApiResult.Failure(it.code, it.message) }
-            ?: ApiResult.Failure("http_${status.value}", "Сервер отклонил запрос")
+            ?: ApiResult.Failure("http_${status.value}", "i18n:server_rejected")
 
     companion object {
         fun defaultHttpClient(): HttpClient = HttpClient(defaultHttpClientEngine()) {

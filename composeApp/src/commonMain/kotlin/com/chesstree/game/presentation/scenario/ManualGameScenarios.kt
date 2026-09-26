@@ -13,8 +13,6 @@ object ManualGameScenarios {
     val standard: GameScenario = StandardGame.scenario
 
     val sparseMovement: GameScenario = gameScenario("sparse-movement") {
-        title = "Ходы на свободной доске"
-        description = "Короли и несколько фигур без блокирующих пешек."
         kings()
         piece("white-rook", ArmyColor.WHITE, PieceType.ROOK, cell(0, 1, 1))
         piece("red-bishop", ArmyColor.RED, PieceType.BISHOP, cell(2, 1, 1))
@@ -22,8 +20,6 @@ object ManualGameScenarios {
     }
 
     val capturePractice: GameScenario = gameScenario("capture-practice") {
-        title = "Взятия"
-        description = "Разреженная позиция с фигурами разных армий в центре."
         kings()
         piece("white-queen", ArmyColor.WHITE, PieceType.QUEEN, cell(0, 0, 3))
         piece("red-rook", ArmyColor.RED, PieceType.ROOK, cell(1, 0, 3))
@@ -31,8 +27,6 @@ object ManualGameScenarios {
     }
 
     val afterRedCheckmate: GameScenario = gameScenario("after-red-checkmate") {
-        title = "Красные получили мат"
-        description = "Король красных снят, красная армия управляется белыми."
         checkmated(PlayerId.RED, by = PlayerId.WHITE, atPly = 17)
         turn(PlayerId.BLACK, ply = 18)
         piece("white-king", ArmyColor.WHITE, PieceType.KING, cell(0, 3, 0))
@@ -44,8 +38,6 @@ object ManualGameScenarios {
     }
 
     val finishedGame: GameScenario = gameScenario("finished-game") {
-        title = "Партия завершена"
-        description = "Белые заняли первое место; следующего хода нет."
         checkmated(PlayerId.RED, by = PlayerId.WHITE, atPly = 17)
         checkmated(PlayerId.BLACK, by = PlayerId.WHITE, atPly = 31)
         ranked(

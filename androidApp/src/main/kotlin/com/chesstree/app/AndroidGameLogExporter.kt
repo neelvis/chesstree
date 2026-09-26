@@ -31,7 +31,7 @@ class AndroidGameLogExporter(
 
     override suspend fun copy(contents: String): GameLogExportResult {
         val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("История игры", contents))
+        clipboard.setPrimaryClip(ClipData.newPlainText(activity.getString(R.string.game_history_clip_label), contents))
         return GameLogExportResult.COPIED
     }
 

@@ -12,7 +12,7 @@ class IosGameSaveStore : GameSaveStore {
         defaults.setObject(contents, forKey = SAVE_KEY)
         SaveGameResult.Saved
     }.getOrElse { error ->
-        SaveGameResult.Failed(error.message ?: "неизвестная ошибка")
+        SaveGameResult.Failed(error.message ?: "i18n:unknown_error")
     }
 
     override fun load(): LoadGameResult = runCatching {
@@ -20,7 +20,7 @@ class IosGameSaveStore : GameSaveStore {
             ?.let(LoadGameResult::Loaded)
             ?: LoadGameResult.Missing
     }.getOrElse { error ->
-        LoadGameResult.Failed(error.message ?: "неизвестная ошибка")
+        LoadGameResult.Failed(error.message ?: "i18n:unknown_error")
     }
 
     private companion object {

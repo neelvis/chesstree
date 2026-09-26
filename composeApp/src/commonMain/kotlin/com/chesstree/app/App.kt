@@ -135,7 +135,7 @@ fun App(
                 } catch (error: CancellationException) {
                     throw error
                 } catch (_: Throwable) {
-                    accountError = "Не удалось восстановить вход"
+                    accountError = "i18n:login_restore_failed"
                 } finally {
                     accountLoading = false
                 }
@@ -162,7 +162,7 @@ fun App(
                             } catch (error: CancellationException) {
                                 throw error
                             } catch (_: Throwable) {
-                                accountError = "Не удалось завершить выход"
+                                accountError = "i18n:logout_failed"
                             } finally {
                                 accountLoading = false
                             }
@@ -303,9 +303,9 @@ fun App(
                     session = result.session
                     historyNavigation = GameHistoryNavigation.latest()
                     storageMessage = when (val saveResult = save(result.session)) {
-                        SaveGameResult.Saved -> "Партия сохранена"
+                        SaveGameResult.Saved -> "i18n:game_saved"
                         is SaveGameResult.Failed ->
-                            "Не удалось сохранить: ${saveResult.message}"
+                            "i18n:save_failed|${saveResult.message}"
                     }
                 }
 
@@ -318,7 +318,7 @@ fun App(
             session = GameSession(session.scenario)
             historyNavigation = GameHistoryNavigation.latest()
             clearTransientState()
-            storageMessage = "Партия перезапущена; последнее сохранение не изменено"
+            storageMessage = "i18n:game_restarted"
         }
         Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             Surface(
@@ -360,14 +360,14 @@ fun App(
                                         showChessGame = false
                                     },
                                 ) {
-                                    Text("‹ Назад")
+                                    Text(localized("back_with_chevron"))
                                 }
                             }
                             Spacer(Modifier.weight(1f))
-                            TextButton(onClick = ::restart) { Text("Рестарт") }
+                            TextButton(onClick = ::restart) { Text(localized("restart")) }
                             Box {
                                 TextButton(onClick = { scenarioMenuExpanded = true }) {
-                                    Text("Сценарий")
+                                    Text(localized("scenario"))
                                 }
                                 DropdownMenu(
                                     expanded = scenarioMenuExpanded,
@@ -375,7 +375,17 @@ fun App(
                                 ) {
                                     scenarios.forEach { scenario ->
                                         DropdownMenuItem(
-                                            text = { Text(scenario.title) },
+                                            text = {
+                                                val titleKey = when (scenario.id) {
+                                                    "standard" -> "scenario_standard"
+                                                    "sparse-movement" -> "scenario_free_board"
+                                                    "capture-practice" -> "scenario_captures"
+                                                    "after-red-checkmate" -> "scenario_mate"
+                                                    "finished-game" -> "scenario_finished"
+                                                    else -> null
+                                                }
+                                                Text(titleKey?.let { localized(it) } ?: scenario.id)
+                                            },
                                             onClick = {
                                                 session = GameSession(scenario)
                                                 historyNavigation = GameHistoryNavigation.latest()
@@ -389,10 +399,10 @@ fun App(
                             }
                         }
                         storageMessage?.let { message ->
-                            Text(message, style = MaterialTheme.typography.bodySmall)
+                            Text(localizedMessage(message), style = MaterialTheme.typography.bodySmall)
                         }
                         Text(
-                            text = "Сейчас ход:",
+                            text = localized("current_turn"),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onBackground,
                         )
@@ -403,9 +413,9 @@ fun App(
                         )
                         Text(
                             text = if (isViewingLatest) {
-                                "Всего ходов: ${session.moves.size}"
+                                localized("total_moves", session.moves.size)
                             } else {
-                                "Просмотр: $displayedMoveCount из ${session.moves.size} ходов"
+                                localized("move_review", displayedMoveCount, session.moves.size)
                             },
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -422,7 +432,7 @@ fun App(
                                 },
                                 enabled = historyNavigation.canGoBack(session),
                             ) {
-                                Text("Назад")
+                                Text(localized("back"))
                             }
                             TextButton(
                                 onClick = {
@@ -431,7 +441,7 @@ fun App(
                                 },
                                 enabled = historyNavigation.canGoForward(session),
                             ) {
-                                Text("Вперёд")
+                                Text(localized("forward"))
                             }
                             TextButton(
                                 onClick = {
@@ -441,16 +451,16 @@ fun App(
                                             session = undone
                                             historyNavigation = GameHistoryNavigation.latest()
                                             clearTransientState()
-                                            "Последний ход отменён"
+                                            "i18n:last_move_undone"
                                         }
 
                                         is SaveGameResult.Failed ->
-                                            "Не удалось отменить ход: ${saveResult.message}"
+                                            "i18n:undo_failed|${saveResult.message}"
                                     }
                                 },
                                 enabled = isViewingLatest && session.moves.isNotEmpty(),
                             ) {
-                                Text("Отменить ход")
+                                Text(localized("undo_move"))
                             }
                         }
                         Spacer(Modifier.height(8.dp))
@@ -515,8 +525,8 @@ fun App(
             if (pendingPromotionMoves.isNotEmpty()) {
                 AlertDialog(
                     onDismissRequest = { pendingPromotionMoves = emptyList() },
-                    title = { Text("Превращение пешки") },
-                    text = { Text("Выберите новую фигуру") },
+                    title = { Text(localized("promotion_title")) },
+                    text = { Text(localized("promotion_prompt")) },
                     confirmButton = {
                         Column {
                             pendingPromotionMoves.forEach { move ->
@@ -528,7 +538,7 @@ fun App(
                     },
                     dismissButton = {
                         TextButton(onClick = { pendingPromotionMoves = emptyList() }) {
-                            Text("Отмена")
+                            Text(localized("cancel"))
                         }
                     },
                 )
@@ -557,7 +567,7 @@ fun App(
                         moves = restored.session.moves,
                     )
                     gameSaveStore.save(GameSnapshotCodec.encode(snapshot))
-                    "Восстановлено ${restored.restoredMoves} ходов из ${restored.totalMoves}"
+                    "i18n:restore_moves|${restored.restoredMoves}|${restored.totalMoves}"
                 },
                 onDismiss = {
                     settings = settings.copy(showGameHistory = false)
@@ -600,46 +610,77 @@ internal fun turnIndicatorAssetName(player: PlayerId, pieceSet: PieceSet): Strin
     return if (pieceSet == PieceSet.FAIRY) "bird_$index" else "king_$index"
 }
 
+@Composable
 private fun turnIndicatorDescription(player: PlayerId, pieceSet: PieceSet): String {
-    val color = when (player) {
-        PlayerId.WHITE -> "Белая"
-        PlayerId.RED -> "Красная"
-        PlayerId.BLACK -> "Чёрная"
+    val key = when (player) {
+        PlayerId.WHITE -> if (pieceSet == PieceSet.FAIRY) "turn_white_bird" else "turn_white_king_piece"
+        PlayerId.RED -> if (pieceSet == PieceSet.FAIRY) "turn_red_bird" else "turn_red_king_piece"
+        PlayerId.BLACK -> if (pieceSet == PieceSet.FAIRY) "turn_black_bird" else "turn_black_king_piece"
     }
-    val figure = if (pieceSet == PieceSet.FAIRY) "птица" else "фигура короля"
-    return "$color $figure"
+    return localized(key)
 }
 
+@Composable
 private fun PromotionChoice.displayName(): String = when (this) {
-    PromotionChoice.QUEEN -> "Ферзь"
-    PromotionChoice.ROOK -> "Ладья"
-    PromotionChoice.BISHOP -> "Слон"
-    PromotionChoice.KNIGHT -> "Конь"
+    PromotionChoice.QUEEN -> localized("queen")
+    PromotionChoice.ROOK -> localized("rook")
+    PromotionChoice.BISHOP -> localized("bishop")
+    PromotionChoice.KNIGHT -> localized("knight")
 }
 
+@Composable
 internal fun com.chesstree.game.domain.GameState.statusText(): String {
     val currentPhase = phase
     val phaseText = when (currentPhase) {
         GamePhase.InProgress -> turn?.let { currentTurn ->
             val check = if (LegalMoveGenerator.isKingInCheck(this, currentTurn.player)) {
-                ", шах"
+                localized("check_suffix")
             } else {
                 ""
             }
-            "Ход: ${currentTurn.player.name.lowercase()}, полуход ${currentTurn.ply}$check"
-        } ?: "Партия продолжается"
+            localized(
+                "turn_status",
+                localized(
+                    when (currentTurn.player) {
+                        PlayerId.WHITE -> "turn_player_white"
+                        PlayerId.RED -> "turn_player_red"
+                        PlayerId.BLACK -> "turn_player_black"
+                    },
+                ),
+                currentTurn.ply,
+                check,
+            )
+        } ?: localized("game_in_progress")
 
         is GamePhase.Finished -> when (currentPhase.outcome) {
-            is GameOutcome.Ranked -> "Партия завершена"
-            is GameOutcome.ThreeWayDraw -> "Ничья"
-            is GameOutcome.TwoWayDraw -> "Ничья"
+            is GameOutcome.Ranked -> localized("game_finished")
+            is GameOutcome.ThreeWayDraw -> localized("draw")
+            is GameOutcome.TwoWayDraw -> localized("draw")
         }
     }
     val eliminated = participants.values.mapNotNull { participant ->
         when (participant.status) {
             ParticipantStatus.Active -> null
-            is ParticipantStatus.Checkmated -> "${participant.id.name.lowercase()}: мат"
-            is ParticipantStatus.Stalemated -> "${participant.id.name.lowercase()}: пат"
+            is ParticipantStatus.Checkmated -> localized(
+                "checkmated",
+                localized(
+                    when (participant.id) {
+                        PlayerId.WHITE -> "turn_player_white"
+                        PlayerId.RED -> "turn_player_red"
+                        PlayerId.BLACK -> "turn_player_black"
+                    },
+                ),
+            )
+            is ParticipantStatus.Stalemated -> localized(
+                "stalemated",
+                localized(
+                    when (participant.id) {
+                        PlayerId.WHITE -> "turn_player_white"
+                        PlayerId.RED -> "turn_player_red"
+                        PlayerId.BLACK -> "turn_player_black"
+                    },
+                ),
+            )
         }
     }
     return listOf(phaseText, eliminated.joinToString()).filter(String::isNotEmpty)

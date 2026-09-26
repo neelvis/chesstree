@@ -7,6 +7,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.chesstree.app.localized
 import androidx.compose.ui.viewinterop.HtmlElementView
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -28,9 +29,14 @@ internal actual fun AuthenticationForm(
     val currentUsernameChange = rememberUpdatedState(onUsernameChange)
     val currentPasswordChange = rememberUpdatedState(onPasswordChange)
     val currentSubmit = rememberUpdatedState(onSubmit)
+    val usernameLabel = localized("username")
+    val passwordLabel = localized("password")
+    val submitLabel = localized(if (mode == AuthMode.LOGIN) "login" else "create_account")
     HtmlElementView(
         factory = {
             createAuthenticationForm(
+                usernameLabel = usernameLabel,
+                passwordLabel = passwordLabel,
                 onUsernameChange = { currentUsernameChange.value(it) },
                 onPasswordChange = { currentPasswordChange.value(it) },
                 onSubmit = {
@@ -49,13 +55,17 @@ internal actual fun AuthenticationForm(
             }
             form.authenticationSubmit().apply {
                 disabled = !enabled
-                textContent = if (mode == AuthMode.LOGIN) "Войти" else "Создать аккаунт"
+                textContent = submitLabel
             }
+            form.authenticationUsername().setLabel(usernameLabel)
+            form.authenticationPassword().setLabel(passwordLabel)
         },
     )
 }
 
 private fun createAuthenticationForm(
+    usernameLabel: String,
+    passwordLabel: String,
     onUsernameChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSubmit: () -> Unit,
@@ -69,8 +79,8 @@ private fun createAuthenticationForm(
         name = "username"
         type = "text"
         autocomplete = "username"
-        placeholder = "Логин"
-        setAttribute("aria-label", "Логин")
+        placeholder = usernameLabel
+        setAttribute("aria-label", usernameLabel)
         maxLength = 24
         required = true
         addEventListener("input", { onUsernameChange(value) })
@@ -79,8 +89,8 @@ private fun createAuthenticationForm(
         id = "authentication-password"
         name = "password"
         type = "password"
-        placeholder = "Пароль"
-        setAttribute("aria-label", "Пароль")
+        placeholder = passwordLabel
+        setAttribute("aria-label", passwordLabel)
         maxLength = 128
         required = true
         addEventListener("input", { onPasswordChange(value) })
@@ -108,4 +118,9 @@ private fun HTMLFormElement.authenticationSubmit(): HTMLButtonElement =
 
 private fun HTMLInputElement.setValueIfChanged(newValue: String) {
     if (value != newValue) value = newValue
+}
+
+private fun HTMLInputElement.setLabel(label: String) {
+    placeholder = label
+    setAttribute("aria-label", label)
 }

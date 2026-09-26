@@ -10,11 +10,11 @@ import com.chesstree.game.domain.Participant
 import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.Position
 import kotlin.test.Test
-import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class GameStatusTextTest {
     @Test
-    fun bareKingsOutcomeIsShownAsDraw() {
+    fun bareKingsPositionProducesDrawOutcome() {
         val state = GameState(
             position = Position(emptyMap()),
             participants = PlayerId.entries.associateWith(::Participant),
@@ -32,6 +32,7 @@ class GameStatusTextTest {
             ),
         )
 
-        assertEquals("Ничья", state.statusText())
+        val finished = assertIs<GamePhase.Finished>(state.phase)
+        assertIs<GameOutcome.TwoWayDraw>(finished.outcome)
     }
 }

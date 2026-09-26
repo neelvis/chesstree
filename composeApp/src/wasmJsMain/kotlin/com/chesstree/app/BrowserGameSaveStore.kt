@@ -10,7 +10,7 @@ class BrowserGameSaveStore : GameSaveStore {
         localStorage.setItem(SAVE_KEY, contents)
         SaveGameResult.Saved
     }.getOrElse { error ->
-        SaveGameResult.Failed(error.message ?: "неизвестная ошибка")
+        SaveGameResult.Failed(error.message ?: "i18n:unknown_error")
     }
 
     override fun load(): LoadGameResult = runCatching {
@@ -18,7 +18,7 @@ class BrowserGameSaveStore : GameSaveStore {
             ?.let(LoadGameResult::Loaded)
             ?: LoadGameResult.Missing
     }.getOrElse { error ->
-        LoadGameResult.Failed(error.message ?: "неизвестная ошибка")
+        LoadGameResult.Failed(error.message ?: "i18n:unknown_error")
     }
 
     private companion object {

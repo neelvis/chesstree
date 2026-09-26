@@ -13,7 +13,7 @@ class AndroidGameLinkSharer(
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, url)
         }
-        activity.startActivity(Intent.createChooser(sendIntent, "Поделиться ссылкой на игру"))
+        activity.startActivity(Intent.createChooser(sendIntent, activity.getString(R.string.share_game_link)))
         return GameLinkShareResult.SHARE_SHEET_OPENED
     }
 }

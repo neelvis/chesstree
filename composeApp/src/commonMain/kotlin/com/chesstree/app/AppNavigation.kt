@@ -63,14 +63,14 @@ internal fun AppTabBar(
             AppTabItem(
                 tab = AppTab.GAMES,
                 selected = selected == AppTab.GAMES,
-                label = "Игры",
+                label = localized("app_games"),
                 onSelected = onSelected,
                 modifier = Modifier.weight(1f),
             )
             AppTabItem(
                 tab = AppTab.SETTINGS,
                 selected = selected == AppTab.SETTINGS,
-                label = "Настройки",
+                label = localized("app_settings"),
                 onSelected = onSelected,
                 modifier = Modifier.weight(1f),
             )
@@ -218,14 +218,14 @@ internal fun GamesHomeScreen(
             .padding(horizontal = 24.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text("Привет, ${username ?: "игрок"}", style = MaterialTheme.typography.titleMedium)
+        Text(localized("greeting", username ?: localized("player")), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Во что играем?",
+            localized("games_prompt"),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
-        Text("Выберите игру и начните партию", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(localized("games_intro"), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -241,20 +241,20 @@ internal fun GamesHomeScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    "Шахматы",
+                    localized("chess"),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                Text("одиночная и сетевая игра", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(localized("game_modes"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = onPlaySolo, modifier = Modifier.fillMaxWidth()) {
-                    Text("Одиночная игра")
+                    Text(localized("solo_game"))
                 }
                 Button(
                     onClick = { onMultiplayer?.invoke() },
                     enabled = onMultiplayer != null,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (onMultiplayer != null) "Мультиплеер" else "Мультиплеер недоступен")
+                    Text(localized(if (onMultiplayer != null) "multiplayer" else "multiplayer_unavailable"))
                 }
             }
         }
@@ -281,11 +281,11 @@ internal fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Text(
-            "Настройки",
+            localized("app_settings"),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
-        Text("ПРОФИЛЬ", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(localized("profile"), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -294,32 +294,32 @@ internal fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        username ?: if (accountLoading) "Проверяем вход…" else "Гость",
+                        username ?: localized(if (accountLoading) "login_checking" else "guest"),
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        if (username != null) "Вы вошли в аккаунт" else "Войдите, чтобы играть онлайн",
+                        localized(if (username != null) "logged_in" else "login_to_play_online"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (username != null && onLogout != null) {
-                    TextButton(onClick = onLogout, enabled = !accountLoading) { Text("Выйти") }
+                    TextButton(onClick = onLogout, enabled = !accountLoading) { Text(localized("logout")) }
                 } else if (onOpenProfile != null) {
-                    TextButton(onClick = onOpenProfile, enabled = !accountLoading) { Text("Войти") }
+                    TextButton(onClick = onOpenProfile, enabled = !accountLoading) { Text(localized("login")) }
                 }
             }
         }
-        accountError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        accountError?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
         Text(
-            "ВНЕШНИЙ ВИД",
+            localized("appearance"),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.secondary
         )
         SettingsGroup {
             SettingRow(
-                "Набор фигур",
-                if (settings.pieceSet == PieceSet.FAIRY) "Премиум" else "Классический"
+                localized("piece_set"),
+                localized(if (settings.pieceSet == PieceSet.FAIRY) "premium" else "classic")
             ) {
                 Switch(
                     checked = settings.pieceSet == PieceSet.FAIRY,
@@ -330,14 +330,14 @@ internal fun SettingsScreen(
             }
         }
         Text(
-            "ИГРОВОЙ ПРОЦЕСС",
+            localized("gameplay"),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.secondary
         )
         SettingsGroup {
             SettingRow(
-                "Показывать возможные ходы",
-                "Посказка для выбранной фигуры во время вашего хода"
+                localized("show_possible_moves"),
+                localized("move_hint_description")
             ) {
                 Switch(
                     checked = settings.showCurrentPossibleMoves,
@@ -347,8 +347,8 @@ internal fun SettingsScreen(
                 )
             }
             SettingRow(
-                "Показывать пути",
-                "Отображать линии, по которым может идти любая выбранная фигура на доске из своей текущей позиции",
+                localized("show_paths"),
+                localized("show_paths_description"),
             ) {
                 Switch(
                     checked = settings.showMoveLines,
@@ -423,6 +423,6 @@ private fun SettingsScreenPreview() {
 @Composable
 private fun GamesHomeScreenPreview() {
     ChessTreeTheme {
-        GamesHomeScreen(onPlaySolo = {}, onMultiplayer = {}, username = "Игрок")
+        GamesHomeScreen(onPlaySolo = {}, onMultiplayer = {}, username = localized("player"))
     }
 }
