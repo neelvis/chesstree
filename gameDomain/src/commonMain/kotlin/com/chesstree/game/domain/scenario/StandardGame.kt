@@ -59,7 +59,14 @@ private fun MutableList<InitialPiece>.addArmy(army: ArmyColor, homeEdge: Int) {
         backTypes[4] = PieceType.QUEEN
     }
     backRow.forEachIndexed { index, coordinate ->
-        add(InitialPiece("${army.name.lowercase()}-back-$index", army, backTypes[index], coordinate))
+        add(
+            InitialPiece(
+                "${army.name.lowercase()}-back-$index",
+                army,
+                backTypes[index],
+                coordinate
+            )
+        )
     }
     pawnRow.forEachIndexed { index, coordinate ->
         add(InitialPiece("${army.name.lowercase()}-pawn-$index", army, PieceType.PAWN, coordinate))
@@ -71,7 +78,7 @@ private fun edgeRow(edge: Int, depth: Int): List<BoardCoordinate> {
     val startVertex = edge
     val endVertex = (edge + 1) % 6
     val coordinates = (0 until 4).map { row -> BoardCoordinate(startVertex, 3 - depth, row) } +
-        (0 until 4).map { column -> BoardCoordinate(endVertex, column, depth) }
+            (0 until 4).map { column -> BoardCoordinate(endVertex, column, depth) }
     val start = hexVertex(startVertex)
     val end = hexVertex(endVertex)
     val direction = Point(end.x - start.x, end.y - start.y)
@@ -109,14 +116,16 @@ private fun interpolateKite(
     nextMidpoint: Point,
     column: Double,
     row: Double,
-): Point = lerp(lerp(previousMidpoint, vertex, column), lerp(Point(0.0, 0.0), nextMidpoint, column), row)
+): Point =
+    lerp(lerp(previousMidpoint, vertex, column), lerp(Point(0.0, 0.0), nextMidpoint, column), row)
 
 private fun hexVertex(index: Int): Point {
     val angle = index * PI / 3.0
     return Point(cos(angle), sin(angle))
 }
 
-private fun midpoint(first: Point, second: Point) = Point((first.x + second.x) / 2.0, (first.y + second.y) / 2.0)
+private fun midpoint(first: Point, second: Point) =
+    Point((first.x + second.x) / 2.0, (first.y + second.y) / 2.0)
 
 private fun lerp(first: Point, second: Point, fraction: Double) = Point(
     first.x * (1.0 - fraction) + second.x * fraction,

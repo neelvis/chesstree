@@ -16,7 +16,7 @@ class RuntimeCompatibilityTest {
             assertTrue(
                 majorVersion <= JAVA_17_CLASS_FILE_VERSION,
                 "$classResource requires class-file version $majorVersion, " +
-                    "but the production server runs on Java 17 ($JAVA_17_CLASS_FILE_VERSION)",
+                        "but the production server runs on Java 17 ($JAVA_17_CLASS_FILE_VERSION)",
             )
         }
     }

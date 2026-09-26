@@ -20,7 +20,9 @@ internal data class GameHistoryNavigation(
 
     fun forward(session: GameSession): GameHistoryNavigation {
         val nextMoveCount = displayedMoveCount(session) + 1
-        return if (nextMoveCount >= session.moves.size) latest() else GameHistoryNavigation(nextMoveCount)
+        return if (nextMoveCount >= session.moves.size) latest() else GameHistoryNavigation(
+            nextMoveCount
+        )
     }
 
     fun displayedSession(session: GameSession): GameSession {

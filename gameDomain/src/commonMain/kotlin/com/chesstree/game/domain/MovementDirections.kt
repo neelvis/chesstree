@@ -164,5 +164,5 @@ object MovementDirections {
             OrthogonalDirection.TOP,
             OrthogonalDirection.BOTTOM,
                 -> listOf(OrthogonalDirection.LEFT, OrthogonalDirection.RIGHT)
-    }
+        }
 }

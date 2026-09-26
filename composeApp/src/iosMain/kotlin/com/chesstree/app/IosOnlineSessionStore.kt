@@ -12,17 +12,16 @@ import kotlinx.cinterop.readBytes
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import platform.CoreFoundation.CFDictionaryRef
 import platform.CoreFoundation.CFDictionarySetValue
-import platform.CoreFoundation.CFTypeRefVar
 import platform.CoreFoundation.CFRetain
+import platform.CoreFoundation.CFTypeRefVar
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.Foundation.CFBridgingRelease
 import platform.Foundation.CFBridgingRetain
-import platform.Foundation.NSData
 import platform.Foundation.NSCopyingProtocol
+import platform.Foundation.NSData
 import platform.Foundation.NSMutableDictionary
 import platform.Foundation.dataWithBytes
 import platform.Foundation.dictionaryWithCapacity
@@ -76,7 +75,10 @@ class IosOnlineSessionStore : OnlineSessionStore {
 
         val attributes = NSMutableDictionary.dictionaryWithCapacity(2u).apply {
             putSecurityValue(kSecValueData, data)
-            putSecurityValue(kSecAttrAccessible, bridged(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly))
+            putSecurityValue(
+                kSecAttrAccessible,
+                bridged(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
+            )
         }
         val updateStatus = baseQuery().withCFDictionary { query ->
             attributes.withCFDictionary { updates -> SecItemUpdate(query, updates) }
@@ -86,7 +88,10 @@ class IosOnlineSessionStore : OnlineSessionStore {
             errSecItemNotFound -> {
                 val addStatus = baseQuery().apply {
                     putSecurityValue(kSecValueData, data)
-                    putSecurityValue(kSecAttrAccessible, bridged(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly))
+                    putSecurityValue(
+                        kSecAttrAccessible,
+                        bridged(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
+                    )
                 }.withCFDictionary { SecItemAdd(it, null) }
                 when (addStatus) {
                     errSecSuccess -> Unit
@@ -94,6 +99,7 @@ class IosOnlineSessionStore : OnlineSessionStore {
                     else -> throw OnlineSessionStoreException("Keychain write failed (OSStatus=$addStatus)")
                 }
             }
+
             else -> throw OnlineSessionStoreException("Keychain update failed (OSStatus=$updateStatus)")
         }
 
@@ -115,16 +121,20 @@ class IosOnlineSessionStore : OnlineSessionStore {
         }
     }
 
-    private fun baseQuery(): NSMutableDictionary = NSMutableDictionary.dictionaryWithCapacity(3u).apply {
-        putSecurityValue(kSecClass, bridged(kSecClassGenericPassword))
-        putSecurityValue(kSecAttrService, SERVICE)
-        putSecurityValue(kSecAttrAccount, ACCOUNT)
-    }
+    private fun baseQuery(): NSMutableDictionary =
+        NSMutableDictionary.dictionaryWithCapacity(3u).apply {
+            putSecurityValue(kSecClass, bridged(kSecClassGenericPassword))
+            putSecurityValue(kSecAttrService, SERVICE)
+            putSecurityValue(kSecAttrAccount, ACCOUNT)
+        }
 
     private fun updateExisting(data: NSData) {
         val updates = NSMutableDictionary.dictionaryWithCapacity(2u).apply {
             putSecurityValue(kSecValueData, data)
-            putSecurityValue(kSecAttrAccessible, bridged(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly))
+            putSecurityValue(
+                kSecAttrAccessible,
+                bridged(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
+            )
         }
         val status = baseQuery().withCFDictionary { query ->
             updates.withCFDictionary { attributes -> SecItemUpdate(query, attributes) }
@@ -134,7 +144,10 @@ class IosOnlineSessionStore : OnlineSessionStore {
         }
     }
 
-    private fun NSMutableDictionary.putSecurityValue(key: platform.CoreFoundation.CFStringRef?, value: Any) {
+    private fun NSMutableDictionary.putSecurityValue(
+        key: platform.CoreFoundation.CFStringRef?,
+        value: Any
+    ) {
         setObject(value, forKeyedSubscript = bridged(key) as NSCopyingProtocol)
     }
 

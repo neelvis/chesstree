@@ -53,7 +53,10 @@ class GameEngineTest {
         )
 
         assertEquals(castling.to, applied.state.position.pieces.getValue(king.id).coordinate)
-        assertEquals(castling.rookDisplacement?.to, applied.state.position.pieces.getValue(rook.id).coordinate)
+        assertEquals(
+            castling.rookDisplacement?.to,
+            applied.state.position.pieces.getValue(rook.id).coordinate
+        )
         assertTrue(applied.state.position.castlingRights.isEmpty())
     }
 
@@ -77,12 +80,17 @@ class GameEngineTest {
     @Test
     fun enPassantCapturesThePawnFromItsLandingSquare() {
         val whitePawn = piece("white-pawn", PieceType.PAWN, ArmyColor.WHITE, cell(1, 2, 1))
-        val route = MovementDirections.forPiece(whitePawn.type, whitePawn.coordinate, whitePawn.army)
-            .single { it.kind == DirectionKind.MOVE }
-            .route
+        val route =
+            MovementDirections.forPiece(whitePawn.type, whitePawn.coordinate, whitePawn.army)
+                .single { it.kind == DirectionKind.MOVE }
+                .route
         val captureAt = route[1]
         val redOrigin = ThreePlayerBoardTopology.coordinates.first { origin ->
-            origin !in route.take(3) && MovementDirections.forPiece(PieceType.PAWN, origin, ArmyColor.RED)
+            origin !in route.take(3) && MovementDirections.forPiece(
+                PieceType.PAWN,
+                origin,
+                ArmyColor.RED
+            )
                 .any { it.kind == DirectionKind.CAPTURE && it.target == captureAt }
         }
         val redPawn = piece("red-pawn", PieceType.PAWN, ArmyColor.RED, redOrigin, hasMoved = true)
@@ -115,19 +123,34 @@ class GameEngineTest {
         val route = MovementDirections.forPiece(pawn.type, pawn.coordinate, pawn.army)
             .single { it.kind == DirectionKind.MOVE }.route
         var current = assertIs<MoveReduction.Applied>(
-            GameReducer.reduce(stateWithDefaultKings(pawn), MoveIntent(PlayerId.WHITE, pawn.coordinate, route[2])),
+            GameReducer.reduce(
+                stateWithDefaultKings(pawn),
+                MoveIntent(PlayerId.WHITE, pawn.coordinate, route[2])
+            ),
         ).state
-        assertEquals(setOf(PlayerId.RED, PlayerId.BLACK), current.position.enPassantTargets[pawn.id]?.eligiblePlayers)
+        assertEquals(
+            setOf(PlayerId.RED, PlayerId.BLACK),
+            current.position.enPassantTargets[pawn.id]?.eligiblePlayers
+        )
 
         val redMove = LegalMoveGenerator.legalMoves(current).first()
         current = assertIs<MoveReduction.Applied>(
-            GameReducer.reduce(current, MoveIntent(PlayerId.RED, redMove.from, redMove.to, redMove.promotion)),
+            GameReducer.reduce(
+                current,
+                MoveIntent(PlayerId.RED, redMove.from, redMove.to, redMove.promotion)
+            ),
         ).state
-        assertEquals(setOf(PlayerId.BLACK), current.position.enPassantTargets[pawn.id]?.eligiblePlayers)
+        assertEquals(
+            setOf(PlayerId.BLACK),
+            current.position.enPassantTargets[pawn.id]?.eligiblePlayers
+        )
 
         val blackMove = LegalMoveGenerator.legalMoves(current).first()
         current = assertIs<MoveReduction.Applied>(
-            GameReducer.reduce(current, MoveIntent(PlayerId.BLACK, blackMove.from, blackMove.to, blackMove.promotion)),
+            GameReducer.reduce(
+                current,
+                MoveIntent(PlayerId.BLACK, blackMove.from, blackMove.to, blackMove.promotion)
+            ),
         ).state
         assertFalse(pawn.id in current.position.enPassantTargets)
     }

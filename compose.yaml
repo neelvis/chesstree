@@ -10,7 +10,7 @@ services:
     volumes:
       - chesstree-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U chesstree"]
+      test: [ "CMD-SHELL", "pg_isready -U chesstree" ]
       interval: 5s
       timeout: 5s
       retries: 10

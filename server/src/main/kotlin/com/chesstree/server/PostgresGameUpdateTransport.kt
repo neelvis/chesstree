@@ -43,14 +43,20 @@ class PostgresGameUpdateTransport(
                     connection.use { activeConnection ->
                         listenerConnection.set(activeConnection)
                         if (!currentCoroutineContext().isActive || closed.get()) return@use
-                        activeConnection.createStatement().use { it.execute("LISTEN $GAME_UPDATE_CHANNEL") }
+                        activeConnection.createStatement()
+                            .use { it.execute("LISTEN $GAME_UPDATE_CHANNEL") }
                         if (!currentCoroutineContext().isActive || closed.get()) return@use
                         onReconnect()
                         retryDelayMillis = INITIAL_RETRY_DELAY_MILLIS
                         val postgres = activeConnection.unwrap(PGConnection::class.java)
                         while (currentCoroutineContext().isActive) {
                             postgres.getNotifications(LISTENER_TIMEOUT_MILLIS)
-                                ?.mapNotNull { notification -> gameCode(activeConnection, notification.parameter) }
+                                ?.mapNotNull { notification ->
+                                    gameCode(
+                                        activeConnection,
+                                        notification.parameter
+                                    )
+                                }
                                 ?.forEach(onUpdate)
                         }
                     }
@@ -78,12 +84,13 @@ class PostgresGameUpdateTransport(
 
     private fun gameCode(connection: Connection, gameId: String): String? {
         val id = runCatching { UUID.fromString(gameId) }.getOrNull() ?: return null
-        return connection.prepareStatement("SELECT public_code FROM games WHERE id = ?").use { statement ->
-            statement.setObject(1, id)
-            statement.executeQuery().use { rows ->
-                if (rows.next()) rows.getString("public_code").trim() else null
+        return connection.prepareStatement("SELECT public_code FROM games WHERE id = ?")
+            .use { statement ->
+                statement.setObject(1, id)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) rows.getString("public_code").trim() else null
+                }
             }
-        }
     }
 
     private fun connection(): Connection = DriverManager.getConnection(

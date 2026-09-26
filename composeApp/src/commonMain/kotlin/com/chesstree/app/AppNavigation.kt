@@ -27,15 +27,15 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chesstree.game.presentation.board.PieceSet
 
@@ -101,7 +101,10 @@ private fun AppTabItem(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                AppTabIcon(tab, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                AppTabIcon(
+                    tab,
+                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Text(
                     text = label,
                     color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -123,13 +126,41 @@ private fun AppTabIcon(tab: AppTab, color: Color) {
                 drawCircle(color, radius = 3f * scale, center = point(12f, 5f))
                 val pawn = Path().apply {
                     moveTo(10f * scale, 8f * scale)
-                    cubicTo(10.2f * scale, 9f * scale, 10.8f * scale, 9.6f * scale, 11.5f * scale, 10f * scale)
+                    cubicTo(
+                        10.2f * scale,
+                        9f * scale,
+                        10.8f * scale,
+                        9.6f * scale,
+                        11.5f * scale,
+                        10f * scale
+                    )
                     lineTo(8f * scale, 17f * scale)
-                    cubicTo(7.3f * scale, 18f * scale, 7f * scale, 19f * scale, 7f * scale, 20f * scale)
+                    cubicTo(
+                        7.3f * scale,
+                        18f * scale,
+                        7f * scale,
+                        19f * scale,
+                        7f * scale,
+                        20f * scale
+                    )
                     lineTo(17f * scale, 20f * scale)
-                    cubicTo(17f * scale, 19f * scale, 16.7f * scale, 18f * scale, 16f * scale, 17f * scale)
+                    cubicTo(
+                        17f * scale,
+                        19f * scale,
+                        16.7f * scale,
+                        18f * scale,
+                        16f * scale,
+                        17f * scale
+                    )
                     lineTo(12.5f * scale, 10f * scale)
-                    cubicTo(13.2f * scale, 9.6f * scale, 13.8f * scale, 9f * scale, 14f * scale, 8f * scale)
+                    cubicTo(
+                        13.2f * scale,
+                        9.6f * scale,
+                        13.8f * scale,
+                        9f * scale,
+                        14f * scale,
+                        8f * scale
+                    )
                     close()
                 }
                 drawPath(pawn, color)
@@ -140,6 +171,7 @@ private fun AppTabIcon(tab: AppTab, color: Color) {
                     cornerRadius = CornerRadius(1.25f * scale),
                 )
             }
+
             AppTab.SETTINGS -> {
                 val outline = ChessTreeColors.Sage
                 val lightSquare = ChessTreeColors.Surface
@@ -157,7 +189,10 @@ private fun AppTabIcon(tab: AppTab, color: Color) {
                         val isGreen = (row + column) % 2 == 0
                         drawRoundRect(
                             color = if (isGreen) outline else lightSquare,
-                            topLeft = point(start + column * (cellSize + gap), start + row * (cellSize + gap)),
+                            topLeft = point(
+                                start + column * (cellSize + gap),
+                                start + row * (cellSize + gap)
+                            ),
                             size = Size(cellSize * scale, cellSize * scale),
                             cornerRadius = CornerRadius(0.75f * scale),
                         )
@@ -185,7 +220,11 @@ internal fun GamesHomeScreen(
     ) {
         Text("Привет, ${username ?: "игрок"}", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(4.dp))
-        Text("Во что играем?", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(
+            "Во что играем?",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
         Text("Выберите игру и начните партию", color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Card(
@@ -201,7 +240,11 @@ internal fun GamesHomeScreen(
                     style = MaterialTheme.typography.displaySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Text("Шахматы", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "Шахматы",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
                 Text("одиночная и сетевая игра", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = onPlaySolo, modifier = Modifier.fillMaxWidth()) {
                     Text("Одиночная игра")
@@ -237,7 +280,11 @@ internal fun SettingsScreen(
             .padding(horizontal = 24.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text("Настройки", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(
+            "Настройки",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
         Text("ПРОФИЛЬ", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Row(
@@ -246,7 +293,10 @@ internal fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(username ?: if (accountLoading) "Проверяем вход…" else "Гость", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        username ?: if (accountLoading) "Проверяем вход…" else "Гость",
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Text(
                         if (username != null) "Вы вошли в аккаунт" else "Войдите, чтобы играть онлайн",
                         style = MaterialTheme.typography.bodySmall,
@@ -261,9 +311,16 @@ internal fun SettingsScreen(
             }
         }
         accountError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Text("ВНЕШНИЙ ВИД", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+        Text(
+            "ВНЕШНИЙ ВИД",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary
+        )
         SettingsGroup {
-            SettingRow("Набор фигур", if (settings.pieceSet == PieceSet.FAIRY) "Премиум" else "Классический") {
+            SettingRow(
+                "Набор фигур",
+                if (settings.pieceSet == PieceSet.FAIRY) "Премиум" else "Классический"
+            ) {
                 Switch(
                     checked = settings.pieceSet == PieceSet.FAIRY,
                     onCheckedChange = { enabled ->
@@ -272,9 +329,16 @@ internal fun SettingsScreen(
                 )
             }
         }
-        Text("ИГРОВОЙ ПРОЦЕСС", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+        Text(
+            "ИГРОВОЙ ПРОЦЕСС",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary
+        )
         SettingsGroup {
-            SettingRow("Показывать возможные ходы", "Посказка для выбранной фигуры во время вашего хода") {
+            SettingRow(
+                "Показывать возможные ходы",
+                "Посказка для выбранной фигуры во время вашего хода"
+            ) {
                 Switch(
                     checked = settings.showCurrentPossibleMoves,
                     onCheckedChange = { enabled ->
@@ -317,10 +381,17 @@ private fun SettingRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge)
-            if (value != null) Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (value != null) Text(
+                value,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Spacer(Modifier.width(4.dp))
-        Box(Modifier.size(width = 52.dp, height = 40.dp), contentAlignment = Alignment.CenterEnd) { control() }
+        Box(
+            Modifier.size(width = 52.dp, height = 40.dp),
+            contentAlignment = Alignment.CenterEnd
+        ) { control() }
     }
 }
 

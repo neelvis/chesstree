@@ -1,21 +1,20 @@
 package com.chesstree.app
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -40,6 +39,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import com.chesstree.game.data.GameSaveStore
+import com.chesstree.game.data.GameSnapshot
+import com.chesstree.game.data.GameSnapshotCodec
+import com.chesstree.game.data.NoOpGameSaveStore
+import com.chesstree.game.data.SaveGameResult
 import com.chesstree.game.domain.GameOutcome
 import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.LegalMoveGenerator
@@ -49,34 +53,29 @@ import com.chesstree.game.domain.ParticipantStatus
 import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.PromotionChoice
-import com.chesstree.game.presentation.board.ThreePlayerChessBoard
+import com.chesstree.game.domain.session.GameLogCodec
+import com.chesstree.game.domain.session.GameSession
+import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.PieceSet
-import com.chesstree.game.presentation.board.toBoardPieces
+import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.threePlayerBoardAspectRatio
+import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.game.presentation.history.GameHistoryDialog
 import com.chesstree.game.presentation.history.GameHistoryNavigation
 import com.chesstree.game.presentation.history.GameLogExporter
 import com.chesstree.game.presentation.history.NoOpGameLogExporter
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
-import com.chesstree.game.domain.session.GameSession
-import com.chesstree.game.domain.session.GameLogCodec
-import com.chesstree.game.domain.session.SessionMoveResult
-import com.chesstree.game.data.GameSaveStore
-import com.chesstree.game.data.GameSnapshot
-import com.chesstree.game.data.GameSnapshotCodec
-import com.chesstree.game.data.NoOpGameSaveStore
-import com.chesstree.game.data.SaveGameResult
+import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
-import com.chesstree.multiplayer.contract.AuthResponse
-import kotlinx.coroutines.launch
 import com.chesstree.multiplayer.presentation.GameLinkSharer
 import com.chesstree.multiplayer.presentation.MultiplayerScreen
 import com.chesstree.resources.Res
 import com.chesstree.resources.allDrawableResources
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.imageResource
 
 @Composable
@@ -234,6 +233,7 @@ fun App(
                         username = authenticatedUser?.user?.username,
                         modifier = Modifier.weight(1f),
                     )
+
                     AppTab.SETTINGS -> profileContent(Modifier.weight(1f))
                 }
                 AppTabBar(
@@ -275,10 +275,12 @@ fun App(
                 )
             }
         }
+
         fun clearTransientState() {
             selectedPieceId = null
             pendingPromotionMoves = emptyList()
         }
+
         fun save(updatedSession: GameSession): SaveGameResult {
             val snapshot = GameSnapshot(
                 scenarioId = updatedSession.scenario.id,
@@ -286,16 +288,17 @@ fun App(
             )
             return gameSaveStore.save(GameSnapshotCodec.encode(snapshot))
         }
+
         fun applyMove(move: Move) {
             if (!isViewingLatest) return
             when (val result = session.apply(
-                    MoveIntent(
-                        actor = move.actor,
-                        from = move.from,
-                        to = move.to,
-                        promotion = move.promotion,
-                    ),
-                )) {
+                MoveIntent(
+                    actor = move.actor,
+                    from = move.from,
+                    to = move.to,
+                    promotion = move.promotion,
+                ),
+            )) {
                 is SessionMoveResult.Applied -> {
                     session = result.session
                     historyNavigation = GameHistoryNavigation.latest()
@@ -305,10 +308,12 @@ fun App(
                             "Не удалось сохранить: ${saveResult.message}"
                     }
                 }
+
                 SessionMoveResult.Rejected -> Unit
             }
             clearTransientState()
         }
+
         fun restart() {
             session = GameSession(session.scenario)
             historyNavigation = GameHistoryNavigation.latest()
@@ -325,10 +330,10 @@ fun App(
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.background,
-                                ChessTreeColors.SurfaceMuted,
-                            ),
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.background,
+                                    ChessTreeColors.SurfaceMuted,
+                                ),
                             ),
                         ),
                     contentAlignment = Alignment.Center,
@@ -438,6 +443,7 @@ fun App(
                                             clearTransientState()
                                             "Последний ход отменён"
                                         }
+
                                         is SaveGameResult.Failed ->
                                             "Не удалось отменить ход: ${saveResult.message}"
                                     }
@@ -636,5 +642,6 @@ internal fun com.chesstree.game.domain.GameState.statusText(): String {
             is ParticipantStatus.Stalemated -> "${participant.id.name.lowercase()}: пат"
         }
     }
-    return listOf(phaseText, eliminated.joinToString()).filter(String::isNotEmpty).joinToString(" · ")
+    return listOf(phaseText, eliminated.joinToString()).filter(String::isNotEmpty)
+        .joinToString(" · ")
 }

@@ -4,12 +4,12 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.chesstree.multiplayer.data.KtorChessTreeApi
 import com.chesstree.multiplayer.data.PRODUCTION_SERVER_BASE_URL
 import com.chesstree.multiplayer.data.gameCodeFromUrl
 import kotlinx.coroutines.flow.MutableStateFlow
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 
 class MainActivity : ComponentActivity() {
     private val onlineApi = KtorChessTreeApi(PRODUCTION_SERVER_BASE_URL)

@@ -2,9 +2,9 @@
 
 Инструкция описывает текущую схему из двух Ubuntu/Debian-серверов:
 
-| Роль | Публичный адрес | WireGuard |
-| --- | --- | --- |
-| Nginx, Web, Ktor, PostgreSQL primary | `51.250.31.56` | `10.77.0.1` |
+| Роль                                   | Публичный адрес  | WireGuard   |
+|----------------------------------------|------------------|-------------|
+| Nginx, Web, Ktor, PostgreSQL primary   | `51.250.31.56`   | `10.77.0.1` |
 | PostgreSQL standby и логические бэкапы | `151.247.208.76` | `10.77.0.2` |
 
 SSH primary доступен на TCP `2222`; SSH standby остаётся на TCP `22`.
@@ -23,26 +23,26 @@ SSH primary доступен на TCP `2222`; SSH standby остаётся на 
 
 На основном сервере:
 
-| Путь | Назначение |
-| --- | --- |
-| `/etc/nginx/sites-available/chesstree` | Активный Nginx-конфиг |
-| `/etc/letsencrypt/live/chess-tree.online/` | Сертификат и ключ Certbot |
-| `/etc/chesstree/server.env` | Постоянные env Ktor и пароль БД |
-| `/etc/systemd/system/chesstree-server.service` | systemd unit Ktor |
-| `/opt/chesstree/releases/<release-id>/` | Версии Web и backend |
-| `/opt/chesstree/current` | Ссылка на активный release |
-| `/etc/wireguard/wg0.conf` | Туннель до standby |
+| Путь                                           | Назначение                      |
+|------------------------------------------------|---------------------------------|
+| `/etc/nginx/sites-available/chesstree`         | Активный Nginx-конфиг           |
+| `/etc/letsencrypt/live/chess-tree.online/`     | Сертификат и ключ Certbot       |
+| `/etc/chesstree/server.env`                    | Постоянные env Ktor и пароль БД |
+| `/etc/systemd/system/chesstree-server.service` | systemd unit Ktor               |
+| `/opt/chesstree/releases/<release-id>/`        | Версии Web и backend            |
+| `/opt/chesstree/current`                       | Ссылка на активный release      |
+| `/etc/wireguard/wg0.conf`                      | Туннель до standby              |
 
 На standby:
 
-| Путь | Назначение |
-| --- | --- |
-| `/etc/wireguard/wg0.conf` | Туннель до primary |
-| `/var/lib/postgresql/.pgpass` | Пароль репликации |
-| `/var/lib/postgresql/17/main/` | Данные standby; точный путь надо проверить |
-| `/usr/local/sbin/chesstree-pg-backup` | Скрипт логического бэкапа |
-| `/var/backups/chesstree/` | Дампы за 14 дней |
-| `/etc/systemd/system/chesstree-pg-backup.*` | service и timer бэкапа |
+| Путь                                        | Назначение                                 |
+|---------------------------------------------|--------------------------------------------|
+| `/etc/wireguard/wg0.conf`                   | Туннель до primary                         |
+| `/var/lib/postgresql/.pgpass`               | Пароль репликации                          |
+| `/var/lib/postgresql/17/main/`              | Данные standby; точный путь надо проверить |
+| `/usr/local/sbin/chesstree-pg-backup`       | Скрипт логического бэкапа                  |
+| `/var/backups/chesstree/`                   | Дампы за 14 дней                           |
+| `/etc/systemd/system/chesstree-pg-backup.*` | service и timer бэкапа                     |
 
 Секреты нельзя коммитить в Git, класть в `deploy/` или передавать в аргументах
 команд. Значения `<...>` ниже всегда заменяются реальными значениями.

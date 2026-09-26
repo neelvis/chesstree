@@ -4,7 +4,6 @@ import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.data.OnlineSessionStore
 import kotlinx.browser.window
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.w3c.dom.BroadcastChannel
 
@@ -58,11 +57,13 @@ class BrowserOnlineSessionStore(
             message == REQUEST_SESSION -> authentication?.let {
                 postMessage(SESSION_PREFIX + json.encodeToString(it))
             }
+
             message == CLEAR_SESSION -> {
                 authentication = null
                 pendingLoad?.complete(null)
                 pendingLoad = null
             }
+
             message?.startsWith(SESSION_PREFIX) == true -> runCatching {
                 json.decodeFromString<AuthResponse>(message.removePrefix(SESSION_PREFIX))
             }.getOrNull()?.let { restored ->

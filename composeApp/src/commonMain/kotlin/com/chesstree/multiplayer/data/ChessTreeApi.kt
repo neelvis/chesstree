@@ -1,11 +1,11 @@
 package com.chesstree.multiplayer.data
 
-import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
+import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
-import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameHistoryResponse
+import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameSocketAuthRequest
 import com.chesstree.multiplayer.contract.GameStatePush
 import com.chesstree.multiplayer.contract.GameStateResponse
@@ -46,6 +46,7 @@ interface ChessTreeApi {
     suspend fun createGame(token: String): ApiResult<GameResponse>
     suspend fun getMyGames(token: String): ApiResult<List<GameHistoryResponse>> =
         ApiResult.Failure("unsupported", "История игр недоступна")
+
     suspend fun joinGame(token: String, code: String): ApiResult<GameResponse>
     suspend fun getGame(token: String, code: String): ApiResult<GameResponse>
     suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse>
@@ -55,11 +56,13 @@ interface ChessTreeApi {
         code: String,
         command: MoveCommandRequest,
     ): ApiResult<GameStateResponse>
+
     suspend fun requestUndo(
         token: String,
         code: String,
         command: UndoRequestCommand,
     ): ApiResult<GameStateResponse> = ApiResult.Failure("unsupported", "Отмена хода недоступна")
+
     suspend fun voteUndo(
         token: String,
         code: String,
@@ -79,19 +82,21 @@ class KtorChessTreeApi(
     private val apiBaseUrl = "${serverBaseUrl.trimEnd('/')}/api/v1"
     private val socketApiBaseUrl = serverBaseUrl.trimEnd('/').toWebSocketUrl() + "/api/v1"
 
-    override suspend fun register(username: String, password: String): ApiResult<AuthResponse> = request {
-        client.post("$apiBaseUrl/auth/register") {
-            contentType(ContentType.Application.Json)
-            setBody(RegisterRequest(username, password))
-        }.decode()
-    }
+    override suspend fun register(username: String, password: String): ApiResult<AuthResponse> =
+        request {
+            client.post("$apiBaseUrl/auth/register") {
+                contentType(ContentType.Application.Json)
+                setBody(RegisterRequest(username, password))
+            }.decode()
+        }
 
-    override suspend fun login(username: String, password: String): ApiResult<AuthResponse> = request {
-        client.post("$apiBaseUrl/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(LoginRequest(username, password))
-        }.decode()
-    }
+    override suspend fun login(username: String, password: String): ApiResult<AuthResponse> =
+        request {
+            client.post("$apiBaseUrl/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody(LoginRequest(username, password))
+            }.decode()
+        }
 
     override suspend fun logout(token: String): ApiResult<Unit> = request {
         val response = client.post("$apiBaseUrl/auth/logout") { bearerAuth(token) }
@@ -107,49 +112,63 @@ class KtorChessTreeApi(
     }
 
     override suspend fun joinGame(token: String, code: String): ApiResult<GameResponse> = request {
-        client.post("$apiBaseUrl/games/${code.trim().uppercase()}/join") { bearerAuth(token) }.decode()
+        client.post("$apiBaseUrl/games/${code.trim().uppercase()}/join") { bearerAuth(token) }
+            .decode()
     }
 
     override suspend fun getGame(token: String, code: String): ApiResult<GameResponse> = request {
         client.get("$apiBaseUrl/games/${code.trim().uppercase()}") { bearerAuth(token) }.decode()
     }
 
-    override suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse> = request {
-        client.get("$apiBaseUrl/games/${code.trim().uppercase()}/state") {
-            bearerAuth(token)
-            header(API_VERSION_HEADER, API_VERSION)
-        }.decode()
-    }
-
-    override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> = flow {
-        var retryDelayMillis = 1_000L
-        while (currentCoroutineContext().isActive) {
-            var protocolSupported = true
-            try {
-                client.webSocket("$socketApiBaseUrl/games/${code.trim().uppercase()}/events") {
-                    sendSerialized(
-                        GameSocketAuthRequest(token, API_VERSION),
-                    )
-                    retryDelayMillis = 1_000L
-                    while (currentCoroutineContext().isActive) {
-                        val push = receiveDeserialized<GameStatePush>()
-                        if (push.protocolVersion != API_VERSION) {
-                            emit(ApiResult.Failure("protocol_mismatch", "Требуется обновить приложение"))
-                            protocolSupported = false
-                            return@webSocket
-                        }
-                        emit(ApiResult.Success(push.state))
-                    }
-                }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Throwable) {}
-            if (!protocolSupported) return@flow
-            emit(ApiResult.Failure("connection_lost", "Связь с партией потеряна; переподключаемся"))
-            delay(retryDelayMillis)
-            retryDelayMillis = (retryDelayMillis * 2).coerceAtMost(10_000L)
+    override suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse> =
+        request {
+            client.get("$apiBaseUrl/games/${code.trim().uppercase()}/state") {
+                bearerAuth(token)
+                header(API_VERSION_HEADER, API_VERSION)
+            }.decode()
         }
-    }
+
+    override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> =
+        flow {
+            var retryDelayMillis = 1_000L
+            while (currentCoroutineContext().isActive) {
+                var protocolSupported = true
+                try {
+                    client.webSocket("$socketApiBaseUrl/games/${code.trim().uppercase()}/events") {
+                        sendSerialized(
+                            GameSocketAuthRequest(token, API_VERSION),
+                        )
+                        retryDelayMillis = 1_000L
+                        while (currentCoroutineContext().isActive) {
+                            val push = receiveDeserialized<GameStatePush>()
+                            if (push.protocolVersion != API_VERSION) {
+                                emit(
+                                    ApiResult.Failure(
+                                        "protocol_mismatch",
+                                        "Требуется обновить приложение"
+                                    )
+                                )
+                                protocolSupported = false
+                                return@webSocket
+                            }
+                            emit(ApiResult.Success(push.state))
+                        }
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Throwable) {
+                }
+                if (!protocolSupported) return@flow
+                emit(
+                    ApiResult.Failure(
+                        "connection_lost",
+                        "Связь с партией потеряна; переподключаемся"
+                    )
+                )
+                delay(retryDelayMillis)
+                retryDelayMillis = (retryDelayMillis * 2).coerceAtMost(10_000L)
+            }
+        }
 
     override suspend fun submitMove(
         token: String,
@@ -180,7 +199,11 @@ class KtorChessTreeApi(
         code: String,
         command: UndoVoteCommand,
     ): ApiResult<GameStateResponse> = request {
-        client.post("$apiBaseUrl/games/${code.trim().uppercase()}/undo-requests/${command.requestId}/votes") {
+        client.post(
+            "$apiBaseUrl/games/${
+                code.trim().uppercase()
+            }/undo-requests/${command.requestId}/votes"
+        ) {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
             setBody(command)
@@ -213,9 +236,10 @@ class KtorChessTreeApi(
                 json(Json { ignoreUnknownKeys = false; explicitNulls = false })
             }
             install(WebSockets) {
-                contentConverter = io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter(
-                    Json { ignoreUnknownKeys = true; explicitNulls = false },
-                )
+                contentConverter =
+                    io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter(
+                        Json { ignoreUnknownKeys = true; explicitNulls = false },
+                    )
             }
         }
     }

@@ -92,6 +92,7 @@ object LegalMoveGenerator {
         return when (piece.type) {
             PieceType.ROOK, PieceType.BISHOP, PieceType.QUEEN ->
                 slidingMoves(state, piece, player, ply, directions)
+
             PieceType.PAWN -> pawnMoves(state, piece, player, ply, directions)
             PieceType.KNIGHT -> jumpingMoves(state, piece, player, ply, directions)
             PieceType.KING -> jumpingMoves(state, piece, player, ply, directions) +
@@ -115,6 +116,7 @@ object LegalMoveGenerator {
                         addMovesForTarget(piece, player, ply, target, occupant)
                         break
                     }
+
                     else -> break
                 }
             }
@@ -192,12 +194,18 @@ object LegalMoveGenerator {
                 val route = ThreePlayerBoardTopology.orthogonalRays(king.coordinate)
                     .firstOrNull { rook.coordinate in it.drop(1) } ?: return@mapNotNull null
                 val rookIndex = route.indexOf(rook.coordinate)
-                if (rookIndex < 3 || route.subList(1, rookIndex).any { state.pieceAt(it) != null }) {
+                if (rookIndex < 3 || route.subList(1, rookIndex)
+                        .any { state.pieceAt(it) != null }
+                ) {
                     return@mapNotNull null
                 }
                 val through = route[1]
                 val destination = route[2]
-                if (isKingInCheck(state.withPosition(moveKingOnly(state.position, king, through)), player)) {
+                if (isKingInCheck(
+                        state.withPosition(moveKingOnly(state.position, king, through)),
+                        player
+                    )
+                ) {
                     return@mapNotNull null
                 }
                 Move(
@@ -280,9 +288,14 @@ object LegalMoveGenerator {
                     }
                 }
             }
+
             PieceType.PAWN -> directions.filter { it.kind == DirectionKind.CAPTURE }
                 .mapTo(linkedSetOf(), MovementDirection::target)
-            PieceType.KING, PieceType.KNIGHT -> directions.mapTo(linkedSetOf(), MovementDirection::target)
+
+            PieceType.KING, PieceType.KNIGHT -> directions.mapTo(
+                linkedSetOf(),
+                MovementDirection::target
+            )
         }
     }
 
@@ -296,11 +309,15 @@ object LegalMoveGenerator {
         }
     }
 
-    private fun GameState.controllerOf(piece: Piece): PlayerId = armies.getValue(piece.army).controller
+    private fun GameState.controllerOf(piece: Piece): PlayerId =
+        armies.getValue(piece.army).controller
+
     private fun GameState.pieceAt(coordinate: BoardCoordinate): Piece? =
         position.pieces.values.firstOrNull { it.coordinate == coordinate }
+
     private fun GameState.canCapture(actor: PlayerId, target: Piece): Boolean =
         target.type != PieceType.KING && controllerOf(target) != actor
+
     private fun GameState.withPosition(position: Position): GameState = GameState(
         position = position,
         participants = participants,

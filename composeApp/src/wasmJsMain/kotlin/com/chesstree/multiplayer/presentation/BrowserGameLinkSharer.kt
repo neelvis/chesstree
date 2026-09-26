@@ -2,7 +2,6 @@ package com.chesstree.multiplayer.presentation
 
 import kotlinx.browser.window
 import kotlinx.coroutines.await
-import kotlin.js.ExperimentalWasmJsInterop
 
 @OptIn(ExperimentalWasmJsInterop::class)
 class BrowserGameLinkSharer : GameLinkSharer {

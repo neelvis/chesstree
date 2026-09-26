@@ -20,12 +20,30 @@ class BoardNotationTest {
 
     @Test
     fun notationMatchesAllThreeBoardRegions() {
-        assertEquals(Square(BoardFile.E, 12), ThreePlayerBoardNotation.square(BoardCoordinate(0, 0, 0)))
-        assertEquals(Square(BoardFile.E, 1), ThreePlayerBoardNotation.square(BoardCoordinate(1, 3, 3)))
-        assertEquals(Square(BoardFile.A, 1), ThreePlayerBoardNotation.square(BoardCoordinate(2, 3, 0)))
-        assertEquals(Square(BoardFile.A, 5), ThreePlayerBoardNotation.square(BoardCoordinate(3, 0, 0)))
-        assertEquals(Square(BoardFile.K, 8), ThreePlayerBoardNotation.square(BoardCoordinate(4, 0, 0)))
-        assertEquals(Square(BoardFile.K, 9), ThreePlayerBoardNotation.square(BoardCoordinate(5, 0, 3)))
+        assertEquals(
+            Square(BoardFile.E, 12),
+            ThreePlayerBoardNotation.square(BoardCoordinate(0, 0, 0))
+        )
+        assertEquals(
+            Square(BoardFile.E, 1),
+            ThreePlayerBoardNotation.square(BoardCoordinate(1, 3, 3))
+        )
+        assertEquals(
+            Square(BoardFile.A, 1),
+            ThreePlayerBoardNotation.square(BoardCoordinate(2, 3, 0))
+        )
+        assertEquals(
+            Square(BoardFile.A, 5),
+            ThreePlayerBoardNotation.square(BoardCoordinate(3, 0, 0))
+        )
+        assertEquals(
+            Square(BoardFile.K, 8),
+            ThreePlayerBoardNotation.square(BoardCoordinate(4, 0, 0))
+        )
+        assertEquals(
+            Square(BoardFile.K, 9),
+            ThreePlayerBoardNotation.square(BoardCoordinate(5, 0, 3))
+        )
     }
 
     @Test

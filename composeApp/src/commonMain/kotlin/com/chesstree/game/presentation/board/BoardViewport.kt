@@ -30,7 +30,8 @@ internal fun boardPointToViewport(
     contentWidth: Float = STANDARD_BOARD_CONTENT_WIDTH,
     contentHeight: Float = STANDARD_BOARD_CONTENT_HEIGHT,
 ): BoardPoint {
-    val scale = boardScale(viewportWidth, viewportHeight, viewport.zoom, contentWidth, contentHeight)
+    val scale =
+        boardScale(viewportWidth, viewportHeight, viewport.zoom, contentWidth, contentHeight)
     return BoardPoint(
         x = viewportWidth / 2f + viewport.panX + point.x * scale,
         y = viewportHeight / 2f + viewport.panY + point.y * scale,
@@ -45,7 +46,8 @@ internal fun viewportPointToBoard(
     contentWidth: Float = STANDARD_BOARD_CONTENT_WIDTH,
     contentHeight: Float = STANDARD_BOARD_CONTENT_HEIGHT,
 ): BoardPoint? {
-    val scale = boardScale(viewportWidth, viewportHeight, viewport.zoom, contentWidth, contentHeight)
+    val scale =
+        boardScale(viewportWidth, viewportHeight, viewport.zoom, contentWidth, contentHeight)
     if (scale <= 0f) return null
     return BoardPoint(
         x = (point.x - viewportWidth / 2f - viewport.panX) / scale,
@@ -73,9 +75,9 @@ internal fun transformBoardViewport(
     val transformed = BoardViewport(
         zoom = newZoom,
         panX = centroidFromCenterX + pan.x -
-            (centroidFromCenterX - viewport.panX) * zoomRatio,
+                (centroidFromCenterX - viewport.panX) * zoomRatio,
         panY = centroidFromCenterY + pan.y -
-            (centroidFromCenterY - viewport.panY) * zoomRatio,
+                (centroidFromCenterY - viewport.panY) * zoomRatio,
     )
     return coerceBoardViewport(
         transformed,

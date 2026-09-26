@@ -1,8 +1,10 @@
 package com.chesstree.server
 
-import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.game.domain.LegalMoveGenerator
+import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
+import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameSocketAuthRequest
@@ -11,26 +13,23 @@ import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.UndoRequestCommand
 import com.chesstree.multiplayer.contract.UndoVoteCommand
-import com.chesstree.game.domain.LegalMoveGenerator
-import com.chesstree.game.domain.scenario.StandardGame
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.receiveDeserialized
+import io.ktor.client.plugins.websocket.sendSerialized
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.options
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.receiveDeserialized
-import io.ktor.client.plugins.websocket.sendSerialized
-import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
-import io.ktor.server.testing.testApplication
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
-import kotlinx.serialization.encodeToString
+import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
 import java.util.UUID
 import kotlin.test.Test
@@ -135,7 +134,10 @@ class ApplicationTest {
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("http://localhost:8080", response.headers[HttpHeaders.AccessControlAllowOrigin])
+        assertEquals(
+            "http://localhost:8080",
+            response.headers[HttpHeaders.AccessControlAllowOrigin]
+        )
     }
 
     @Test
@@ -326,7 +328,10 @@ class ApplicationTest {
             bearerAuth(requester.accessToken)
             header(API_VERSION_HEADER, API_VERSION.toString())
         }
-        assertEquals(request.id, json.decodeFromString<GameStateResponse>(currentState.bodyAsText()).undoRequest?.id)
+        assertEquals(
+            request.id,
+            json.decodeFromString<GameStateResponse>(currentState.bodyAsText()).undoRequest?.id
+        )
         val requesterVote = client.post(
             "/api/v1/games/${game.code}/undo-requests/${request.id}/votes",
         ) {
@@ -408,7 +413,10 @@ class ApplicationTest {
         return json.decodeFromString(response.bodyAsText())
     }
 
-    private suspend fun io.ktor.server.testing.ApplicationTestBuilder.join(code: String, token: String): GameResponse {
+    private suspend fun io.ktor.server.testing.ApplicationTestBuilder.join(
+        code: String,
+        token: String
+    ): GameResponse {
         val response = client.post("/api/v1/games/$code/join") { bearerAuth(token) }
         assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
         return json.decodeFromString(response.bodyAsText())
@@ -464,7 +472,8 @@ class ApplicationTest {
         return json.decodeFromString(response.bodyAsText())
     }
 
-    private fun com.chesstree.game.domain.BoardCoordinate.response() = CoordinateResponse(vertex, column, row)
+    private fun com.chesstree.game.domain.BoardCoordinate.response() =
+        CoordinateResponse(vertex, column, row)
 
     private fun testServices(): ServerServices {
         val store = InMemoryStore()
@@ -482,7 +491,8 @@ class ApplicationTest {
 
     private object FakePasswordHasher : PasswordHasher {
         override fun hash(password: CharArray): String = "fake:${password.concatToString()}"
-        override fun verify(encoded: String, password: CharArray): Boolean = encoded == hash(password)
+        override fun verify(encoded: String, password: CharArray): Boolean =
+            encoded == hash(password)
     }
 
     private companion object {

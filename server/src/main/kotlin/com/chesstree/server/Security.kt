@@ -50,7 +50,8 @@ class AuthService(
     private val tokenGenerator: TokenGenerator,
     private val clock: Clock = Clock.systemUTC(),
 ) {
-    private val dummyPasswordHash: String = passwordHasher.hash("dummy-password-value".toCharArray())
+    private val dummyPasswordHash: String =
+        passwordHasher.hash("dummy-password-value".toCharArray())
 
     suspend fun register(request: RegisterRequest): AuthResult {
         val username = request.username.trim()
@@ -62,7 +63,8 @@ class AuthService(
         } finally {
             chars.fill('\u0000')
         }
-        return when (val created = store.createUser(username, normalizeUsername(username), passwordHash)) {
+        return when (val created =
+            store.createUser(username, normalizeUsername(username), passwordHash)) {
             is CreateUserResult.Created -> sessionFor(created.user)
             CreateUserResult.UsernameTaken -> AuthResult.UsernameTaken
         }

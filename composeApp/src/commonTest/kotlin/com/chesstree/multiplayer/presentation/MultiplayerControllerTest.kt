@@ -1,21 +1,21 @@
 package com.chesstree.multiplayer.presentation
 
+import com.chesstree.game.domain.LegalMoveGenerator
+import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.GamePlayerResponse
 import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.MoveEventResponse
-import com.chesstree.multiplayer.contract.GamePlayerResponse
-import com.chesstree.game.domain.LegalMoveGenerator
-import com.chesstree.game.domain.scenario.StandardGame
-import com.chesstree.multiplayer.contract.UserResponse
 import com.chesstree.multiplayer.contract.UndoRequestCommand
 import com.chesstree.multiplayer.contract.UndoRequestResponse
+import com.chesstree.multiplayer.contract.UserResponse
 import com.chesstree.multiplayer.data.ApiResult
 import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.OnlineSessionStore
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -123,7 +123,8 @@ class MultiplayerControllerTest {
     @Test
     fun acceptedServerMoveAdvancesReplayedSession() = runTest {
         val api = MoveApi()
-        val controller = MultiplayerController(api, this, commandId = { "00000000-0000-0000-0000-000000000001" })
+        val controller =
+            MultiplayerController(api, this, commandId = { "00000000-0000-0000-0000-000000000001" })
         controller.setUsername("Alice")
         controller.setPassword("correct-horse")
         controller.submitAuthentication()
@@ -133,7 +134,14 @@ class MultiplayerControllerTest {
         runCurrent()
         val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
 
-        controller.submitMove(com.chesstree.game.domain.MoveIntent(move.actor, move.from, move.to, move.promotion))
+        controller.submitMove(
+            com.chesstree.game.domain.MoveIntent(
+                move.actor,
+                move.from,
+                move.to,
+                move.promotion
+            )
+        )
         runCurrent()
 
         assertEquals(0, api.submitted?.expectedRevision)
@@ -155,7 +163,14 @@ class MultiplayerControllerTest {
         runCurrent()
         val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
 
-        controller.submitMove(com.chesstree.game.domain.MoveIntent(move.actor, move.from, move.to, move.promotion))
+        controller.submitMove(
+            com.chesstree.game.domain.MoveIntent(
+                move.actor,
+                move.from,
+                move.to,
+                move.promotion
+            )
+        )
         runCurrent()
 
         assertEquals(1, controller.state.value.remoteState?.revision)
@@ -225,18 +240,28 @@ class MultiplayerControllerTest {
             players = emptyList(),
         )
 
-        override suspend fun register(username: String, password: String): ApiResult<AuthResponse> = authenticate()
-        override suspend fun login(username: String, password: String): ApiResult<AuthResponse> = authenticate()
+        override suspend fun register(username: String, password: String): ApiResult<AuthResponse> =
+            authenticate()
+
+        override suspend fun login(username: String, password: String): ApiResult<AuthResponse> =
+            authenticate()
+
         override suspend fun logout(token: String) = ApiResult.Success(Unit)
         override suspend fun createGame(token: String) = ApiResult.Success(game)
         override suspend fun joinGame(token: String, code: String): ApiResult<GameResponse> =
-            if (joinFails) ApiResult.Failure("game_not_found", "Игра не найдена") else ApiResult.Success(game)
+            if (joinFails) ApiResult.Failure(
+                "game_not_found",
+                "Игра не найдена"
+            ) else ApiResult.Success(game)
 
         override suspend fun getGame(token: String, code: String) = ApiResult.Success(game)
         override suspend fun getGameState(token: String, code: String) = ApiResult.Success(
             GameStateResponse(game, revision = 0, moves = emptyList()),
         )
-        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> = emptyFlow()
+
+        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> =
+            emptyFlow()
+
         override suspend fun submitMove(
             token: String,
             code: String,
@@ -267,10 +292,20 @@ class MultiplayerControllerTest {
         override suspend fun createGame(token: String) = ApiResult.Success(game)
         override suspend fun joinGame(token: String, code: String) = ApiResult.Success(game)
         override suspend fun getGame(token: String, code: String) = ApiResult.Success(game)
-        override suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse> =
-            ApiResult.Success(submitted?.let(::movedState) ?: GameStateResponse(game, revision = 0, moves = emptyList()))
+        override suspend fun getGameState(
+            token: String,
+            code: String
+        ): ApiResult<GameStateResponse> =
+            ApiResult.Success(
+                submitted?.let(::movedState) ?: GameStateResponse(
+                    game,
+                    revision = 0,
+                    moves = emptyList()
+                )
+            )
 
-        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> = emptyFlow()
+        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> =
+            emptyFlow()
 
         override suspend fun submitMove(
             token: String,
@@ -279,7 +314,10 @@ class MultiplayerControllerTest {
         ): ApiResult<GameStateResponse> {
             submitted = command
             if (staleOnSubmit) {
-                return ApiResult.Failure("stale_revision", "Состояние партии изменилось; обновите его")
+                return ApiResult.Failure(
+                    "stale_revision",
+                    "Состояние партии изменилось; обновите его"
+                )
             }
             return ApiResult.Success(movedState(command))
         }
@@ -308,7 +346,8 @@ class MultiplayerControllerTest {
             status = "ACTIVE",
             players = listOf(GamePlayerResponse(auth.user, "WHITE")),
         )
-        private val updates = MutableSharedFlow<ApiResult<GameStateResponse>>(extraBufferCapacity = 1)
+        private val updates =
+            MutableSharedFlow<ApiResult<GameStateResponse>>(extraBufferCapacity = 1)
         private val undoResponse = CompletableDeferred<ApiResult<GameStateResponse>>()
 
         override suspend fun register(username: String, password: String) = ApiResult.Success(auth)
@@ -317,10 +356,15 @@ class MultiplayerControllerTest {
         override suspend fun createGame(token: String) = ApiResult.Success(game)
         override suspend fun joinGame(token: String, code: String) = ApiResult.Success(game)
         override suspend fun getGame(token: String, code: String) = ApiResult.Success(game)
-        override suspend fun getGameState(token: String, code: String) = ApiResult.Success(initialState())
-        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> = updates
+        override suspend fun getGameState(token: String, code: String) =
+            ApiResult.Success(initialState())
+
+        override fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>> =
+            updates
+
         override suspend fun submitMove(token: String, code: String, command: MoveCommandRequest) =
             ApiResult.Success(initialState())
+
         override suspend fun requestUndo(token: String, code: String, command: UndoRequestCommand) =
             undoResponse.await()
 
@@ -358,7 +402,15 @@ class MultiplayerControllerTest {
         }
 
         fun pushUndoCompleted() {
-            updates.tryEmit(ApiResult.Success(GameStateResponse(game, revision = 4, moves = emptyList())))
+            updates.tryEmit(
+                ApiResult.Success(
+                    GameStateResponse(
+                        game,
+                        revision = 4,
+                        moves = emptyList()
+                    )
+                )
+            )
         }
 
         fun completeUndoRequestWithStalePending() {
@@ -408,6 +460,7 @@ class MultiplayerControllerTest {
         override suspend fun save(authentication: AuthResponse) {
             this.authentication = authentication
         }
+
         override suspend fun clear() {
             authentication = null
         }

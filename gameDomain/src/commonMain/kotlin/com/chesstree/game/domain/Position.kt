@@ -58,6 +58,7 @@ class Position(
             eligiblePlayers = target.eligiblePlayers,
         )
     }
+
     /** Compatibility view for callers that can represent only one target. */
     val enPassantTarget: EnPassantTarget? = this.enPassantTargets.values.singleOrNull()?.let {
         EnPassantTarget(
@@ -68,7 +69,9 @@ class Position(
     }
 
     init {
-        require(enPassantTargets.map(EnPassantTarget::pawnId).distinct().size == enPassantTargets.size) {
+        require(
+            enPassantTargets.map(EnPassantTarget::pawnId).distinct().size == enPassantTargets.size
+        ) {
             "A pawn may have only one en passant target"
         }
         require(this.pieces.all { (id, piece) -> id == piece.id }) {

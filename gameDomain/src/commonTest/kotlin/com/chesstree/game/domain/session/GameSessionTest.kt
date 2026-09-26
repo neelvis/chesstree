@@ -1,10 +1,10 @@
 package com.chesstree.game.domain.session
 
-import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.GameReducer
+import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.MoveReduction
 import com.chesstree.game.domain.MoveType
@@ -30,7 +30,10 @@ class GameSessionTest {
         val trophy = result.session.capturedPieces.single()
 
         assertEquals(capture.capturedPieceId?.value, trophy.id)
-        assertEquals(initial.state.position.pieces.getValue(capture.pieceId).army, trophy.capturedByArmy)
+        assertEquals(
+            initial.state.position.pieces.getValue(capture.pieceId).army,
+            trophy.capturedByArmy
+        )
     }
 
     @Test

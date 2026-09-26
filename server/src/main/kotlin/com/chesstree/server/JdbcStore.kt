@@ -145,6 +145,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                                 "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
                             )
                         }
+
                         else -> error("Unsupported database schema version: $schemaVersion")
                     }
                     if (isPostgres) installGameUpdateTriggers(connection)
@@ -190,18 +191,19 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         }
     }
 
-    override suspend fun saveSession(tokenHash: String, userId: UUID, expiresAt: Instant): Unit = io {
-        connection().use { connection ->
-            connection.prepareStatement(
-                "INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)",
-            ).use { statement ->
-                statement.setString(1, tokenHash)
-                statement.setObject(2, userId)
-                statement.setTimestamp(3, Timestamp.from(expiresAt))
-                statement.executeUpdate()
+    override suspend fun saveSession(tokenHash: String, userId: UUID, expiresAt: Instant): Unit =
+        io {
+            connection().use { connection ->
+                connection.prepareStatement(
+                    "INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)",
+                ).use { statement ->
+                    statement.setString(1, tokenHash)
+                    statement.setObject(2, userId)
+                    statement.setTimestamp(3, Timestamp.from(expiresAt))
+                    statement.executeUpdate()
+                }
             }
         }
-    }
 
     override suspend fun findSession(tokenHash: String, now: Instant): SessionRecord? = io {
         connection().use { connection ->
@@ -215,7 +217,10 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 statement.setString(1, tokenHash)
                 statement.setTimestamp(2, Timestamp.from(now))
                 statement.executeQuery().use { rows ->
-                    if (rows.next()) SessionRecord(rows.user(), rows.getTimestamp("expires_at").toInstant()) else null
+                    if (rows.next()) SessionRecord(
+                        rows.user(),
+                        rows.getTimestamp("expires_at").toInstant()
+                    ) else null
                 }
             }
         }
@@ -247,7 +252,10 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 statement.setString(1, tokenHash)
                 statement.setTimestamp(2, Timestamp.from(now))
                 statement.executeQuery().use { rows ->
-                    if (rows.next()) SessionRecord(rows.user(), rows.getTimestamp("expires_at").toInstant()) else null
+                    if (rows.next()) SessionRecord(
+                        rows.user(),
+                        rows.getTimestamp("expires_at").toInstant()
+                    ) else null
                 }
             }
         }
@@ -255,10 +263,11 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
 
     override suspend fun deleteSession(tokenHash: String): Unit = io {
         connection().use { connection ->
-            connection.prepareStatement("DELETE FROM sessions WHERE token_hash = ?").use { statement ->
-                statement.setString(1, tokenHash)
-                statement.executeUpdate()
-            }
+            connection.prepareStatement("DELETE FROM sessions WHERE token_hash = ?")
+                .use { statement ->
+                    statement.setString(1, tokenHash)
+                    statement.executeUpdate()
+                }
         }
     }
 
@@ -326,10 +335,11 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                         statement.executeUpdate()
                     }
                 }
-                connection.prepareStatement("UPDATE games SET status = 'ACTIVE' WHERE id = ?").use { statement ->
-                    statement.setObject(1, gameId)
-                    statement.executeUpdate()
-                }
+                connection.prepareStatement("UPDATE games SET status = 'ACTIVE' WHERE id = ?")
+                    .use { statement ->
+                        statement.setObject(1, gameId)
+                        statement.executeUpdate()
+                    }
             }
             JoinGameResult.Joined(checkNotNull(loadGame(connection, code)))
         }
@@ -363,12 +373,13 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         command: GameMoveCommand,
     ): SubmitMoveResult = io {
         transaction { connection ->
-            connection.prepareStatement("SELECT id FROM games WHERE public_code = ? FOR UPDATE").use { statement ->
-                statement.setString(1, code)
-                statement.executeQuery().use { rows ->
-                    if (!rows.next()) return@transaction SubmitMoveResult.Missing
+            connection.prepareStatement("SELECT id FROM games WHERE public_code = ? FOR UPDATE")
+                .use { statement ->
+                    statement.setString(1, code)
+                    statement.executeQuery().use { rows ->
+                        if (!rows.next()) return@transaction SubmitMoveResult.Missing
+                    }
                 }
-            }
             val state = checkNotNull(loadGameState(connection, code))
             when (val evaluation = evaluateMove(state, userId, command)) {
                 is MoveEvaluation.Accepted -> {
@@ -397,17 +408,20 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                         statement.executeUpdate()
                     }
                     if (evaluation.finished) {
-                        connection.prepareStatement("UPDATE games SET status = 'FINISHED' WHERE id = ?").use { statement ->
+                        connection.prepareStatement("UPDATE games SET status = 'FINISHED' WHERE id = ?")
+                            .use { statement ->
+                                statement.setObject(1, state.game.id)
+                                statement.executeUpdate()
+                            }
+                    }
+                    connection.prepareStatement("UPDATE games SET revision = revision + 1 WHERE id = ?")
+                        .use { statement ->
                             statement.setObject(1, state.game.id)
                             statement.executeUpdate()
                         }
-                    }
-                    connection.prepareStatement("UPDATE games SET revision = revision + 1 WHERE id = ?").use { statement ->
-                        statement.setObject(1, state.game.id)
-                        statement.executeUpdate()
-                    }
                     SubmitMoveResult.Applied(checkNotNull(loadGameState(connection, code)))
                 }
+
                 MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state)
                 MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
                 MoveEvaluation.NotActive -> SubmitMoveResult.NotActive
@@ -496,18 +510,25 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
 
     private fun loadGameState(connection: Connection, code: String): GameStateRecord? {
         val game = loadGame(connection, code) ?: return null
-        val revision = connection.prepareStatement("SELECT revision FROM games WHERE id = ?").use { statement ->
-            statement.setObject(1, game.id)
-            statement.executeQuery().use { rows -> check(rows.next()); rows.getInt("revision") }
-        }
-        return GameStateRecord(game, loadMoves(connection, game.id), revision, loadUndoRequest(connection, game.id))
+        val revision = connection.prepareStatement("SELECT revision FROM games WHERE id = ?")
+            .use { statement ->
+                statement.setObject(1, game.id)
+                statement.executeQuery().use { rows -> check(rows.next()); rows.getInt("revision") }
+            }
+        return GameStateRecord(
+            game,
+            loadMoves(connection, game.id),
+            revision,
+            loadUndoRequest(connection, game.id)
+        )
     }
 
     private fun lockAndLoadState(connection: Connection, code: String): GameStateRecord? {
-        connection.prepareStatement("SELECT id FROM games WHERE public_code = ? FOR UPDATE").use { statement ->
-            statement.setString(1, code)
-            statement.executeQuery().use { rows -> if (!rows.next()) return null }
-        }
+        connection.prepareStatement("SELECT id FROM games WHERE public_code = ? FOR UPDATE")
+            .use { statement ->
+                statement.setString(1, code)
+                statement.executeQuery().use { rows -> if (!rows.next()) return null }
+            }
         return loadGameState(connection, code)
     }
 
@@ -528,7 +549,14 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                     ).use { votes ->
                         votes.setObject(1, id)
                         votes.executeQuery().use { voteRows ->
-                            buildSet { while (voteRows.next()) add(voteRows.getObject("user_id", UUID::class.java)) }
+                            buildSet {
+                                while (voteRows.next()) add(
+                                    voteRows.getObject(
+                                        "user_id",
+                                        UUID::class.java
+                                    )
+                                )
+                            }
                         }
                     },
                 )
@@ -536,17 +564,19 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         }
 
     private fun deleteUndoRequest(connection: Connection, requestId: UUID) {
-        connection.prepareStatement("DELETE FROM game_undo_requests WHERE id = ?").use { statement ->
-            statement.setObject(1, requestId)
-            statement.executeUpdate()
-        }
+        connection.prepareStatement("DELETE FROM game_undo_requests WHERE id = ?")
+            .use { statement ->
+                statement.setObject(1, requestId)
+                statement.executeUpdate()
+            }
     }
 
     private fun incrementRevision(connection: Connection, gameId: UUID) {
-        connection.prepareStatement("UPDATE games SET revision = revision + 1 WHERE id = ?").use { statement ->
-            statement.setObject(1, gameId)
-            statement.executeUpdate()
-        }
+        connection.prepareStatement("UPDATE games SET revision = revision + 1 WHERE id = ?")
+            .use { statement ->
+                statement.setObject(1, gameId)
+                statement.executeUpdate()
+            }
     }
 
     private fun loadMoves(connection: Connection, gameId: UUID): List<GameMoveRecord> =
@@ -567,7 +597,11 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                                 userId = rows.getObject("user_id", UUID::class.java),
                                 expectedRevision = rows.getInt("expected_revision"),
                                 intent = com.chesstree.game.domain.MoveIntent(
-                                    actor = com.chesstree.game.domain.PlayerId.valueOf(rows.getString("actor")),
+                                    actor = com.chesstree.game.domain.PlayerId.valueOf(
+                                        rows.getString(
+                                            "actor"
+                                        )
+                                    ),
                                     from = com.chesstree.game.domain.BoardCoordinate(
                                         rows.getInt("from_vertex"),
                                         rows.getInt("from_column"),
@@ -636,7 +670,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         passwordHash = getString("password_hash"),
     )
 
-    private fun connection(): Connection = DriverManager.getConnection(config.url, config.user, config.password)
+    private fun connection(): Connection =
+        DriverManager.getConnection(config.url, config.user, config.password)
 
     private fun Connection.execute(sql: String) {
         createStatement().use { it.execute(sql) }
@@ -681,10 +716,26 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 """.trimIndent(),
             )
             listOf(
-                Triple("games", "chesstree_games_notify_update", "chesstree_notify_game_row_update"),
-                Triple("game_players", "chesstree_game_players_notify_update", "chesstree_notify_game_child_update"),
-                Triple("game_moves", "chesstree_game_moves_notify_update", "chesstree_notify_game_child_update"),
-                Triple("game_undo_requests", "chesstree_game_undo_requests_notify_update", "chesstree_notify_game_child_update"),
+                Triple(
+                    "games",
+                    "chesstree_games_notify_update",
+                    "chesstree_notify_game_row_update"
+                ),
+                Triple(
+                    "game_players",
+                    "chesstree_game_players_notify_update",
+                    "chesstree_notify_game_child_update"
+                ),
+                Triple(
+                    "game_moves",
+                    "chesstree_game_moves_notify_update",
+                    "chesstree_notify_game_child_update"
+                ),
+                Triple(
+                    "game_undo_requests",
+                    "chesstree_game_undo_requests_notify_update",
+                    "chesstree_notify_game_child_update"
+                ),
             ).forEach { (table, trigger, function) ->
                 statement.execute(
                     """

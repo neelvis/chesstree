@@ -4,9 +4,9 @@ import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
+import platform.Foundation.NSData
 import platform.Foundation.NSDate
 import platform.Foundation.NSDateFormatter
-import platform.Foundation.NSData
 import platform.Foundation.NSLocale
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL

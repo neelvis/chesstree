@@ -1,31 +1,30 @@
 package com.chesstree.server
 
-import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.game.domain.BoardCoordinate
+import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
+import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
+import com.chesstree.multiplayer.contract.GameHistoryResponse
 import com.chesstree.multiplayer.contract.GamePlayerResponse
 import com.chesstree.multiplayer.contract.GameResponse
-import com.chesstree.multiplayer.contract.GameHistoryResponse
 import com.chesstree.multiplayer.contract.GameSocketAuthRequest
 import com.chesstree.multiplayer.contract.GameStatePush
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.MoveEventResponse
-import com.chesstree.multiplayer.contract.UserResponse
 import com.chesstree.multiplayer.contract.UndoRequestCommand
 import com.chesstree.multiplayer.contract.UndoRequestResponse
 import com.chesstree.multiplayer.contract.UndoVoteCommand
-import com.chesstree.game.domain.BoardCoordinate
-import com.chesstree.game.domain.PromotionChoice
-import io.ktor.http.HttpStatusCode
+import com.chesstree.multiplayer.contract.UserResponse
 import io.ktor.http.HttpHeaders
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
+import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authenticate
@@ -38,7 +37,6 @@ import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.plugins.statuspages.exception
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
@@ -51,13 +49,12 @@ import io.ktor.server.websocket.sendSerialized
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.close
-import kotlinx.serialization.json.Json
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
 import java.util.UUID
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 data class ServerServices(
     val store: ChessTreeStore,
@@ -94,12 +91,18 @@ fun Application.chessTreeModule(
     }
     install(StatusPages) {
         exception<BadRequestException> { call, _ ->
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_request", "Некорректный запрос"))
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse("invalid_request", "Некорректный запрос")
+            )
         }
         exception<Throwable> { call, cause ->
             if (cause is CancellationException) throw cause
             logger.error("Unhandled request failure", cause)
-            call.respond(HttpStatusCode.InternalServerError, ErrorResponse("internal_error", "Ошибка сервера"))
+            call.respond(
+                HttpStatusCode.InternalServerError,
+                ErrorResponse("internal_error", "Ошибка сервера")
+            )
         }
     }
     install(RateLimit) {
@@ -138,20 +141,24 @@ fun Application.chessTreeModule(
                 }
                 get("/games") {
                     val user = call.authenticatedUser()
-                    call.respond(services.store.findGamesForUser(user.id).map { it.historyResponse() })
+                    call.respond(
+                        services.store.findGamesForUser(user.id).map { it.historyResponse() })
                 }
                 post("/games/{code}/join") {
                     val user = call.authenticatedUser()
                     val code = call.gameCode()
-                    when (val result = services.store.joinGame(code, user.id, services.tokens.shuffledColors())) {
+                    when (val result =
+                        services.store.joinGame(code, user.id, services.tokens.shuffledColors())) {
                         is JoinGameResult.Joined -> {
                             services.updates.publish(code)
                             call.respond(result.game.response(services.publicBaseUrl))
                         }
+
                         JoinGameResult.Missing -> call.respond(
                             HttpStatusCode.NotFound,
                             ErrorResponse("game_not_found", "Игра не найдена"),
                         )
+
                         JoinGameResult.Full -> call.respond(
                             HttpStatusCode.Conflict,
                             ErrorResponse("game_full", "В игре уже три участника"),
@@ -162,7 +169,10 @@ fun Application.chessTreeModule(
                     val user = call.authenticatedUser()
                     val game = services.store.findGame(call.gameCode())
                     if (game == null || game.players.none { it.user.id == user.id }) {
-                        call.respond(HttpStatusCode.NotFound, ErrorResponse("game_not_found", "Игра не найдена"))
+                        call.respond(
+                            HttpStatusCode.NotFound,
+                            ErrorResponse("game_not_found", "Игра не найдена")
+                        )
                     } else {
                         call.respond(game.response(services.publicBaseUrl))
                     }
@@ -171,7 +181,10 @@ fun Application.chessTreeModule(
                     val user = call.authenticatedUser()
                     val state = services.store.findGameState(call.gameCode())
                     if (state == null || state.game.players.none { it.user.id == user.id }) {
-                        call.respond(HttpStatusCode.NotFound, ErrorResponse("game_not_found", "Игра не найдена"))
+                        call.respond(
+                            HttpStatusCode.NotFound,
+                            ErrorResponse("game_not_found", "Игра не найдена")
+                        )
                     } else {
                         call.respond(
                             state.response(
@@ -191,35 +204,54 @@ fun Application.chessTreeModule(
                             services.updates.publish(code)
                             call.respond(result.state.response(services.publicBaseUrl))
                         }
+
                         is SubmitMoveResult.Stale -> call.respond(
                             HttpStatusCode.Conflict,
-                            ErrorResponse("stale_revision", "Состояние партии изменилось; обновите его"),
+                            ErrorResponse(
+                                "stale_revision",
+                                "Состояние партии изменилось; обновите его"
+                            ),
                         )
+
                         SubmitMoveResult.Missing,
                         SubmitMoveResult.NotParticipant,
                             -> call.respond(
-                                HttpStatusCode.NotFound,
-                                ErrorResponse("game_not_found", "Игра не найдена"),
-                            )
+                            HttpStatusCode.NotFound,
+                            ErrorResponse("game_not_found", "Игра не найдена"),
+                        )
+
                         SubmitMoveResult.NotActive -> call.respond(
                             HttpStatusCode.Conflict,
-                            ErrorResponse("game_not_active", "Партия ещё не началась или уже завершена"),
+                            ErrorResponse(
+                                "game_not_active",
+                                "Партия ещё не началась или уже завершена"
+                            ),
                         )
+
                         SubmitMoveResult.NotTurn -> call.respond(
                             HttpStatusCode.Conflict,
                             ErrorResponse("not_your_turn", "Сейчас ход другого игрока"),
                         )
+
                         SubmitMoveResult.IllegalMove -> call.respond(
                             HttpStatusCode.UnprocessableEntity,
                             ErrorResponse("illegal_move", "Недопустимый ход"),
                         )
+
                         SubmitMoveResult.CommandConflict -> call.respond(
                             HttpStatusCode.Conflict,
-                            ErrorResponse("command_conflict", "Идентификатор команды уже использован"),
+                            ErrorResponse(
+                                "command_conflict",
+                                "Идентификатор команды уже использован"
+                            ),
                         )
+
                         SubmitMoveResult.UndoPending -> call.respond(
                             HttpStatusCode.Conflict,
-                            ErrorResponse("undo_pending", "Сначала завершите голосование за отмену хода"),
+                            ErrorResponse(
+                                "undo_pending",
+                                "Сначала завершите голосование за отмену хода"
+                            ),
                         )
                     }
                 }
@@ -314,14 +346,17 @@ private suspend fun ApplicationCall.respondAuth(result: AuthResult) {
             HttpStatusCode.OK,
             AuthResponse(result.token, result.user.response()),
         )
+
         is AuthResult.Invalid -> respond(
             HttpStatusCode.BadRequest,
             ErrorResponse("invalid_credentials_format", result.message),
         )
+
         AuthResult.UsernameTaken -> respond(
             HttpStatusCode.Conflict,
             ErrorResponse("username_taken", "Этот логин уже занят"),
         )
+
         AuthResult.InvalidCredentials -> respond(
             HttpStatusCode.Unauthorized,
             ErrorResponse("invalid_credentials", "Неверный логин или пароль"),
@@ -334,7 +369,8 @@ private fun ApplicationCall.authenticatedUser(): UserRecord =
 
 private suspend fun createUniqueGame(services: ServerServices, owner: UserRecord): GameRecord {
     repeat(10) {
-        services.store.createGame(UUID.randomUUID(), services.tokens.gameCode(), owner.id)?.let { return it }
+        services.store.createGame(UUID.randomUUID(), services.tokens.gameCode(), owner.id)
+            ?.let { return it }
     }
     error("Unable to generate a unique game code")
 }
@@ -398,25 +434,31 @@ private suspend fun ApplicationCall.respondUndoResult(
             services.updates.publish(code)
             respond(result.state.response(services.publicBaseUrl))
         }
+
         is UndoResult.Stale -> respond(
             HttpStatusCode.Conflict,
             ErrorResponse("stale_revision", "Состояние партии изменилось; обновите его"),
         )
+
         UndoResult.Missing,
         UndoResult.NotParticipant,
             -> respond(HttpStatusCode.NotFound, ErrorResponse("game_not_found", "Игра не найдена"))
+
         UndoResult.NotAvailable -> respond(
             HttpStatusCode.Conflict,
             ErrorResponse("undo_not_available", "Этот запрос на отмену больше недоступен"),
         )
+
         UndoResult.AlreadyPending -> respond(
             HttpStatusCode.Conflict,
             ErrorResponse("undo_already_pending", "Запрос на отмену уже рассматривается"),
         )
+
         UndoResult.RequesterCannotVote -> respond(
             HttpStatusCode.Conflict,
             ErrorResponse("requester_cannot_vote", "Инициатор не голосует за свой запрос"),
         )
+
         UndoResult.AlreadyVoted -> respond(
             HttpStatusCode.Conflict,
             ErrorResponse("already_voted", "Ваш голос уже учтён"),

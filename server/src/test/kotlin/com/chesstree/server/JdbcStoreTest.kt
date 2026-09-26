@@ -18,7 +18,8 @@ import kotlin.test.assertNull
 class JdbcStoreTest {
     @Test
     fun migratesVersionTwoDatabaseToCurrentSchema() = runBlocking {
-        val databaseUrl = "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+        val databaseUrl =
+            "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeUpdate(
@@ -32,17 +33,19 @@ class JdbcStoreTest {
 
         DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
-                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
-                    rows.next()
-                    assertEquals(4, rows.getInt("version"))
-                }
+                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
+                    .use { rows ->
+                        rows.next()
+                        assertEquals(4, rows.getInt("version"))
+                    }
             }
         }
     }
 
     @Test
     fun migratesVersionOneDatabaseToCurrentSchema() = runBlocking {
-        val databaseUrl = "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+        val databaseUrl =
+            "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeUpdate(
@@ -56,10 +59,11 @@ class JdbcStoreTest {
 
         DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
-                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
-                    rows.next()
-                    assertEquals(4, rows.getInt("version"))
-                }
+                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
+                    .use { rows ->
+                        rows.next()
+                        assertEquals(4, rows.getInt("version"))
+                    }
                 statement.executeQuery("SELECT COUNT(*) FROM game_moves").use { rows ->
                     rows.next()
                     assertEquals(0, rows.getInt(1))
@@ -70,7 +74,8 @@ class JdbcStoreTest {
 
     @Test
     fun persistsUsersSessionsAndLobbyTransitions() = runBlocking {
-        val databaseUrl = "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+        val databaseUrl =
+            "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
         val store = JdbcStore(
             DatabaseConfig(
                 url = databaseUrl,
@@ -81,10 +86,11 @@ class JdbcStoreTest {
         store.initialize()
         DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
-                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE").use { rows ->
-                    rows.next()
-                    assertEquals(4, rows.getInt("version"))
-                }
+                statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
+                    .use { rows ->
+                        rows.next()
+                        assertEquals(4, rows.getInt("version"))
+                    }
             }
         }
         val first = store.user("First")
@@ -94,7 +100,10 @@ class JdbcStoreTest {
         assertIs<CreateUserResult.UsernameTaken>(duplicate)
 
         store.saveSession("a".repeat(64), first.id, Instant.parse("2030-01-01T00:00:00Z"))
-        assertEquals(first.id, store.findSession("a".repeat(64), Instant.parse("2029-01-01T00:00:00Z"))?.user?.id)
+        assertEquals(
+            first.id,
+            store.findSession("a".repeat(64), Instant.parse("2029-01-01T00:00:00Z"))?.user?.id
+        )
         assertNull(store.findSession("a".repeat(64), Instant.parse("2031-01-01T00:00:00Z")))
 
         val game = assertNotNull(store.createGame(UUID.randomUUID(), "ABC1234", first.id))
@@ -122,8 +131,10 @@ class JdbcStoreTest {
         }
         assertEquals(1, competingResults.count { it is SubmitMoveResult.Applied })
         assertEquals(1, competingResults.count { it is SubmitMoveResult.Stale })
-        val acceptedCommandId = assertNotNull(store.findGameState("ABC1234")).moves.single().commandId
-        val acceptedCommand = listOf(command, competingCommand).single { it.commandId == acceptedCommandId }
+        val acceptedCommandId =
+            assertNotNull(store.findGameState("ABC1234")).moves.single().commandId
+        val acceptedCommand =
+            listOf(command, competingCommand).single { it.commandId == acceptedCommandId }
         assertEquals(
             1,
             assertIs<SubmitMoveResult.Applied>(

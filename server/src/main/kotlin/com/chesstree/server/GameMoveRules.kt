@@ -3,9 +3,9 @@ package com.chesstree.server
 import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PlayerId
+import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.game.domain.session.GameSession
 import com.chesstree.game.domain.session.SessionMoveResult
-import com.chesstree.game.domain.scenario.StandardGame
 import java.util.UUID
 
 sealed interface MoveEvaluation {
@@ -43,7 +43,12 @@ fun evaluateMove(
     if (state.undoRequest != null) return MoveEvaluation.UndoPending
     if (state.game.status != GameStatus.ACTIVE || player.color == null) return MoveEvaluation.NotActive
     if (command.expectedRevision != state.revision) return MoveEvaluation.Stale
-    val session = checkNotNull(GameSession.replay(StandardGame.scenario, state.moves.map(GameMoveRecord::intent))) {
+    val session = checkNotNull(
+        GameSession.replay(
+            StandardGame.scenario,
+            state.moves.map(GameMoveRecord::intent)
+        )
+    ) {
         "Stored move history is invalid"
     }
     if (session.state.phase is GamePhase.Finished) return MoveEvaluation.NotActive

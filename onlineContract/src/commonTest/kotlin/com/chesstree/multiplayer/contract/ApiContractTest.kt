@@ -28,7 +28,10 @@ class ApiContractTest {
             promotion = "QUEEN",
         )
 
-        assertEquals(original, Json.decodeFromString<MoveCommandRequest>(Json.encodeToString(original)))
+        assertEquals(
+            original,
+            Json.decodeFromString<MoveCommandRequest>(Json.encodeToString(original))
+        )
     }
 
     @Test
@@ -39,6 +42,9 @@ class ApiContractTest {
             approve = false,
         )
 
-        assertEquals(original, Json.decodeFromString<UndoVoteCommand>(Json.encodeToString(original)))
+        assertEquals(
+            original,
+            Json.decodeFromString<UndoVoteCommand>(Json.encodeToString(original))
+        )
     }
 }

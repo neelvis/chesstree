@@ -212,7 +212,7 @@ class BoardGeometryTest {
             }.minOf { trophy ->
                 kotlin.math.sqrt(
                     (bird.x - trophy.x) * (bird.x - trophy.x) +
-                        (bird.y - trophy.y) * (bird.y - trophy.y),
+                            (bird.y - trophy.y) * (bird.y - trophy.y),
                 )
             }
             assertTrue(closestTrophy > 0.17f)
@@ -231,12 +231,17 @@ class BoardGeometryTest {
     @Test
     fun enPassantHintMarksBothCapturedPawnAndLandingCell() {
         val whitePawn = piece("white-pawn", PieceType.PAWN, ArmyColor.WHITE, cell(1, 2, 1))
-        val route = MovementDirections.forPiece(whitePawn.type, whitePawn.coordinate, whitePawn.army)
-            .single { it.kind == com.chesstree.game.domain.DirectionKind.MOVE }
-            .route
+        val route =
+            MovementDirections.forPiece(whitePawn.type, whitePawn.coordinate, whitePawn.army)
+                .single { it.kind == com.chesstree.game.domain.DirectionKind.MOVE }
+                .route
         val captureAt = route[1]
         val redOrigin = ThreePlayerBoardGeometry.cells.map(BoardCell::id).first { origin ->
-            origin !in route.take(3) && MovementDirections.forPiece(PieceType.PAWN, origin, ArmyColor.RED)
+            origin !in route.take(3) && MovementDirections.forPiece(
+                PieceType.PAWN,
+                origin,
+                ArmyColor.RED
+            )
                 .any { it.kind == com.chesstree.game.domain.DirectionKind.CAPTURE && it.target == captureAt }
         }
         val redPawn = piece("red-pawn", PieceType.PAWN, ArmyColor.RED, redOrigin, hasMoved = true)
@@ -263,12 +268,12 @@ class BoardGeometryTest {
     private fun stateWithDefaultKings(vararg pieces: Piece): GameState = GameState(
         position = Position(
             (
-                pieces.toList() + listOf(
-                    piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 3, 0)),
-                    piece("red-king", PieceType.KING, ArmyColor.RED, cell(2, 3, 0)),
-                    piece("black-king", PieceType.KING, ArmyColor.BLACK, cell(4, 3, 0)),
-                )
-            ).associateBy(Piece::id),
+                    pieces.toList() + listOf(
+                        piece("white-king", PieceType.KING, ArmyColor.WHITE, cell(0, 3, 0)),
+                        piece("red-king", PieceType.KING, ArmyColor.RED, cell(2, 3, 0)),
+                        piece("black-king", PieceType.KING, ArmyColor.BLACK, cell(4, 3, 0)),
+                    )
+                    ).associateBy(Piece::id),
         ),
         participants = PlayerId.entries.associateWith(::Participant),
         armies = ArmyColor.entries.associateWith { ArmyControl(it, it.originalPlayer) },

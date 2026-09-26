@@ -41,11 +41,11 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.chesstree.game.domain.ArmyColor
+import com.chesstree.game.domain.PieceType
 import com.chesstree.resources.Res
 import com.chesstree.resources.allDrawableResources
 import com.chesstree.resources.allFontResources
-import com.chesstree.game.domain.ArmyColor
-import com.chesstree.game.domain.PieceType
 import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.imageResource
 import kotlin.math.abs
@@ -81,8 +81,10 @@ fun ThreePlayerChessBoard(
     val cells = ThreePlayerBoardGeometry.cells
     val labels = ThreePlayerBoardGeometry.labels
     val textMeasurer = rememberTextMeasurer(cacheSize = BOARD_TEXT_LAYOUT_CACHE_SIZE)
-    val standardPieceFontResource = Font(Res.allFontResources.getValue("noto_sans_symbols_2_regular"))
-    val standardPieceFont = remember(standardPieceFontResource) { FontFamily(standardPieceFontResource) }
+    val standardPieceFontResource =
+        Font(Res.allFontResources.getValue("noto_sans_symbols_2_regular"))
+    val standardPieceFont =
+        remember(standardPieceFontResource) { FontFamily(standardPieceFontResource) }
     val fairyPieceImages = if (pieceSet == PieceSet.FAIRY) loadFairyPieceImages() else null
     val piecesByCell = remember(pieces) { pieces.associateBy(BoardPiece::cellId) }
     val hintsByCell = moveHints.associateBy(MoveHint::target)
@@ -117,7 +119,7 @@ fun ThreePlayerChessBoard(
             }
             .semantics {
                 contentDescription = "Доска для шахмат на троих, 96 клеток, " +
-                    if (pieceSet == PieceSet.FAIRY) "Premium фигуры" else "стандартные фигуры"
+                        if (pieceSet == PieceSet.FAIRY) "Premium фигуры" else "стандартные фигуры"
                 val selection =
                     if (selectedPieceId == null) "Фигура не выбрана" else "Фигура выбрана"
                 stateDescription =
@@ -167,6 +169,7 @@ fun ThreePlayerChessBoard(
             contentWidth,
             contentHeight,
         )
+
         fun BoardPoint.offset(): Offset =
             boardPointToViewport(
                 point = this,
@@ -276,7 +279,7 @@ fun ThreePlayerChessBoard(
             val edgePosition = label.edgePoint.offset()
             val normalProjection =
                 layout.size.width * abs(label.outward.x) / 2f +
-                    layout.size.height * abs(label.outward.y) / 2f
+                        layout.size.height * abs(label.outward.y) / 2f
             val labelGap = 5.dp.toPx() + normalProjection
             val position = edgePosition + Offset(
                 x = label.outward.x * labelGap,
@@ -338,8 +341,10 @@ fun threePlayerBoardAspectRatio(
     zoom: Float,
 ): Float {
     val showBirdsAroundBoard = pieceSet == PieceSet.FAIRY && showDecorativeBirds
-    val contentWidth = if (showBirdsAroundBoard) FAIRY_BOARD_CONTENT_WIDTH else STANDARD_BOARD_CONTENT_WIDTH
-    val contentHeight = if (showBirdsAroundBoard) FAIRY_BOARD_CONTENT_HEIGHT else STANDARD_BOARD_CONTENT_HEIGHT
+    val contentWidth =
+        if (showBirdsAroundBoard) FAIRY_BOARD_CONTENT_WIDTH else STANDARD_BOARD_CONTENT_WIDTH
+    val contentHeight =
+        if (showBirdsAroundBoard) FAIRY_BOARD_CONTENT_HEIGHT else STANDARD_BOARD_CONTENT_HEIGHT
     return contentWidth / (contentHeight * zoom.coerceIn(MIN_BOARD_ZOOM, MAX_BOARD_ZOOM))
 }
 
@@ -409,6 +414,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawImageCentered(
         x = (center.x - width / 2f).roundToInt(),
         y = (center.y - height / 1.5f).roundToInt(),
     )
+
     fun drawAt(offset: Offset = Offset.Zero, colorFilter: ColorFilter? = null) {
         drawImage(
             image = image,
@@ -423,6 +429,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawImageCentered(
             colorFilter = colorFilter,
         )
     }
+
     val draw = {
         if (outlineColor != null && outlineWidth > 0f) {
             val outlineFilter = ColorFilter.tint(outlineColor)
@@ -531,7 +538,7 @@ private suspend fun PointerInputScope.detectTwoFingerBoardTransformGestures(
                     val zoomMotion = abs(1f - accumulatedZoom) * centroidSize
                     val panMotion = accumulatedPan.getDistance()
                     pastTouchSlop = zoomMotion > viewConfiguration.touchSlop ||
-                        panMotion > viewConfiguration.touchSlop
+                            panMotion > viewConfiguration.touchSlop
                 }
 
                 if (pastTouchSlop) {

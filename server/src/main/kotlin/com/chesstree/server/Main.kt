@@ -43,4 +43,5 @@ fun main() {
 }
 
 private fun Map<String, String>.required(name: String): String =
-    get(name)?.takeIf(String::isNotBlank) ?: error("Required environment variable is missing: $name")
+    get(name)?.takeIf(String::isNotBlank)
+        ?: error("Required environment variable is missing: $name")

@@ -1,9 +1,16 @@
 package com.chesstree.multiplayer.presentation
 
+import com.chesstree.game.domain.BoardCoordinate
+import com.chesstree.game.domain.MoveIntent
+import com.chesstree.game.domain.PlayerId
+import com.chesstree.game.domain.PromotionChoice
+import com.chesstree.game.domain.scenario.StandardGame
+import com.chesstree.game.domain.session.GameSession
+import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
-import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameHistoryResponse
+import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.UndoRequestCommand
@@ -13,23 +20,15 @@ import com.chesstree.multiplayer.data.ChessTreeApi
 import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStoreException
-import com.chesstree.game.domain.BoardCoordinate
-import com.chesstree.game.domain.MoveIntent
-import com.chesstree.game.domain.PlayerId
-import com.chesstree.game.domain.PromotionChoice
-import com.chesstree.game.domain.session.GameSession
-import com.chesstree.game.domain.session.SessionMoveResult
-import com.chesstree.game.domain.scenario.StandardGame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 enum class AuthMode { LOGIN, REGISTER }
@@ -77,7 +76,8 @@ class MultiplayerController(
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
-                mutableState.value = mutableState.value.copy(error = "Не удалось восстановить сохранённый вход")
+                mutableState.value =
+                    mutableState.value.copy(error = "Не удалось восстановить сохранённый вход")
             }
         }
     }
@@ -125,6 +125,7 @@ class MultiplayerController(
                     error = storageWarning,
                 )
             }
+
             is ApiResult.Failure -> copy(error = result.message)
         }
     }
@@ -146,7 +147,11 @@ class MultiplayerController(
         update { copy(openingGameCode = code, error = null) }
         withToken(observeAfterSuccess = true) { token ->
             when (val result = api.getGame(token, code)) {
-                is ApiResult.Success -> withRemoteGame(token, result.value).copy(openingGameCode = null)
+                is ApiResult.Success -> withRemoteGame(
+                    token,
+                    result.value
+                ).copy(openingGameCode = null)
+
                 is ApiResult.Failure -> copy(error = result.message, openingGameCode = null)
             }
         }
@@ -160,6 +165,7 @@ class MultiplayerController(
                 is ApiResult.Success -> update {
                     if (authentication?.accessToken == token) copy(games = result.value) else this
                 }
+
                 is ApiResult.Failure -> Unit
             }
         } catch (error: CancellationException) {
@@ -191,12 +197,15 @@ class MultiplayerController(
                         applyRemoteState(result.value, expectedGameCode = code)
                         mutableState.value = mutableState.value.copy(syncing = false)
                     }
-                    is ApiResult.Failure -> mutableState.value = mutableState.value.copy(syncing = false, error = result.message)
+
+                    is ApiResult.Failure -> mutableState.value =
+                        mutableState.value.copy(syncing = false, error = result.message)
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
-                mutableState.value = mutableState.value.copy(syncing = false, error = "Не удалось выполнить запрос")
+                mutableState.value =
+                    mutableState.value.copy(syncing = false, error = "Не удалось выполнить запрос")
             }
         }
     }
@@ -211,11 +220,13 @@ class MultiplayerController(
             update { copy(error = "Сначала обновите состояние партии") }
             return
         }
-        val optimisticSession = (confirmedSession.apply(intent) as? SessionMoveResult.Applied)?.session
-            ?: return
+        val optimisticSession =
+            (confirmedSession.apply(intent) as? SessionMoveResult.Applied)?.session
+                ?: return
         mutableState.value = current.copy(session = optimisticSession)
         launchRequest(submittingMove = true) {
-            val currentRemote = remoteState ?: return@launchRequest copy(error = "Сначала обновите состояние партии")
+            val currentRemote = remoteState
+                ?: return@launchRequest copy(error = "Сначала обновите состояние партии")
             val command = MoveCommandRequest(
                 commandId = commandId(),
                 expectedRevision = currentRemote.revision,
@@ -241,7 +252,8 @@ class MultiplayerController(
     }
 
     fun requestUndo() = withToken { token ->
-        val currentRemote = remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
+        val currentRemote =
+            remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
         when (
             val result = api.requestUndo(
                 token,
@@ -255,7 +267,8 @@ class MultiplayerController(
     }
 
     fun voteUndo(approve: Boolean) = withToken { token ->
-        val currentRemote = remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
+        val currentRemote =
+            remoteState ?: return@withToken copy(error = "Сначала обновите состояние партии")
         val undoRequest = currentRemote.undoRequest
             ?: return@withToken copy(error = "Запрос на отмену уже закрыт")
         when (
@@ -359,7 +372,10 @@ class MultiplayerController(
      * update. Re-check the revision after replay so a slower, older response cannot roll the
      * displayed turn back and leave every client waiting for the wrong player.
      */
-    private suspend fun applyRemoteState(remote: GameStateResponse, expectedGameCode: String? = null) {
+    private suspend fun applyRemoteState(
+        remote: GameStateResponse,
+        expectedGameCode: String? = null
+    ) {
         val beforeReplay = mutableState.value
         if (expectedGameCode != null && beforeReplay.game?.code != expectedGameCode) return
         val updated = beforeReplay.withRemoteState(remote)
@@ -426,6 +442,7 @@ class MultiplayerController(
                     is ApiResult.Success -> {
                         applyRemoteState(result.value)
                     }
+
                     is ApiResult.Failure -> {
                         if (result.code != "connection_lost") {
                             mutableState.value = mutableState.value.copy(error = result.message)

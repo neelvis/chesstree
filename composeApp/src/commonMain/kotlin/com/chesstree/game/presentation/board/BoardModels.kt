@@ -106,6 +106,7 @@ fun educationalMoveHintsFor(
             } else {
                 emptyList()
             }
+
             else -> hint.route.drop(1)
         }
         val firstOccupiedPiece = candidateCoordinates.firstNotNullOfOrNull { coordinate ->

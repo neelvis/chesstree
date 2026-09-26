@@ -131,7 +131,14 @@ object GameLogCodec {
         val rookId = checkNotNull(move.rookDisplacement).pieceId
         state.position.castlingRights
             .filter { it.army == piece.army }
-            .firstOrNull { right -> resolveCastlingRookId(state, piece.army, right.side, right.rookId) == rookId }
+            .firstOrNull { right ->
+                resolveCastlingRookId(
+                    state,
+                    piece.army,
+                    right.side,
+                    right.rookId
+                ) == rookId
+            }
             ?.let { return it.side }
         val castles = legalMoves.filter { candidate ->
             candidate.pieceId == move.pieceId && candidate.type == MoveType.CASTLING
@@ -161,7 +168,11 @@ object GameLogCodec {
         }
     }
 
-    private fun checkSuffix(before: GameState, move: Move, reduction: MoveReduction.Applied): String {
+    private fun checkSuffix(
+        before: GameState,
+        move: Move,
+        reduction: MoveReduction.Applied
+    ): String {
         val checkmated = reduction.state.participants.any { (player, participant) ->
             before.participants.getValue(player).status is ParticipantStatus.Active &&
                     participant.status is ParticipantStatus.Checkmated && player != move.actor

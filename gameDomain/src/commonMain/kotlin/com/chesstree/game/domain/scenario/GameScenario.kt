@@ -192,13 +192,13 @@ private fun validateScenarioState(state: GameState) {
             ParticipantStatus.Active,
             is ParticipantStatus.Stalemated,
                 -> {
-                    require(kingCount == 1) {
-                        "$player must have exactly one king, but has $kingCount"
-                    }
-                    require(state.armies.getValue(army).controller == player) {
-                        "$player must control its own $army army while not checkmated"
-                    }
+                require(kingCount == 1) {
+                    "$player must have exactly one king, but has $kingCount"
                 }
+                require(state.armies.getValue(army).controller == player) {
+                    "$player must control its own $army army while not checkmated"
+                }
+            }
 
             is ParticipantStatus.Checkmated -> require(kingCount == 0) {
                 "$player is checkmated, so its king must be absent"

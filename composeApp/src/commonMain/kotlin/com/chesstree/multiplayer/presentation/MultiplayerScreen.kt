@@ -1,28 +1,28 @@
 package com.chesstree.multiplayer.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -36,47 +36,47 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.chesstree.multiplayer.contract.GameResponse
-import com.chesstree.multiplayer.contract.GameHistoryResponse
+import com.chesstree.app.AppTab
+import com.chesstree.app.AppTabBar
+import com.chesstree.app.ChessTreeColors
+import com.chesstree.app.ChessTreeTheme
+import com.chesstree.app.PlatformBackHandler
+import com.chesstree.app.hasSystemBackNavigation
 import com.chesstree.game.domain.ArmyColor
-import com.chesstree.multiplayer.data.ChessTreeApi
-import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
-import com.chesstree.multiplayer.data.OnlineSessionStore
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PromotionChoice
-import com.chesstree.game.presentation.board.ThreePlayerChessBoard
-import com.chesstree.game.presentation.board.PieceSet
-import com.chesstree.game.presentation.board.MoveHint
-import com.chesstree.game.presentation.board.threePlayerBoardAspectRatio
 import com.chesstree.game.presentation.board.BoardTrophy
+import com.chesstree.game.presentation.board.MoveHint
+import com.chesstree.game.presentation.board.PieceSet
+import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.educationalMoveHintsFor
 import com.chesstree.game.presentation.board.legalMoveHintsFor
+import com.chesstree.game.presentation.board.threePlayerBoardAspectRatio
 import com.chesstree.game.presentation.board.toBoardPieces
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import com.chesstree.app.AppTab
-import com.chesstree.app.AppTabBar
-import com.chesstree.app.ChessTreeColors
-import com.chesstree.app.PlatformBackHandler
-import com.chesstree.app.hasSystemBackNavigation
-import com.chesstree.app.ChessTreeTheme
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.GameHistoryResponse
+import com.chesstree.multiplayer.contract.GameResponse
+import com.chesstree.multiplayer.data.ChessTreeApi
+import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
+import com.chesstree.multiplayer.data.OnlineSessionStore
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun MultiplayerScreen(
@@ -137,84 +137,100 @@ fun MultiplayerScreen(
                 }
             } else {
                 Column(
-                    modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                        .verticalScroll(rememberScrollState()).padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     if (state.game != null) {
-                    if (!isGameStarted || !hasSystemBackNavigation) {
-                        Row(
+                        if (!isGameStarted || !hasSystemBackNavigation) {
+                            Row(
+                                modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                            ) {
+                                if (isGameStarted) {
+                                    TextButton(onClick = ::handleBack) { Text("‹ Назад") }
+                                } else {
+                                    TextButton(
+                                        onClick = controller::returnToLobby,
+                                        enabled = !state.loading
+                                    ) {
+                                        Text("‹ Назад")
+                                    }
+                                }
+                            }
+                        }
+                        Column(
                             modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Start,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
+                            Text(
+                                "Партия ${state.game?.code}",
+                                style = MaterialTheme.typography.headlineMedium
+                            )
                             if (isGameStarted) {
-                                TextButton(onClick = ::handleBack) { Text("‹ Назад") }
+                                val userArmy = state.game?.players
+                                    ?.firstOrNull { it.user.id == state.authentication?.user?.id }
+                                    ?.color
+                                    ?.let { runCatching { ArmyColor.valueOf(it) }.getOrNull() }
+                                if (userArmy != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text("Ваш цвет:")
+                                        ArmyQueenGlyph(userArmy)
+                                    }
+                                }
+                            }
+                            if (state.game?.status == "ACTIVE" || state.game?.status == "FINISHED") {
+                                if (state.session != null) {
+                                    OnlineGame(
+                                        state = state,
+                                        controller = controller,
+                                        pieceSet = pieceSet,
+                                        showCurrentPossibleMoves = showCurrentPossibleMoves,
+                                        showMoveLines = showMoveLines,
+                                    )
+                                } else Text("Загружаем позицию партии…")
                             } else {
-                                TextButton(onClick = controller::returnToLobby, enabled = !state.loading) {
+                                GameLobby(checkNotNull(state.game), controller, gameLinkSharer)
+                            }
+                            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            if (state.loading && !state.submittingMove && state.openingGameCode == null) {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("Онлайн-игра", style = MaterialTheme.typography.headlineMedium)
+                            if (!hasSystemBackNavigation) {
+                                TextButton(
+                                    onClick = ::handleBack,
+                                    modifier = Modifier.align(Alignment.CenterStart)
+                                ) {
                                     Text("‹ Назад")
                                 }
                             }
                         }
-                    }
-                    Column(
-                        modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text("Партия ${state.game?.code}", style = MaterialTheme.typography.headlineMedium)
-                        if (isGameStarted) {
-                            val userArmy = state.game?.players
-                                ?.firstOrNull { it.user.id == state.authentication?.user?.id }
-                                ?.color
-                                ?.let { runCatching { ArmyColor.valueOf(it) }.getOrNull() }
-                            if (userArmy != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Ваш цвет:")
-                                    ArmyQueenGlyph(userArmy)
-                                }
+                        Spacer(Modifier.height(24.dp))
+                        Column(
+                            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            if (state.authentication == null) AuthenticationContent(
+                                state,
+                                controller,
+                                onAuthenticationSuccess
+                            )
+                            else LobbyContent(state, controller, gameLinkSharer)
+                            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            if (state.loading && !state.submittingMove && state.openingGameCode == null) {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                             }
                         }
-                        if (state.game?.status == "ACTIVE" || state.game?.status == "FINISHED") {
-                            if (state.session != null) {
-                                OnlineGame(
-                                    state = state,
-                                    controller = controller,
-                                    pieceSet = pieceSet,
-                                    showCurrentPossibleMoves = showCurrentPossibleMoves,
-                                    showMoveLines = showMoveLines,
-                                )
-                            }
-                            else Text("Загружаем позицию партии…")
-                        } else {
-                            GameLobby(checkNotNull(state.game), controller, gameLinkSharer)
-                        }
-                        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        if (state.loading && !state.submittingMove && state.openingGameCode == null) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        }
-                    }
-                    } else {
-                    Box(
-                        modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("Онлайн-игра", style = MaterialTheme.typography.headlineMedium)
-                        if (!hasSystemBackNavigation) {
-                            TextButton(onClick = ::handleBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                                Text("‹ Назад")
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(24.dp))
-                    Column(
-                        modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        if (state.authentication == null) AuthenticationContent(state, controller, onAuthenticationSuccess)
-                        else LobbyContent(state, controller, gameLinkSharer)
-                        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        if (state.loading && !state.submittingMove && state.openingGameCode == null) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        }
-                    }
                     }
                 }
             }
@@ -296,7 +312,11 @@ private fun LobbyMenu(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Создать игру", style = MaterialTheme.typography.titleMedium)
-            Button(onClick = onCreateGame, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onCreateGame,
+                enabled = !state.loading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Создать игру")
             }
         }
@@ -311,7 +331,11 @@ private fun LobbyMenu(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(onClick = onJoinGame, enabled = !state.loading && state.gameCode.length == 7, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onJoinGame,
+                enabled = !state.loading && state.gameCode.length == 7,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Присоединиться")
             }
         }
@@ -374,13 +398,21 @@ private fun GameHistory(state: MultiplayerUiState, controller: MultiplayerContro
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             Text("Незавершённые", style = MaterialTheme.typography.titleSmall)
-            if (unfinished.isEmpty()) Text("Нет незавершённых игр", style = MaterialTheme.typography.bodySmall)
+            if (unfinished.isEmpty()) Text(
+                "Нет незавершённых игр",
+                style = MaterialTheme.typography.bodySmall
+            )
             if (showAllUnfinished) {
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
-                items(unfinished, key = { it.id }) {
-                    game -> HistoryGameRow(game, true, state.openingGameCode == game.code, controller::openGame)
+                    items(unfinished, key = { it.id }) { game ->
+                        HistoryGameRow(
+                            game,
+                            true,
+                            state.openingGameCode == game.code,
+                            controller::openGame
+                        )
+                    }
                 }
-            }
             } else unfinished.take(5).forEach { game ->
                 HistoryGameRow(game, true, state.openingGameCode == game.code, controller::openGame)
             }
@@ -390,16 +422,29 @@ private fun GameHistory(state: MultiplayerUiState, controller: MultiplayerContro
                 }
             }
             Text("Завершённые", style = MaterialTheme.typography.titleSmall)
-            if (finished.isEmpty()) Text("Нет завершённых игр", style = MaterialTheme.typography.bodySmall)
+            if (finished.isEmpty()) Text(
+                "Нет завершённых игр",
+                style = MaterialTheme.typography.bodySmall
+            )
             if (showAllFinished) {
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
-                    items(finished, key = { it.id }) {
-                        game -> HistoryGameRow(game, false, state.openingGameCode == game.code, controller::openGame)
+                    items(finished, key = { it.id }) { game ->
+                        HistoryGameRow(
+                            game,
+                            false,
+                            state.openingGameCode == game.code,
+                            controller::openGame
+                        )
                     }
                 }
             } else {
                 finished.take(5).forEach { game ->
-                    HistoryGameRow(game, false, state.openingGameCode == game.code, controller::openGame)
+                    HistoryGameRow(
+                        game,
+                        false,
+                        state.openingGameCode == game.code,
+                        controller::openGame
+                    )
                 }
             }
             if (finished.size > 5) {
@@ -418,7 +463,11 @@ private fun HistoryGameRow(
     opening: Boolean,
     onOpen: (String) -> Unit,
 ) {
-    TextButton(onClick = { onOpen(game.code) }, enabled = !opening, modifier = Modifier.fillMaxWidth()) {
+    TextButton(
+        onClick = { onOpen(game.code) },
+        enabled = !opening,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (unfinished) {
                 Surface(Modifier.size(10.dp), shape = CircleShape, color = Color(0xFF2E7D32)) {}
@@ -466,13 +515,15 @@ private fun OnlineGame(
     }
     val moveLines = remember(session.state, selectedPieceId, showMoveLines) {
         if (showMoveLines) {
-            selectedPieceId?.let(::PieceId)?.let { educationalMoveHintsFor(session.state, it) }.orEmpty()
+            selectedPieceId?.let(::PieceId)?.let { educationalMoveHintsFor(session.state, it) }
+                .orEmpty()
         } else {
             emptyList<MoveHint>()
         }
     }
     val undoRequest = state.remoteState?.undoRequest
-    val canAct = !state.loading && undoRequest == null && session.state.turn?.player == assignedPlayer
+    val canAct =
+        !state.loading && undoRequest == null && session.state.turn?.player == assignedPlayer
     val currentUserId = state.authentication?.user?.id
     val isUndoRequester = undoRequest?.requestedByUserId == currentUserId
     val hasApprovedUndo = currentUserId in undoRequest?.approvedByUserIds.orEmpty()
@@ -485,14 +536,17 @@ private fun OnlineGame(
 
     Text("Ревизия: ${state.remoteState?.revision ?: 0}")
     val turnPlayer = session.state.turn?.player
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         Text(
-        when {
-            undoRequest != null -> "Игра приостановлена: голосование за отмену хода"
-            game.status == "FINISHED" -> "Партия завершена"
-            canAct -> "Ваш ход"
-            else -> "Ожидаем ход другого игрока:"
-        },
+            when {
+                undoRequest != null -> "Игра приостановлена: голосование за отмену хода"
+                game.status == "FINISHED" -> "Партия завершена"
+                canAct -> "Ваш ход"
+                else -> "Ожидаем ход другого игрока:"
+            },
         )
         turnPlayer?.let { ArmyQueenGlyph(ArmyColor.valueOf(it.name)) }
     }
@@ -526,17 +580,25 @@ private fun OnlineGame(
             if (canAct && matchingMoves.isNotEmpty()) {
                 if (matchingMoves.size == 1) {
                     val move = matchingMoves.single()
-                    controller.submitMove(MoveIntent(move.actor, move.from, move.to, move.promotion))
+                    controller.submitMove(
+                        MoveIntent(
+                            move.actor,
+                            move.from,
+                            move.to,
+                            move.promotion
+                        )
+                    )
                     selectedPieceId = null
                 } else {
                     pendingPromotionMoves = matchingMoves
                 }
             } else {
-                val piece = session.state.position.pieces.values.firstOrNull { it.coordinate == cell }
+                val piece =
+                    session.state.position.pieces.values.firstOrNull { it.coordinate == cell }
                 selectedPieceId = piece
                     ?.takeIf {
                         showMoveLines ||
-                            (canAct && session.state.armies.getValue(it.army).controller == assignedPlayer)
+                                (canAct && session.state.armies.getValue(it.army).controller == assignedPlayer)
                     }
                     ?.id?.value
             }
@@ -589,7 +651,14 @@ private fun OnlineGame(
                 Column {
                     pendingPromotionMoves.forEach { move ->
                         TextButton(onClick = {
-                            controller.submitMove(MoveIntent(move.actor, move.from, move.to, move.promotion))
+                            controller.submitMove(
+                                MoveIntent(
+                                    move.actor,
+                                    move.from,
+                                    move.to,
+                                    move.promotion
+                                )
+                            )
                             pendingPromotionMoves = emptyList()
                             selectedPieceId = null
                         }) {

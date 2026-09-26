@@ -166,23 +166,23 @@ object ThreePlayerBoardGeometry {
         )
         return buildList {
             repeat(6) { edgeIndex ->
-            val start = vertices[edgeIndex]
-            val end = vertices[(edgeIndex + 1) % 6]
-            val edgeMidpoint = midpoint(start, end)
-            val outward = edgeMidpoint * (1f / kotlin.math.sqrt(
-                edgeMidpoint.x * edgeMidpoint.x + edgeMidpoint.y * edgeMidpoint.y,
-            ))
-            repeat(8) { part ->
-                val t = (part + 0.5f) / 8f
-                val edgePoint = lerp(start, end, t)
-                add(
-                    BoardEdgeLabel(
-                        text = values[edgeIndex][part],
-                        edgePoint = edgePoint,
-                        outward = outward,
-                        position = edgePoint + outward * 0.075f,
-                    ),
-                )
+                val start = vertices[edgeIndex]
+                val end = vertices[(edgeIndex + 1) % 6]
+                val edgeMidpoint = midpoint(start, end)
+                val outward = edgeMidpoint * (1f / kotlin.math.sqrt(
+                    edgeMidpoint.x * edgeMidpoint.x + edgeMidpoint.y * edgeMidpoint.y,
+                ))
+                repeat(8) { part ->
+                    val t = (part + 0.5f) / 8f
+                    val edgePoint = lerp(start, end, t)
+                    add(
+                        BoardEdgeLabel(
+                            text = values[edgeIndex][part],
+                            edgePoint = edgePoint,
+                            outward = outward,
+                            position = edgePoint + outward * 0.075f,
+                        ),
+                    )
                 }
             }
         }

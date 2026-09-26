@@ -1,7 +1,7 @@
 package com.chesstree.multiplayer.data
 
-import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
+import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameStateResponse
 import com.chesstree.multiplayer.contract.MoveCommandRequest
 import com.chesstree.multiplayer.contract.UndoRequestCommand

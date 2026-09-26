@@ -3,11 +3,11 @@ package com.chesstree.game.domain.session
 import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.CastlingSide
+import com.chesstree.game.domain.DirectionKind
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.MoveType
 import com.chesstree.game.domain.MovementDirections
-import com.chesstree.game.domain.DirectionKind
 import com.chesstree.game.domain.PieceType
 import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.domain.ThreePlayerBoardTopology
@@ -45,7 +45,8 @@ class GameLogCodecTest {
             castlingRight(ArmyColor.WHITE, CastlingSide.KING_SIDE, "white-rook")
         }
         val initial = GameSession(scenario)
-        val castle = LegalMoveGenerator.legalMoves(initial.state).single { it.type == MoveType.CASTLING }
+        val castle =
+            LegalMoveGenerator.legalMoves(initial.state).single { it.type == MoveType.CASTLING }
         val moved = assertIs<SessionMoveResult.Applied>(
             initial.apply(MoveIntent(castle.actor, castle.from, castle.to)),
         ).session
@@ -64,7 +65,8 @@ class GameLogCodecTest {
             castlingRight(ArmyColor.WHITE, CastlingSide.QUEEN_SIDE)
         }
         val initial = GameSession(scenario)
-        val castle = LegalMoveGenerator.legalMoves(initial.state).single { it.type == MoveType.CASTLING }
+        val castle =
+            LegalMoveGenerator.legalMoves(initial.state).single { it.type == MoveType.CASTLING }
         val moved = assertIs<SessionMoveResult.Applied>(
             initial.apply(MoveIntent(castle.actor, castle.from, castle.to)),
         ).session
@@ -87,7 +89,14 @@ class GameLogCodecTest {
             move.to == target && move.promotion == PromotionChoice.KNIGHT
         }
         val moved = assertIs<SessionMoveResult.Applied>(
-            initial.apply(MoveIntent(promotion.actor, promotion.from, promotion.to, promotion.promotion)),
+            initial.apply(
+                MoveIntent(
+                    promotion.actor,
+                    promotion.from,
+                    promotion.to,
+                    promotion.promotion
+                )
+            ),
         ).session
         val log = GameLogCodec.encode(moved)
 

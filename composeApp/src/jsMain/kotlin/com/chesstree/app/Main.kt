@@ -1,14 +1,14 @@
 package com.chesstree.app
 
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
-import androidx.compose.runtime.getValue
-import com.chesstree.resources.Res
-import com.chesstree.resources.allFontResources
+import com.chesstree.game.presentation.history.BrowserGameLogExporter
 import com.chesstree.multiplayer.data.KtorChessTreeApi
 import com.chesstree.multiplayer.data.gameCodeFromUrl
 import com.chesstree.multiplayer.presentation.BrowserGameLinkSharer
-import com.chesstree.game.presentation.history.BrowserGameLogExporter
+import com.chesstree.resources.Res
+import com.chesstree.resources.allFontResources
 import kotlinx.browser.window
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.preloadFont
@@ -36,8 +36,9 @@ fun main() {
     }
 }
 
-private fun serverBaseUrl(): String = if (window.location.hostname in setOf("localhost", "127.0.0.1")) {
-    "${window.location.protocol}//${window.location.hostname}:8081"
-} else {
-    window.location.origin
-}
+private fun serverBaseUrl(): String =
+    if (window.location.hostname in setOf("localhost", "127.0.0.1")) {
+        "${window.location.protocol}//${window.location.hostname}:8081"
+    } else {
+        window.location.origin
+    }

@@ -32,14 +32,15 @@ class InMemoryStore : ChessTreeStore {
         synchronized(this) { sessions[tokenHash] = userId to expiresAt }
     }
 
-    override suspend fun findSession(tokenHash: String, now: Instant): SessionRecord? = synchronized(this) {
-        val (userId, expiresAt) = sessions[tokenHash] ?: return@synchronized null
-        if (!expiresAt.isAfter(now)) {
-            sessions.remove(tokenHash)
-            return@synchronized null
+    override suspend fun findSession(tokenHash: String, now: Instant): SessionRecord? =
+        synchronized(this) {
+            val (userId, expiresAt) = sessions[tokenHash] ?: return@synchronized null
+            if (!expiresAt.isAfter(now)) {
+                sessions.remove(tokenHash)
+                return@synchronized null
+            }
+            users[userId]?.let { SessionRecord(it, expiresAt) }
         }
-        users[userId]?.let { SessionRecord(it, expiresAt) }
-    }
 
     override suspend fun renewSession(
         tokenHash: String,
@@ -60,15 +61,16 @@ class InMemoryStore : ChessTreeStore {
         synchronized(this) { sessions.remove(tokenHash) }
     }
 
-    override suspend fun createGame(id: UUID, code: String, ownerId: UUID): GameRecord? = synchronized(this) {
-        if (code in games) return@synchronized null
-        val owner = users.getValue(ownerId)
-        val game = MutableGame(id, code, mutableListOf(GamePlayer(owner, 0, null)))
-        games[code] = game
-        moves[code] = mutableListOf()
-        revisions[code] = 0
-        game.snapshot()
-    }
+    override suspend fun createGame(id: UUID, code: String, ownerId: UUID): GameRecord? =
+        synchronized(this) {
+            if (code in games) return@synchronized null
+            val owner = users.getValue(ownerId)
+            val game = MutableGame(id, code, mutableListOf(GamePlayer(owner, 0, null)))
+            games[code] = game
+            moves[code] = mutableListOf()
+            revisions[code] = 0
+            game.snapshot()
+        }
 
     override suspend fun joinGame(
         code: String,
@@ -87,7 +89,8 @@ class InMemoryStore : ChessTreeStore {
         JoinGameResult.Joined(game.snapshot())
     }
 
-    override suspend fun findGame(code: String): GameRecord? = synchronized(this) { games[code]?.snapshot() }
+    override suspend fun findGame(code: String): GameRecord? =
+        synchronized(this) { games[code]?.snapshot() }
 
     override suspend fun findGamesForUser(userId: UUID): List<GameRecord> = synchronized(this) {
         games.values.filter { game -> game.players.any { it.user.id == userId } }
@@ -114,6 +117,7 @@ class InMemoryStore : ChessTreeStore {
                 if (evaluation.finished) game.status = GameStatus.FINISHED
                 SubmitMoveResult.Applied(state(code, game))
             }
+
             MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state)
             MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
             MoveEvaluation.NotActive -> SubmitMoveResult.NotActive
