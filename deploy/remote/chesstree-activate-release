@@ -23,6 +23,8 @@ staging="/home/$deploy_user/chesstree-upload/$release_id"
 release_dir="$remote_root/releases/$release_id"
 current_link="$remote_root/current"
 staged_firebase_key="$staging/secrets/firebase-service-account.json"
+firebase_key=/etc/chesstree/secrets/firebase-service-account.json
+firebase_secrets_dir=/etc/chesstree/secrets
 server_env=/etc/chesstree/server.env
 server_env_tmp=""
 
@@ -37,10 +39,22 @@ trap cleanup_staged_firebase_key EXIT
 
 test -d "$staging/web"
 test -x "$staging/server/bin/server"
+if [[ -s "$staged_firebase_key" || -f "$firebase_key" ]]; then
+    install -d -o root -g chesstree -m 750 "$firebase_secrets_dir"
+    chown root:chesstree "$firebase_secrets_dir"
+    chmod 750 "$firebase_secrets_dir"
+fi
 if [[ -s "$staged_firebase_key" ]]; then
-    install -d -o root -g chesstree -m 750 /etc/chesstree/secrets
     install -o root -g chesstree -m 640 "$staged_firebase_key" \
-        /etc/chesstree/secrets/firebase-service-account.json
+        "$firebase_key"
+fi
+if [[ -f "$firebase_key" ]]; then
+    chown root:chesstree "$firebase_key"
+    chmod 640 "$firebase_key"
+    if [[ "$(stat -c '%U:%G:%a' "$firebase_key")" != "root:chesstree:640" ]]; then
+        printf 'Unexpected Firebase key owner or mode: %s\n' "$firebase_key" >&2
+        exit 1
+    fi
 fi
 
 test -f "$server_env"

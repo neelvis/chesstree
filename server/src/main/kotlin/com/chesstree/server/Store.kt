@@ -12,7 +12,7 @@ interface ChessTreeStore {
         passwordHash: String
     ): CreateUserResult
 
-    suspend fun findUser(normalizedUsername: String): UserRecord?
+    suspend fun findUser(normalizedUsername: String): UserCredentials?
     suspend fun saveSession(tokenHash: String, userId: UUID, expiresAt: Instant)
     suspend fun findSession(tokenHash: String, now: Instant): SessionRecord?
     suspend fun renewSession(tokenHash: String, now: Instant, expiresAt: Instant): SessionRecord?
@@ -26,7 +26,7 @@ interface ChessTreeStore {
 
     suspend fun findGame(code: String): GameRecord?
     suspend fun findGamesForUser(userId: UUID): List<GameRecord>
-    suspend fun findGameState(code: String): GameStateRecord?
+    suspend fun findGameState(code: String, afterMoveCount: Int = 0): GameStateRecord?
     suspend fun submitMove(code: String, userId: UUID, command: GameMoveCommand): SubmitMoveResult
     suspend fun requestUndo(code: String, userId: UUID, expectedRevision: Int): UndoResult
     suspend fun voteUndo(

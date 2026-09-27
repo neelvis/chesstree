@@ -4,13 +4,13 @@ Use the user-level software-delivery skills for generic workflow.
 
 ## Product and targets
 
-- Kotlin Multiplatform graphical checkers application.
-- Required product targets are Android, iOS, and Web. Desktop/JVM is preserved but
-  is not an acceptance target unless explicitly requested.
+- Kotlin Multiplatform three-player chess application with local and online play.
+- Required product targets are Android, iOS, and Web. The server/domain have JVM
+  targets; there is no configured desktop Compose application.
 - Read [kmp-architecture.md](kmp-architecture.md) when work changes source-set
   ownership, shared/platform boundaries, dependencies, or feature structure.
-- Use `checkers-domain` whenever work affects legal moves, captures, kings,
-  promotion, turns, results, replay, or synchronization.
+- Use the documented three-player ruleset whenever work affects legal moves,
+  captures, kings, promotion, turns, results, replay, or synchronization.
 - Use the project-local `kmp-platform-parity` for a dedicated parity audit.
 
 ## Validation
@@ -26,4 +26,3 @@ Use the user-level software-delivery skills for generic workflow.
 
 Keep target names, prerequisites, source-set ownership, run/test commands, and
 support status exact. Explain material KMP decisions in plain language.
-

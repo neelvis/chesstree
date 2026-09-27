@@ -2,16 +2,32 @@ package com.chesstree.server
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import com.chesstree.game.domain.GameState
 import java.sql.Connection
-import java.sql.DriverManager
 import java.sql.ResultSet
 import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
 
-data class DatabaseConfig(val url: String, val user: String, val password: String)
+data class DatabaseConfig(
+    val url: String,
+    val user: String,
+    val password: String,
+    val maximumPoolSize: Int = 10,
+)
 
-class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
+class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoCloseable {
+    private val dataSource = HikariDataSource(HikariConfig().apply {
+        jdbcUrl = config.url
+        username = config.user
+        password = config.password
+        maximumPoolSize = config.maximumPoolSize
+        poolName = "chesstree-db"
+    })
+    private val recentGameStates = RecentGameStateCache()
+
     suspend fun initialize() = io {
         connection().use { connection ->
             val isPostgres = connection.metaData.databaseProductName == "PostgreSQL"
@@ -68,9 +84,15 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                             status VARCHAR(16) NOT NULL,
                             created_by UUID NOT NULL REFERENCES users(id),
                             revision INTEGER NOT NULL DEFAULT 0,
+                            state_snapshot TEXT,
+                            state_snapshot_move_count INTEGER,
                             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
                         )
                         """.trimIndent(),
+                    )
+                    statement.executeUpdate("ALTER TABLE games ADD COLUMN IF NOT EXISTS state_snapshot TEXT")
+                    statement.executeUpdate(
+                        "ALTER TABLE games ADD COLUMN IF NOT EXISTS state_snapshot_move_count INTEGER",
                     )
                     statement.executeUpdate(
                         """
@@ -143,7 +165,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                     }
                     when (schemaVersion) {
                         SCHEMA_VERSION -> Unit
-                        4 -> statement.executeUpdate(
+                        4, 5 -> statement.executeUpdate(
                             "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
                         )
                         1, 2, 3 -> {
@@ -177,7 +199,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         normalizedUsername: String,
         passwordHash: String,
     ): CreateUserResult = io {
-        val user = UserRecord(UUID.randomUUID(), username, normalizedUsername, passwordHash)
+        val user = UserRecord(UUID.randomUUID(), username)
         try {
             connection().use { connection ->
                 connection.prepareStatement(
@@ -185,8 +207,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 ).use { statement ->
                     statement.setObject(1, user.id)
                     statement.setString(2, user.username)
-                    statement.setString(3, user.normalizedUsername)
-                    statement.setString(4, user.passwordHash)
+                    statement.setString(3, normalizedUsername)
+                    statement.setString(4, passwordHash)
                     statement.executeUpdate()
                 }
             }
@@ -196,13 +218,20 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         }
     }
 
-    override suspend fun findUser(normalizedUsername: String): UserRecord? = io {
+    override suspend fun findUser(normalizedUsername: String): UserCredentials? = io {
         connection().use { connection ->
             connection.prepareStatement(
                 "SELECT id, username, normalized_username, password_hash FROM users WHERE normalized_username = ?",
             ).use { statement ->
                 statement.setString(1, normalizedUsername)
-                statement.executeQuery().use { rows -> if (rows.next()) rows.user() else null }
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) {
+                        UserCredentials(
+                            user = rows.user(),
+                            passwordHash = rows.getString("password_hash"),
+                        )
+                    } else null
+                }
             }
         }
     }
@@ -225,7 +254,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         connection().use { connection ->
             connection.prepareStatement(
                 """
-                SELECT u.id, u.username, u.normalized_username, u.password_hash, s.expires_at
+                SELECT u.id, u.username, s.expires_at
                 FROM sessions s JOIN users u ON u.id = s.user_id
                 WHERE s.token_hash = ? AND s.expires_at > ?
                 """.trimIndent(),
@@ -260,7 +289,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 null
             } else connection.prepareStatement(
                 """
-                SELECT u.id, u.username, u.normalized_username, u.password_hash, s.expires_at
+                SELECT u.id, u.username, s.expires_at
                 FROM sessions s JOIN users u ON u.id = s.user_id
                 WHERE s.token_hash = ? AND s.expires_at > ?
                 """.trimIndent(),
@@ -450,20 +479,57 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
 
     override suspend fun findGamesForUser(userId: UUID): List<GameRecord> = io {
         connection().use { connection ->
-            val codes = connection.prepareStatement(
-                "SELECT g.public_code FROM games g JOIN game_players p ON p.game_id = g.id WHERE p.user_id = ? ORDER BY g.created_at DESC",
+            data class GameSummary(
+                val id: UUID,
+                val code: String,
+                val status: GameStatus,
+                val startedAt: Instant,
+                val players: MutableList<GamePlayer> = mutableListOf(),
+            )
+            val games = linkedMapOf<UUID, GameSummary>()
+            connection.prepareStatement(
+                """
+                SELECT g.id, g.public_code, g.status, g.created_at,
+                       u.id AS user_id, u.username, p.joined_order, p.color
+                FROM games g
+                JOIN game_players mine ON mine.game_id = g.id
+                JOIN game_players p ON p.game_id = g.id
+                JOIN users u ON u.id = p.user_id
+                WHERE mine.user_id = ?
+                ORDER BY g.created_at DESC, p.joined_order
+                """.trimIndent(),
             ).use { statement ->
                 statement.setObject(1, userId)
                 statement.executeQuery().use { rows ->
-                    buildList { while (rows.next()) add(rows.getString("public_code").trim()) }
+                    while (rows.next()) {
+                        val id = rows.getObject("id", UUID::class.java)
+                        val game = games.getOrPut(id) {
+                            GameSummary(
+                                id = id,
+                                code = rows.getString("public_code").trim(),
+                                status = GameStatus.valueOf(rows.getString("status")),
+                                startedAt = rows.getTimestamp("created_at").toInstant(),
+                            )
+                        }
+                        game.players += GamePlayer(
+                            user = UserRecord(
+                                id = rows.getObject("user_id", UUID::class.java),
+                                username = rows.getString("username"),
+                            ),
+                            joinedOrder = rows.getInt("joined_order"),
+                            color = rows.getString("color")?.let(PlayerColor::valueOf),
+                        )
+                    }
                 }
             }
-            codes.mapNotNull { code -> loadGame(connection, code) }
+            games.values.map { game ->
+                GameRecord(game.id, game.code, game.status, game.players, game.startedAt)
+            }
         }
     }
 
-    override suspend fun findGameState(code: String): GameStateRecord? = io {
-        readTransaction { connection -> loadGameState(connection, code) }
+    override suspend fun findGameState(code: String, afterMoveCount: Int): GameStateRecord? = io {
+        readTransaction { connection -> loadGameState(connection, code, afterMoveCount) }
     }
 
     override suspend fun submitMove(
@@ -471,7 +537,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         userId: UUID,
         command: GameMoveCommand,
     ): SubmitMoveResult = io {
-        transaction { connection ->
+        var cacheUpdate: Pair<UUID, Pair<Int, GameState>>? = null
+        val result = transaction { connection ->
             connection.prepareStatement("SELECT id FROM games WHERE public_code = ? FOR UPDATE")
                 .use { statement ->
                     statement.setString(1, code)
@@ -479,8 +546,21 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                         if (!rows.next()) return@transaction SubmitMoveResult.Missing
                     }
                 }
-            val state = checkNotNull(loadGameState(connection, code))
-            when (val evaluation = evaluateMove(state, userId, command)) {
+            val state = checkNotNull(loadGameState(connection, code, includeHistory = false))
+            val moveCount = state.moveOffset
+            val existingCommand = findCommand(connection, state.game.id, command.commandId)
+            val cachedState = recentGameStates.get(state.game.id, state.revision)
+                ?: loadStateSnapshot(connection, state.game.id, moveCount)
+            val evaluationState = if (cachedState == null) {
+                state.copy(moves = loadMoves(connection, state.game.id), moveOffset = 0)
+            } else state
+            when (val evaluation = evaluateMove(
+                evaluationState,
+                userId,
+                command,
+                cachedState,
+                existingCommand,
+            )) {
                 is MoveEvaluation.Accepted -> {
                     connection.prepareStatement(
                         """
@@ -492,7 +572,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                     ).use { statement ->
                         val intent = evaluation.move.intent
                         statement.setObject(1, state.game.id)
-                        statement.setInt(2, state.moves.size + 1)
+                        statement.setInt(2, moveCount + 1)
                         statement.setObject(3, evaluation.move.commandId)
                         statement.setObject(4, evaluation.move.userId)
                         statement.setInt(5, evaluation.move.expectedRevision)
@@ -518,10 +598,18 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                             statement.setObject(1, state.game.id)
                             statement.executeUpdate()
                         }
-                    SubmitMoveResult.Applied(checkNotNull(loadGameState(connection, code)))
+                    saveStateSnapshot(connection, state.game.id, moveCount + 1, evaluation.state)
+                    cacheUpdate = state.game.id to ((state.revision + 1) to evaluation.state)
+                    SubmitMoveResult.Applied(
+                        checkNotNull(loadGameState(connection, code, command.expectedMoveCount ?: 0))
+                            .copy(domainState = evaluation.state),
+                    )
                 }
 
-                MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state, wasDuplicate = true)
+                MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(
+                    checkNotNull(loadGameState(connection, code, command.expectedMoveCount ?: 0)),
+                    wasDuplicate = true,
+                )
                 MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
                 MoveEvaluation.NotActive -> SubmitMoveResult.NotActive
                 MoveEvaluation.NotParticipant -> SubmitMoveResult.NotParticipant
@@ -531,6 +619,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
                 MoveEvaluation.UndoPending -> SubmitMoveResult.UndoPending
             }
         }
+        cacheUpdate?.let { (gameId, cached) -> recentGameStates.put(gameId, cached.first, cached.second) }
+        result
     }
 
     override suspend fun requestUndo(
@@ -607,20 +697,68 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         }
     }
 
-    private fun loadGameState(connection: Connection, code: String): GameStateRecord? {
+    private fun loadGameState(
+        connection: Connection,
+        code: String,
+        afterMoveCount: Int = 0,
+        includeHistory: Boolean = true,
+    ): GameStateRecord? {
         val game = loadGame(connection, code) ?: return null
         val revision = connection.prepareStatement("SELECT revision FROM games WHERE id = ?")
             .use { statement ->
                 statement.setObject(1, game.id)
                 statement.executeQuery().use { rows -> check(rows.next()); rows.getInt("revision") }
             }
+        val moveCount = connection.prepareStatement("SELECT COUNT(*) FROM game_moves WHERE game_id = ?")
+            .use { statement ->
+                statement.setObject(1, game.id)
+                statement.executeQuery().use { rows -> check(rows.next()); rows.getInt(1) }
+            }
+        val moveOffset = if (!includeHistory) moveCount else afterMoveCount.takeIf { it in 0..moveCount } ?: 0
         return GameStateRecord(
-            game,
-            loadMoves(connection, game.id),
-            revision,
-            loadUndoRequest(connection, game.id)
+            game = game,
+            moves = if (includeHistory) loadMoves(connection, game.id, moveOffset) else emptyList(),
+            revision = revision,
+            moveOffset = moveOffset,
+            undoRequest = loadUndoRequest(connection, game.id),
         )
     }
+
+    private fun loadStateSnapshot(connection: Connection, gameId: UUID, moveCount: Int): GameState? =
+        connection.prepareStatement(
+            "SELECT state_snapshot FROM games WHERE id = ? AND state_snapshot_move_count = ?",
+        ).use { statement ->
+            statement.setObject(1, gameId)
+            statement.setInt(2, moveCount)
+            statement.executeQuery().use { rows ->
+                if (rows.next()) rows.getString("state_snapshot")?.let(GameStateSnapshotCodec::decode)
+                else null
+            }
+        }
+
+    private fun saveStateSnapshot(connection: Connection, gameId: UUID, moveCount: Int, state: GameState) {
+        connection.prepareStatement(
+            "UPDATE games SET state_snapshot = ?, state_snapshot_move_count = ? WHERE id = ?",
+        ).use { statement ->
+            statement.setString(1, GameStateSnapshotCodec.encode(state))
+            statement.setInt(2, moveCount)
+            statement.setObject(3, gameId)
+            statement.executeUpdate()
+        }
+    }
+
+    private fun findCommand(connection: Connection, gameId: UUID, commandId: UUID): GameMoveRecord? =
+        connection.prepareStatement(
+            """
+            SELECT command_id, user_id, expected_revision, actor,
+                   from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion
+            FROM game_moves WHERE game_id = ? AND command_id = ?
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setObject(1, gameId)
+            statement.setObject(2, commandId)
+            statement.executeQuery().use { rows -> if (rows.next()) rows.gameMove() else null }
+        }
 
     private fun lockAndLoadState(connection: Connection, code: String): GameStateRecord? {
         connection.prepareStatement("SELECT id FROM games WHERE public_code = ? FOR UPDATE")
@@ -678,15 +816,20 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
             }
     }
 
-    private fun loadMoves(connection: Connection, gameId: UUID): List<GameMoveRecord> =
+    private fun loadMoves(
+        connection: Connection,
+        gameId: UUID,
+        afterMoveCount: Int = 0,
+    ): List<GameMoveRecord> =
         connection.prepareStatement(
             """
             SELECT command_id, user_id, expected_revision, actor,
                    from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion
-            FROM game_moves WHERE game_id = ? ORDER BY revision
+            FROM game_moves WHERE game_id = ? AND revision > ? ORDER BY revision
             """.trimIndent(),
         ).use { statement ->
             statement.setObject(1, gameId)
+            statement.setInt(2, afterMoveCount)
             statement.executeQuery().use { rows ->
                 buildList {
                     while (rows.next()) {
@@ -739,7 +882,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
         }
         val players = connection.prepareStatement(
             """
-            SELECT u.id, u.username, u.normalized_username, u.password_hash, p.joined_order, p.color
+            SELECT u.id, u.username, p.joined_order, p.color
             FROM game_players p JOIN users u ON u.id = p.user_id
             WHERE p.game_id = ? ORDER BY p.joined_order
             """.trimIndent(),
@@ -765,12 +908,46 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
     private fun ResultSet.user() = UserRecord(
         id = getObject("id", UUID::class.java),
         username = getString("username"),
-        normalizedUsername = getString("normalized_username"),
-        passwordHash = getString("password_hash"),
     )
 
-    private fun connection(): Connection =
-        DriverManager.getConnection(config.url, config.user, config.password)
+    private fun ResultSet.gameMove() = GameMoveRecord(
+        commandId = getObject("command_id", UUID::class.java),
+        userId = getObject("user_id", UUID::class.java),
+        expectedRevision = getInt("expected_revision"),
+        intent = com.chesstree.game.domain.MoveIntent(
+            actor = com.chesstree.game.domain.PlayerId.valueOf(getString("actor")),
+            from = com.chesstree.game.domain.BoardCoordinate(
+                getInt("from_vertex"), getInt("from_column"), getInt("from_row"),
+            ),
+            to = com.chesstree.game.domain.BoardCoordinate(
+                getInt("to_vertex"), getInt("to_column"), getInt("to_row"),
+            ),
+            promotion = getString("promotion")
+                ?.let(com.chesstree.game.domain.PromotionChoice::valueOf),
+        ),
+    )
+
+    private fun connection(): Connection = dataSource.connection
+
+    override fun close() = dataSource.close()
+
+    private class RecentGameStateCache(
+        private val maximumEntries: Int = 256,
+    ) {
+        private val states = object : LinkedHashMap<UUID, Pair<Int, GameState>>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<UUID, Pair<Int, GameState>>?): Boolean =
+                size > maximumEntries
+        }
+
+        @Synchronized
+        fun get(gameId: UUID, revision: Int): GameState? =
+            states[gameId]?.takeIf { it.first == revision }?.second
+
+        @Synchronized
+        fun put(gameId: UUID, revision: Int, state: GameState) {
+            states[gameId] = revision to state
+        }
+    }
 
     private fun Connection.execute(sql: String) {
         createStatement().use { it.execute(sql) }
@@ -883,7 +1060,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore {
     private companion object {
         const val UNIQUE_VIOLATION = "23505"
         const val PLAYER_COUNT = 3
-        const val SCHEMA_VERSION = 5
+        const val SCHEMA_VERSION = 6
         const val SCHEMA_LOCK_KEY = 0x4348455353545245L
     }
 }

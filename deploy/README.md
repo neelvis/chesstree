@@ -1,68 +1,70 @@
-# Развёртывание ChessTree в production
+# ChessTree Production Deployment
 
-Инструкция описывает текущую схему из двух Ubuntu/Debian-серверов:
+This guide describes the current two-server setup on Ubuntu/Debian:
 
-| Роль                                   | Публичный адрес  | WireGuard   |
-|----------------------------------------|------------------|-------------|
-| Nginx, Web, Ktor, PostgreSQL primary   | `51.250.31.56`   | `10.77.0.1` |
-| PostgreSQL standby и логические бэкапы | `151.247.208.76` | `10.77.0.2` |
+| Role | Public address | WireGuard |
+| --- | --- | --- |
+| Nginx, Web, Ktor, PostgreSQL primary | `51.250.31.56` | `10.77.0.1` |
+| PostgreSQL standby and logical backups | `151.247.208.76` | `10.77.0.2` |
 
-SSH primary доступен на TCP `2222`; SSH standby остаётся на TCP `22`.
+SSH to the primary is available on TCP port `2222`; SSH to the standby remains
+on TCP port `22`.
 
-Публичный адрес приложения — `https://chess-tree.online`. DNS-запись `A` должна
-указывать на `51.250.31.56`. Запись `AAAA` добавляйте только при наличии реально
-настроенного IPv6.
+The public application URL is `https://chess-tree.online`. Its DNS `A` record
+must point to `51.250.31.56`. Add an `AAAA` record only if IPv6 is actually
+configured.
 
-В примерах используется PostgreSQL 17. На обоих серверах нужна одна major-версия
-и желательно одна minor-версия. Standby асинхронный и не переключается
-автоматически. Репликация переносит весь кластер PostgreSQL, а не только базу
-`chesstree`, и не заменяет бэкап: ошибочное удаление также реплицируется. Поэтому
-ниже дополнительно настраивается ежедневный `pg_dump`.
+The examples use PostgreSQL 17. Both servers must use the same major version and
+preferably the same minor version. The standby is asynchronous and does not
+fail over automatically. Replication copies the entire PostgreSQL cluster, not
+just the `chesstree` database, and it does not replace backups: accidental
+deletions are replicated too. The guide therefore also configures a daily
+`pg_dump`.
 
-## Карта файлов
+## File map
 
-На основном сервере:
+On the primary server:
 
-| Путь                                           | Назначение                      |
-|------------------------------------------------|---------------------------------|
-| `/etc/nginx/sites-available/chesstree`         | Активный Nginx-конфиг           |
-| `/etc/letsencrypt/live/chess-tree.online/`     | Сертификат и ключ Certbot       |
-| `/etc/chesstree/server.env`                    | Постоянные env Ktor и пароль БД |
-| `/etc/chesstree/secrets/firebase-service-account.json` | Firebase Admin credentials (root:chesstree, mode 640) |
-| `/etc/systemd/system/chesstree-server.service` | systemd unit Ktor               |
-| `/opt/chesstree/releases/<release-id>/`        | Версии Web и backend            |
-| `/opt/chesstree/current`                       | Ссылка на активный release      |
-| `/etc/wireguard/wg0.conf`                      | Туннель до standby              |
+| Path | Purpose |
+| --- | --- |
+| `/etc/nginx/sites-available/chesstree` | Active Nginx configuration |
+| `/etc/letsencrypt/live/chess-tree.online/` | Certbot certificate and key |
+| `/etc/chesstree/server.env` | Persistent Ktor environment and database password |
+| `/etc/chesstree/secrets/firebase-service-account.json` | Firebase Admin credentials (`root:chesstree`, mode `640`) |
+| `/etc/systemd/system/chesstree-server.service` | Ktor systemd unit |
+| `/opt/chesstree/releases/<release-id>/` | Web and backend releases |
+| `/opt/chesstree/current` | Symlink to the active release |
+| `/etc/wireguard/wg0.conf` | Tunnel to the standby |
 
-На standby:
+On the standby:
 
-| Путь                                        | Назначение                                 |
-|---------------------------------------------|--------------------------------------------|
-| `/etc/wireguard/wg0.conf`                   | Туннель до primary                         |
-| `/var/lib/postgresql/.pgpass`               | Пароль репликации                          |
-| `/var/lib/postgresql/17/main/`              | Данные standby; точный путь надо проверить |
-| `/usr/local/sbin/chesstree-pg-backup`       | Скрипт логического бэкапа                  |
-| `/var/backups/chesstree/`                   | Дампы за 14 дней                           |
-| `/etc/systemd/system/chesstree-pg-backup.*` | service и timer бэкапа                     |
+| Path | Purpose |
+| --- | --- |
+| `/etc/wireguard/wg0.conf` | Tunnel to the primary |
+| `/var/lib/postgresql/.pgpass` | Replication password |
+| `/var/lib/postgresql/17/main/` | Standby data; verify the exact path |
+| `/usr/local/sbin/chesstree-pg-backup` | Logical backup script |
+| `/var/backups/chesstree/` | Backups retained for 14 days |
+| `/etc/systemd/system/chesstree-pg-backup.*` | Backup service and timer |
 
-Секреты нельзя коммитить в Git, класть в `deploy/` или передавать в аргументах
-команд. Значения `<...>` ниже всегда заменяются реальными значениями. Для
-автоматического production deploy положите локальный ключ в
-`secrets/firebase-service-account.json`; каталог должен оставаться в `.gitignore`. Скрипт
-передаст его по SSH в staging, а активация установит его в указанный путь с
-ограниченными правами и удалит staging-копию. Не включайте этот файл в архивы
-сборки или публичные каталоги.
+Never commit secrets to Git, put them in `deploy/`, or pass them as command-line
+arguments. Replace every `<...>` placeholder below with a real value. For the
+automated production deploy, place the local key at
+`secrets/firebase-service-account.json`; keep that directory in `.gitignore`.
+The script transfers it over SSH to staging, and activation installs it at the
+path above with restricted permissions before removing the staging copy. Do not
+include this file in build archives or public directories.
 
-## 1. Предварительные проверки
+## 1. Preliminary checks
 
-На локальной машине:
+On your local machine:
 
 ```shell
 dig +short A chess-tree.online
 ```
 
-Ожидается `51.250.31.56`. Убедитесь, что SSH доступен на обоих серверах и у
-учётной записи есть `sudo`. На обоих серверах:
+The expected result is `51.250.31.56`. Confirm SSH access to both servers and
+that the account has `sudo` access. On both servers:
 
 ```shell
 cat /etc/os-release
@@ -74,14 +76,15 @@ sudo apt install -y ca-certificates curl rsync ufw wireguard openssl
 sudo reboot
 ```
 
-После reboot снова подключитесь и проверьте `timedatectl`.
+Reconnect after reboot and check `timedatectl` again.
 
-### Скопировать инфраструктурные шаблоны
+### Copy infrastructure templates
 
-Сами release-артефакты позже загрузит `deploy.sh`, но первичная настройка нужна до
-первого deploy. Если репозиторий не клонирован на серверах, выполните из его корня
-на локальной машине. Для primary используется `elvis`, для standby в примере —
-`root` (замените его, если там настроен другой SSH-пользователь):
+The `deploy.sh` script uploads release artifacts later, but initial setup must
+be completed before the first deploy. If the repository is not cloned on the
+servers, run these commands from the repository root on your local machine. The
+example uses `elvis` on the primary and `root` on the standby (replace `root` if
+another SSH user is configured there):
 
 ```shell
 ssh -p 2222 elvis@51.250.31.56 'mkdir -p ~/chesstree-setup/nginx ~/chesstree-setup/systemd ~/chesstree-setup/remote ~/chesstree-setup/sudoers'
@@ -99,18 +102,18 @@ scp deploy/systemd/chesstree-pg-backup.service deploy/systemd/chesstree-pg-backu
   root@151.247.208.76:chesstree-setup/systemd/
 ```
 
-Далее пути `$HOME/chesstree-setup/...` означают именно эти загруженные копии.
+From this point on, `$HOME/chesstree-setup/...` refers to these uploaded copies.
 
 ## 2. Firewall
 
-Продублируйте правила в security group/firewall провайдера. Замените `ADMIN_CIDR`
-на свой постоянный публичный IP с `/32`. Не закрывайте текущую SSH-сессию, пока не
-проверите вход во второй.
+Duplicate these rules in the provider's security group/firewall. Replace
+`ADMIN_CIDR` with your permanent public IP followed by `/32`. Do not close the
+current SSH session until you have verified that a second login works.
 
-На primary `51.250.31.56`:
+On the primary `51.250.31.56`:
 
 ```shell
-read -r -p 'Ваш публичный IP с /32: ' 85.143.144.44/32
+read -r -p 'Your public IP with /32: ' ADMIN_CIDR
 test -n "$ADMIN_CIDR"
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
@@ -123,10 +126,10 @@ sudo ufw enable
 sudo ufw status verbose
 ```
 
-На standby `151.247.208.76`:
+On the standby `151.247.208.76`:
 
 ```shell
-read -r -p 'Ваш публичный IP с /32: ' 85.143.144.44/32
+read -r -p 'Your public IP with /32: ' ADMIN_CIDR
 test -n "$ADMIN_CIDR"
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
@@ -136,27 +139,27 @@ sudo ufw enable
 sudo ufw status verbose
 ```
 
-Публичные `5432` и `8081` не открываются. Проверка с третьей машины:
+Do not open public ports `5432` or `8081`. Check from a third machine:
 
 ```shell
 nmap -Pn -p 2222,80,443,5432,8081 51.250.31.56
 nmap -Pn -p 22,80,443,5432,8081 151.247.208.76
 ```
 
-У primary публично доступны `80`/`443`; доступность `2222` зависит от IP
-проверяющего. На standby это правило относится к `22`. `5432`/`8081` должны быть
-закрыты или отфильтрованы.
+Ports `80` and `443` should be publicly available on the primary; availability
+of `2222` depends on the checker's IP. On the standby, this rule applies to
+port `22`. Ports `5432` and `8081` should be closed or filtered.
 
 ## 3. WireGuard
 
-На каждом сервере создайте собственную пару ключей:
+Generate a separate key pair on each server:
 
 ```shell
 sudo sh -c 'umask 077; wg genkey > /etc/wireguard/private.key; wg pubkey < /etc/wireguard/private.key > /etc/wireguard/public.key'
 sudo cat /etc/wireguard/public.key
 ```
 
-Обменяйте только публичные ключи. На primary создайте
+Exchange only the public keys. On the primary, create
 `/etc/wireguard/wg0.conf`:
 
 ```ini
@@ -172,7 +175,7 @@ Endpoint = 151.247.208.76:51820
 PersistentKeepalive = 25
 ```
 
-На standby создайте `/etc/wireguard/wg0.conf`:
+On the standby, create `/etc/wireguard/wg0.conf`:
 
 ```ini
 [Interface]
@@ -187,7 +190,7 @@ Endpoint = 51.250.31.56:51820
 PersistentKeepalive = 25
 ```
 
-На обоих серверах:
+On both servers:
 
 ```shell
 sudo chmod 600 /etc/wireguard/wg0.conf /etc/wireguard/private.key
@@ -195,16 +198,16 @@ sudo systemctl enable --now wg-quick@wg0
 sudo wg show
 ```
 
-Со standby:
+From the standby:
 
 ```shell
 ping -c 3 10.77.0.1
 ```
 
-## 4. PostgreSQL 17 на обоих серверах
+## 4. PostgreSQL 17 on both servers
 
-Если PostgreSQL уже установлен, сначала выполните `psql --version` и
-`pg_lsclusters`: не создавайте второй кластер. Для новой установки:
+If PostgreSQL is already installed, first run `psql --version` and
+`pg_lsclusters`; do not create a second cluster. For a new installation:
 
 ```shell
 sudo apt install -y postgresql-common
@@ -215,12 +218,12 @@ psql --version
 pg_lsclusters
 ```
 
-Скрипт добавления официального PGDG-репозитория интерактивный. На обоих хостах
-major-версия `psql` и сервера должна совпадать.
+The script that adds the official PGDG repository is interactive. The `psql`
+client and server major versions must match on both hosts.
 
 ## 5. Primary PostgreSQL
 
-Узнайте реальные пути:
+Find the actual paths:
 
 ```shell
 sudo -u postgres psql -Atqc 'SHOW server_version'
@@ -229,7 +232,7 @@ sudo -u postgres psql -Atqc 'SHOW hba_file'
 sudo -u postgres psql -Atqc 'SHOW data_directory'
 ```
 
-Настройте localhost, WireGuard, SCRAM и репликацию:
+Configure localhost, WireGuard, SCRAM, and replication:
 
 ```shell
 sudo -u postgres psql -v ON_ERROR_STOP=1 <<'SQL'
@@ -244,15 +247,15 @@ SQL
 sudo systemctl restart postgresql
 ```
 
-Сгенерируйте два разных пароля командой `openssl rand -hex 32`, сохраните их в
-менеджере паролей и создайте роли. Команды `\password` безопасно запросят пароль
-дважды:
+Generate two different passwords with `openssl rand -hex 32`, store them in a
+password manager, and create the roles. The `\password` commands prompt for the
+password twice without echoing it:
 
 ```shell
 sudo -u postgres psql -v ON_ERROR_STOP=1
 ```
 
-В `psql`:
+In `psql`:
 
 ```sql
 CREATE ROLE chesstree WITH LOGIN;
@@ -263,17 +266,18 @@ CREATE ROLE chesstree_replica WITH LOGIN REPLICATION;
 \q
 ```
 
-Первый пароль далее называется `<DATABASE_PASSWORD>`, второй —
-`<REPLICATION_PASSWORD>`.
+The first password is referred to below as `<DATABASE_PASSWORD>`, and the
+second as `<REPLICATION_PASSWORD>`.
 
-В файл из `SHOW hba_file` добавьте до более общих `host`-правил:
+In the file shown by `SHOW hba_file`, add these lines before more general
+`host` rules:
 
 ```text
 host    chesstree      chesstree            127.0.0.1/32    scram-sha-256
 host    replication   chesstree_replica     10.77.0.2/32    scram-sha-256
 ```
 
-Проверьте и перечитайте конфигурацию:
+Check and reload the configuration:
 
 ```shell
 sudo -u postgres psql -x -c "SELECT line_number, type, database, user_name, address, auth_method, error FROM pg_hba_file_rules WHERE error IS NOT NULL"
@@ -283,46 +287,46 @@ sudo -u postgres psql -Atqc 'SHOW listen_addresses'
 psql -h 127.0.0.1 -U chesstree -d chesstree -c 'SELECT 1'
 ```
 
-Последняя команда должна запросить пароль и вывести `1`.
+The last command should prompt for the password and print `1`.
 
-## 6. Инициализация standby
+## 6. Initialize the standby
 
-Эта операция заменяет данные PostgreSQL на `151.247.208.76`. Продолжайте только
-если там нет единственной копии нужных данных. Узнайте путь:
+This operation replaces the PostgreSQL data on `151.247.208.76`. Continue only
+if it does not contain the only copy of data you need. Find the data directory:
 
 ```shell
 sudo -u postgres psql -Atqc 'SHOW data_directory'
 ```
 
-Для стандартной установки PostgreSQL 17 обычно:
+For a standard PostgreSQL 17 installation, the path is usually:
 
 ```shell
 CHESSTREE_PGDATA=/var/lib/postgresql/17/main
 test -d "$CHESSTREE_PGDATA"
 ```
 
-Это временная shell-переменная только для текущей операции. Создайте постоянный
-файл пароля репликации:
+This is a temporary shell variable for the current operation only. Create a
+persistent replication-password file:
 
 ```shell
 sudo install -o postgres -g postgres -m 600 /dev/null /var/lib/postgresql/.pgpass
 sudoedit /var/lib/postgresql/.pgpass
 ```
 
-Его единственная строка:
+It should contain exactly this line:
 
 ```text
 10.77.0.1:5432:replication:chesstree_replica:<REPLICATION_PASSWORD>
 ```
 
-Проверьте, что PostgreSQL доступен через WireGuard:
+Check that PostgreSQL is reachable over WireGuard:
 
 ```shell
 pg_isready -h 10.77.0.1 -p 5432
 ```
 
-В той же shell-сессии остановите PostgreSQL, сохраните прежний каталог и создайте
-standby:
+In the same shell session, stop PostgreSQL, preserve the old data directory,
+and create the standby:
 
 ```shell
 test -n "$CHESSTREE_PGDATA"
@@ -337,23 +341,23 @@ sudo -u postgres env PGPASSFILE=/var/lib/postgresql/.pgpass pg_basebackup \
 sudo -u postgres pg_verifybackup "$CHESSTREE_PGDATA"
 ```
 
-`-R` создаёт `standby.signal`, `-C -S` — physical replication slot. Если команда
-оборвалась после создания slot, сначала проверьте `pg_replication_slots` на
-primary, не запускайте повторно вслепую.
+`-R` creates `standby.signal`; `-C -S` creates a physical replication slot. If
+the command stops after creating the slot, first check `pg_replication_slots`
+on the primary. Do not blindly rerun it.
 
-Base backup переносит `listen_addresses` primary. Откройте:
+The base backup copies the primary's `listen_addresses`. Open:
 
 ```shell
 sudoedit "$CHESSTREE_PGDATA/postgresql.auto.conf"
 ```
 
-и последней строкой добавьте:
+and add this as the last line:
 
 ```text
 listen_addresses = '127.0.0.1'
 ```
 
-Запустите standby:
+Start the standby:
 
 ```shell
 sudo systemctl start postgresql
@@ -362,21 +366,23 @@ sudo -u postgres psql -x -c "SELECT status, sender_host, sender_port, latest_end
 sudo ss -ltnp | grep 5432
 ```
 
-Ожидаются `t`, receiver `streaming` и только `127.0.0.1:5432`. На primary:
+Expect `t`, a `streaming` receiver, and only `127.0.0.1:5432`. On the primary:
 
 ```shell
 sudo -u postgres psql -x -c "SELECT application_name, client_addr, state, sync_state, write_lag, flush_lag, replay_lag FROM pg_stat_replication"
 sudo -u postgres psql -x -c "SELECT slot_name, active, wal_status, invalidation_reason, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS retained_wal FROM pg_replication_slots"
 ```
 
-Ожидаются `state=streaming`, `sync_state=async`, активный
-`chesstree_replica_1`. Контролируйте диск primary: отключённый standby удерживает
-WAL; после лимита slot может инвалидироваться и потребовать нового base backup.
+Expect `state=streaming`, `sync_state=async`, and an active
+`chesstree_replica_1`. Monitor disk space on the primary: a disconnected
+standby retains WAL. Once the slot limit is reached, the slot may become
+invalid and require a new base backup.
 
-## 7. Постоянные env backend на primary
+## 7. Persistent backend environment on the primary
 
-Backend читает шесть переменных. Их постоянное место —
-`/etc/chesstree/server.env`; `.bashrc`/`.profile` для systemd не подходят:
+The backend reads required settings and optional pool and trusted-proxy
+settings from `/etc/chesstree/server.env`. `.bashrc` and `.profile` are not
+used by systemd:
 
 ```shell
 sudo install -d -o root -g root -m 755 /etc/chesstree
@@ -384,7 +390,7 @@ sudo install -o root -g root -m 600 "$HOME/chesstree-setup/systemd/server.env.ex
 sudoedit /etc/chesstree/server.env
 ```
 
-Содержимое:
+Contents:
 
 ```dotenv
 CHESSTREE_DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/chesstree
@@ -393,17 +399,29 @@ CHESSTREE_DATABASE_PASSWORD=<DATABASE_PASSWORD>
 CHESSTREE_PUBLIC_BASE_URL=https://chess-tree.online
 CHESSTREE_CORS_HOSTS=chess-tree.online
 PORT=8081
+CHESSTREE_DB_POOL_SIZE=10
+CHESSTREE_TRUSTED_PROXY_ADDRESSES=127.0.0.1,::1
 ```
 
-- `CHESSTREE_DATABASE_*` — JDBC к локальному primary;
-- `CHESSTREE_PUBLIC_BASE_URL` — публичные игровые ссылки;
-- `CHESSTREE_CORS_HOSTS` — browser allowlist без схемы;
-- `PORT` — локальный Ktor, доступный только Nginx.
+- `CHESSTREE_DATABASE_*` — JDBC connection to the local primary.
+- `CHESSTREE_PUBLIC_BASE_URL` — public game links.
+- `CHESSTREE_CORS_HOSTS` — browser allowlist without a scheme.
+- `PORT` — local Ktor port, accessible only to Nginx.
+- `CHESSTREE_DB_POOL_SIZE` — maximum JDBC pool connections per backend. The
+  total across all instances must fit within PostgreSQL `max_connections`, with
+  room for administration and dedicated `LISTEN` connections.
+- `CHESSTREE_TRUSTED_PROXY_ADDRESSES` — direct peer IPs of proxies allowed to
+  set `X-Forwarded-For`; loopback is the default for this Nginx setup.
 
-После изменения env нужен `sudo systemctl restart chesstree-server`.
-`daemon-reload` нужен после изменения unit, но не после изменения только env.
+Nginx overwrites `X-Forwarded-For` with the observed client address. Do not
+expose the Ktor port publicly or add untrusted addresses here: forwarded headers
+may be trusted only when they come from a controlled proxy.
 
-## 8. systemd и приложение на primary
+After changing environment settings, run `sudo systemctl restart
+chesstree-server`. `daemon-reload` is needed after changing the unit, but not
+after changing only the environment file.
+
+## 8. systemd and the application on the primary
 
 ```shell
 sudo apt install -y openjdk-17-jre-headless nginx
@@ -414,17 +432,19 @@ sudo systemctl daemon-reload
 sudo systemctl enable chesstree-server
 ```
 
-Не запускайте service до появления `/opt/chesstree/current/server/bin/server`.
-Unit читает `/etc/chesstree/server.env`, поэтому env сохраняются после reboot.
+Do not start the service before `/opt/chesstree/current/server/bin/server`
+exists. The unit reads `/etc/chesstree/server.env`, so the settings persist
+across reboots.
 
-## 9. Nginx и HTTPS на primary
+## 9. Nginx and HTTPS on the primary
 
-Файлы репозитория:
+Repository files:
 
-- `deploy/nginx/chesstree-bootstrap.conf` — временный HTTP для сертификата;
-- `deploy/nginx/chesstree.conf` — итоговый HTTPS, Web, REST и WebSocket proxy.
+- `deploy/nginx/chesstree-bootstrap.conf` — temporary HTTP setup for the
+  certificate.
+- `deploy/nginx/chesstree.conf` — final HTTPS, Web, REST, and WebSocket proxy.
 
-Сохраните существующий конфиг и поставьте bootstrap:
+Back up the existing config and install the bootstrap config:
 
 ```shell
 sudo cp -a /etc/nginx/sites-available/chesstree /etc/nginx/sites-available/chesstree.before-tls
@@ -437,8 +457,8 @@ sudo systemctl reload nginx
 curl -I http://chess-tree.online/
 ```
 
-`503` на `/` в bootstrap допустим: ACME-каталог обслуживается отдельно. Установите
-Certbot через snap и получите сертификат:
+A `503` on `/` during bootstrap is expected; the ACME directory is served
+separately. Install Certbot using snap and request a certificate:
 
 ```shell
 sudo apt install -y snapd
@@ -452,8 +472,8 @@ sudo certbot certonly \
   --domain chess-tree.online
 ```
 
-Укажите настоящий email. Не добавляйте `www`, пока DNS для него не настроен.
-Затем включите финальный конфиг:
+Provide a real email address. Do not add `www` until DNS for it is configured.
+Then install the final config:
 
 ```shell
 sudo install -o root -g root -m 644 "$HOME/chesstree-setup/nginx/chesstree.conf" /etc/nginx/sites-available/chesstree
@@ -462,7 +482,7 @@ sudo systemctl reload nginx
 curl -I https://chess-tree.online/
 ```
 
-Создайте hook `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx`:
+Create the hook at `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx`:
 
 ```shell
 sudo install -d -o root -g root -m 755 /etc/letsencrypt/renewal-hooks/deploy
@@ -476,7 +496,7 @@ nginx -t
 systemctl reload nginx
 ```
 
-И установите права/проверьте renewal:
+Set permissions and check renewal:
 
 ```shell
 sudo chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
@@ -484,37 +504,37 @@ systemctl list-timers | grep -E 'certbot|snap.certbot'
 sudo certbot renew --dry-run
 ```
 
-Порт `80` оставьте открытым для redirect и HTTP-01 renewal. Финальный Nginx отдаёт
-Web из `/opt/chesstree/current/web`, а `/api/` и `/health` проксирует на
-`127.0.0.1:8081`, включая WebSocket Upgrade.
+Keep port `80` open for redirects and HTTP-01 renewal. The final Nginx config
+serves Web from `/opt/chesstree/current/web` and proxies `/api/` and `/health`
+to `127.0.0.1:8081`, including WebSocket upgrades.
 
-## 10. Сборка и первая выкладка
+## 10. Build and first deployment
 
-Скрипты запускаются на локальной машине из корня репозитория. Постоянный адрес
-можно добавить в `~/.zshrc`:
+Run the scripts locally from the repository root. To persist the address, add
+this to `~/.zshrc`:
 
 ```shell
 export CHESSTREE_DEPLOY_HOST=elvis@51.250.31.56
 export CHESSTREE_DEPLOY_SSH_PORT=2222
 ```
 
-Примените: `source ~/.zshrc`. Deploy-скрипты также используют `2222` по умолчанию,
-но явные переменные фиксируют настройки пользователя. Учётной записи `elvis`
-нужен `sudo` для команд выкладки; по возможности ограничьте её sudo-разрешения
-этими командами.
+Apply it with `source ~/.zshrc`. Deploy scripts also default to port `2222`, but
+explicit variables make the settings clear. The `elvis` account needs `sudo`
+for deployment commands; restrict its sudo permissions to those commands when
+possible.
 
-### Одноразовая настройка прав deploy
+### One-time deploy permissions setup
 
-`restart.sh` работает без интерактивного терминала, поэтому обычный запрос пароля
-`sudo` внутри него невозможен. Не выдавайте `elvis` полный `NOPASSWD: ALL`.
-Установите root-owned helper и разрешите без пароля только его. Один раз войдите на
-primary с терминалом:
+`restart.sh` runs without an interactive terminal, so it cannot answer a normal
+`sudo` password prompt. Do not grant `elvis` unrestricted `NOPASSWD: ALL`.
+Install a root-owned helper and allow passwordless execution only for that
+helper. First, open an interactive session to the primary:
 
 ```shell
 ssh -t -p 2222 elvis@51.250.31.56
 ```
 
-На сервере выполните; здесь `sudo` обычным образом один раз запросит пароль:
+Run these commands on the server; `sudo` will prompt for the password once:
 
 ```shell
 sudo install -o root -g root -m 755 \
@@ -528,20 +548,23 @@ sudo visudo -cf /etc/sudoers.d/chesstree-deploy
 exit
 ```
 
-Helper принимает только release ID заданного формата, использует фиксированные
-`/home/elvis/chesstree-upload` и `/opt/chesstree`, проверяет Nginx и `/health`, а
-при ошибке возвращает предыдущий symlink. Сам helper доступен для изменения только
-root.
+The helper accepts only release IDs in a specified format, uses fixed paths
+`/home/elvis/chesstree-upload` and `/opt/chesstree`, checks Nginx and `/health`,
+and restores the previous symlink on failure. Only root can modify the helper.
+The helper is installed outside release directories and ordinary deployments do
+not replace it. When its source changes, copy the updated helper to the server
+and repeat the root-owned installation step before relying on the change.
 
-Полная выкладка:
+Full deployment:
 
 ```shell
 ./deploy/deploy.sh
 ```
 
-Скрипт собирает Web и Ktor, запускает server checks, загружает release, атомарно
-переключает `/opt/chesstree/current`, перезапускает backend, проверяет `/health` и
-откатывает symlink при ошибке. Стадии доступны отдельно:
+The script builds Web and Ktor, runs server checks, uploads the release,
+atomically switches `/opt/chesstree/current`, restarts the backend, checks
+`/health`, and restores the symlink if anything fails. Individual stages are
+also available:
 
 ```shell
 ./deploy/build.sh
@@ -549,7 +572,7 @@ root.
 ./deploy/restart.sh <release-id>
 ```
 
-После первой выкладки на primary:
+After the first deployment on the primary:
 
 ```shell
 sudo systemctl status chesstree-server --no-pager
@@ -558,16 +581,16 @@ curl -fsS http://127.0.0.1:8081/health
 curl -fsS https://chess-tree.online/health
 ```
 
-Ожидается JSON со статусом `ok`. Старые releases оставляются для rollback;
-удаляйте их только после проверки `readlink -f /opt/chesstree/current`.
+Expect JSON with status `ok`. Old releases are retained for rollback; remove
+them only after checking `readlink -f /opt/chesstree/current`.
 
-Web-клиент использует origin открытой страницы, а Android и iOS используют общий
-production URL `https://chess-tree.online` из shared Kotlin-кода. Для локальной
-разработки мобильные клиенты пока также обращаются к production-серверу.
+The Web client uses the origin of the open page. Android and iOS use the shared
+production URL `https://chess-tree.online` from shared Kotlin code. During local
+development, mobile clients also currently connect to the production server.
 
-## 11. Ежедневный `pg_dump` на standby
+## 11. Daily `pg_dump` on the standby
 
-Установите на standby подготовленные файлы:
+Install the prepared files on the standby:
 
 ```shell
 sudo install -d -o postgres -g postgres -m 700 /var/backups/chesstree
@@ -582,7 +605,7 @@ sudo ls -lah /var/backups/chesstree
 systemctl list-timers chesstree-pg-backup.timer
 ```
 
-Проверка последнего набора:
+Check the latest backup set:
 
 ```shell
 latest_checksums="$(sudo find /var/backups/chesstree -name 'SHA256SUMS-*' -type f | sort | tail -n 1)"
@@ -591,16 +614,16 @@ latest_dump="$(sudo find /var/backups/chesstree -name 'chesstree-*.dump' -type f
 sudo -u postgres pg_restore --list "$latest_dump" >/dev/null
 ```
 
-Скрипт хранит 14 дней. Файл `globals-*.sql` содержит в том числе хеши паролей
-ролей PostgreSQL, поэтому весь каталог бэкапа является секретным. Копируйте
-зашифрованные дампы в object storage или на
-третий сервер с отдельными credentials: копии только на двух текущих серверах не
-защищают от потери обоих. Бэкап считается проверенным только после периодического
-полного `pg_restore` в отдельный тестовый PostgreSQL.
+The script retains backups for 14 days. `globals-*.sql` also contains
+PostgreSQL role password hashes, so the entire backup directory is sensitive.
+Copy encrypted dumps to object storage or a third server with separate
+credentials: copies on only the two current servers do not protect against
+losing both. A backup is verified only after periodically running a full
+`pg_restore` into a separate test PostgreSQL instance.
 
-## 12. Итоговая проверка
+## 12. Final checks
 
-На primary:
+On the primary:
 
 ```shell
 sudo nginx -t
@@ -609,7 +632,7 @@ curl -fsS https://chess-tree.online/health
 sudo -u postgres psql -x -c 'SELECT application_name, client_addr, state, sync_state FROM pg_stat_replication'
 ```
 
-На standby:
+On the standby:
 
 ```shell
 sudo systemctl is-active postgresql wg-quick@wg0
@@ -619,7 +642,7 @@ sudo -u postgres psql -Atqc "SELECT now() - pg_last_xact_replay_timestamp()"
 sudo ls -lah /var/backups/chesstree
 ```
 
-С внешней машины:
+From an external machine:
 
 ```shell
 curl -I http://chess-tree.online/
@@ -628,33 +651,32 @@ curl -fsS https://chess-tree.online/health
 openssl s_client -connect chess-tree.online:443 -servername chess-tree.online </dev/null
 ```
 
-HTTP должен перенаправлять на HTTPS, сертификат должен быть выдан для домена,
-`/health` должен отвечать `200`.
+HTTP should redirect to HTTPS, the certificate should be issued for the domain,
+and `/health` should return `200`.
 
-## 13. Аварийное переключение
+## 13. Disaster recovery
 
-Автоматического failover нет. Если primary окончательно потерян, сначала исключите
-его возвращение в сеть как writer, затем на standby:
+There is no automatic failover. If the primary is permanently lost, first
+prevent it from returning as a writer. Then promote the standby:
 
 ```shell
 sudo -u postgres psql -c 'SELECT pg_promote(wait_seconds => 60)'
 sudo -u postgres psql -Atqc 'SELECT pg_is_in_recovery()'
 ```
 
-После promotion ожидается `f`. Затем нужно развернуть Ktor/Nginx на новом primary
-или изменить инфраструктуру/DNS. Старый primary нельзя просто включать обратно:
-возможен split-brain. Его пересоздают как standby либо корректно применяют
-`pg_rewind`.
+After promotion, expect `f`. Then deploy Ktor/Nginx on the new primary or change
+the infrastructure/DNS. Do not simply restart the old primary; that can cause
+split-brain. Rebuild it as a standby or apply `pg_rewind` correctly.
 
-## Официальные источники
+## Official references
 
-- [PostgreSQL для Ubuntu](https://www.postgresql.org/download/linux/ubuntu/)
+- [PostgreSQL for Ubuntu](https://www.postgresql.org/download/linux/ubuntu/)
 - [PostgreSQL 17: streaming replication](https://www.postgresql.org/docs/17/warm-standby.html)
 - [`pg_basebackup`](https://www.postgresql.org/docs/17/app-pgbasebackup.html)
 - [`pg_verifybackup`](https://www.postgresql.org/docs/17/app-pgverifybackup.html)
 - [`pg_hba.conf`](https://www.postgresql.org/docs/17/auth-pg-hba-conf.html)
 - [`pg_dump`](https://www.postgresql.org/docs/17/app-pgdump.html)
-- [Certbot для Nginx](https://certbot.eff.org/instructions?ws=nginx&os=snap)
+- [Certbot for Nginx](https://certbot.eff.org/instructions?ws=nginx&os=snap)
 - [Let's Encrypt HTTP-01](https://letsencrypt.org/docs/challenge-types/)
 - [Nginx WebSocket proxying](https://nginx.org/en/docs/http/websocket.html)
 - [Ubuntu UFW](https://documentation.ubuntu.com/server/how-to/security/firewalls/)

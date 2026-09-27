@@ -5,6 +5,7 @@ import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.BrowserAuthResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameSocketAuthRequest
@@ -34,10 +35,124 @@ import kotlinx.serialization.json.Json
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ApplicationTest {
+    @Test
+    fun browserSessionUsesHttpOnlyCookieAcrossReloadAndClearsOnLogout() = testApplication {
+        application {
+            chessTreeModule(testServices(), allowedCorsHosts = listOf("play.test"))
+        }
+
+        val registration = client.post("/api/v1/auth/browser/register") {
+            header(HttpHeaders.Origin, "https://play.test")
+            contentType(ContentType.Application.Json)
+            setBody(credentials("browser_user", "correct-horse"))
+        }
+        assertEquals(HttpStatusCode.OK, registration.status)
+        val body = registration.bodyAsText()
+        assertFalse(body.contains("accessToken"))
+        assertEquals("browser_user", json.decodeFromString<BrowserAuthResponse>(body).user.username)
+        val setCookie = checkNotNull(registration.headers[HttpHeaders.SetCookie])
+        assertTrue(setCookie.contains("HttpOnly"))
+        assertTrue(setCookie.contains("Secure"))
+        assertTrue(setCookie.contains("SameSite=Strict"))
+        val cookie = setCookie.substringBefore(';')
+
+        val restored = client.get("/api/v1/auth/browser/session") {
+            header(HttpHeaders.Origin, "https://play.test")
+            header(HttpHeaders.Cookie, cookie)
+        }
+        assertEquals(HttpStatusCode.OK, restored.status)
+        assertEquals("browser_user", json.decodeFromString<BrowserAuthResponse>(restored.bodyAsText()).user.username)
+
+        val game = client.post("/api/v1/games") {
+            header(HttpHeaders.Origin, "https://play.test")
+            header(HttpHeaders.Cookie, cookie)
+        }
+        assertEquals(HttpStatusCode.Created, game.status)
+        assertEquals("no-store", game.headers[HttpHeaders.CacheControl])
+        assertTrue(checkNotNull(game.headers[HttpHeaders.SetCookie]).contains("Max-Age="))
+        val gameCode = json.decodeFromString<GameResponse>(game.bodyAsText()).code
+        val privateState = client.get("/api/v1/games/$gameCode/state") {
+            header(HttpHeaders.Origin, "https://play.test")
+            header(HttpHeaders.Cookie, cookie)
+        }
+        assertEquals(HttpStatusCode.OK, privateState.status)
+        assertEquals("no-store", privateState.headers[HttpHeaders.CacheControl])
+
+        val socketClient = createClient {
+            install(WebSockets) {
+                contentConverter = KotlinxWebsocketSerializationConverter(json)
+            }
+        }
+        socketClient.webSocket(
+            "/api/v1/games/$gameCode/events",
+            request = {
+                header(HttpHeaders.Origin, "https://play.test")
+                header(HttpHeaders.Cookie, cookie)
+            },
+        ) {
+            sendSerialized(GameSocketAuthRequest("", API_VERSION))
+            assertEquals(gameCode, receiveDeserialized<GameStatePush>().state.game.code)
+        }
+        val crossOriginSocketRejected = try {
+            socketClient.webSocket(
+                "/api/v1/games/$gameCode/events",
+                request = {
+                    header(HttpHeaders.Origin, "https://attacker.test")
+                    header(HttpHeaders.Cookie, cookie)
+                },
+            ) {
+                sendSerialized(GameSocketAuthRequest("", API_VERSION))
+                receiveDeserialized<GameStatePush>()
+            }
+            false
+        } catch (_: Throwable) {
+            true
+        }
+        assertTrue(crossOriginSocketRejected)
+        val emptyCookieSocketRejected = try {
+            socketClient.webSocket(
+                "/api/v1/games/$gameCode/events",
+                request = { header(HttpHeaders.Origin, "https://play.test") },
+            ) {
+                sendSerialized(GameSocketAuthRequest("", API_VERSION))
+                receiveDeserialized<GameStatePush>()
+            }
+            false
+        } catch (_: Throwable) {
+            true
+        }
+        assertTrue(emptyCookieSocketRejected)
+
+        val crossSiteMutation = client.post("/api/v1/games") {
+            header(HttpHeaders.Origin, "https://attacker.test")
+            header(HttpHeaders.Cookie, cookie)
+        }
+        assertEquals(HttpStatusCode.Forbidden, crossSiteMutation.status)
+
+        val logout = client.post("/api/v1/auth/browser/logout") {
+            header(HttpHeaders.Origin, "https://play.test")
+            header(HttpHeaders.Cookie, cookie)
+        }
+        assertEquals(HttpStatusCode.NoContent, logout.status)
+        assertTrue(checkNotNull(logout.headers[HttpHeaders.SetCookie]).contains("Max-Age=0"))
+        val afterLogout = client.get("/api/v1/auth/browser/session") {
+            header(HttpHeaders.Origin, "https://play.test")
+            header(HttpHeaders.Cookie, cookie)
+        }
+        assertEquals(HttpStatusCode.Unauthorized, afterLogout.status)
+
+        val repeatedLogout = client.post("/api/v1/auth/browser/logout") {
+            header(HttpHeaders.Origin, "https://play.test")
+            header(HttpHeaders.Cookie, cookie)
+        }
+        assertEquals(HttpStatusCode.NoContent, repeatedLogout.status)
+    }
+
     @Test
     fun registrationIsCaseInsensitiveAndLoginUsesGenericFailure() = testApplication {
         application { chessTreeModule(testServices()) }

@@ -71,14 +71,14 @@ class AuthService(
     }
 
     suspend fun login(request: LoginRequest): AuthResult {
-        val user = store.findUser(normalizeUsername(request.username.trim()))
+        val credentials = store.findUser(normalizeUsername(request.username.trim()))
         val chars = request.password.toCharArray()
         val valid = try {
-            passwordHasher.verify(user?.passwordHash ?: dummyPasswordHash, chars)
+            passwordHasher.verify(credentials?.passwordHash ?: dummyPasswordHash, chars)
         } finally {
             chars.fill('\u0000')
         }
-        return if (user != null && valid) sessionFor(user) else AuthResult.InvalidCredentials
+        return if (credentials != null && valid) sessionFor(credentials.user) else AuthResult.InvalidCredentials
     }
 
     suspend fun authenticate(token: String): UserRecord? {

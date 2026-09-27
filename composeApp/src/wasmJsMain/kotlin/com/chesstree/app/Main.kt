@@ -5,6 +5,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import com.chesstree.game.presentation.history.BrowserGameLogExporter
 import com.chesstree.multiplayer.data.KtorChessTreeApi
+import com.chesstree.multiplayer.data.ApiResult
 import com.chesstree.multiplayer.data.gameCodeFromUrl
 import com.chesstree.multiplayer.presentation.BrowserGameLinkSharer
 import com.chesstree.resources.Res
@@ -18,8 +19,18 @@ import org.jetbrains.compose.resources.preloadFont
 fun main() {
     document.documentElement?.setAttribute("lang", supportedDocumentLanguage())
     val saveStore = BrowserGameSaveStore()
-    val onlineSessionStore = BrowserOnlineSessionStore()
-    val onlineApi = KtorChessTreeApi(serverBaseUrl())
+    val onlineApi = KtorChessTreeApi(serverBaseUrl(), browserSession = true)
+    val onlineSessionStore = BrowserOnlineSessionStore(restoreSession = {
+        when (val result = onlineApi.restoreBrowserSession()) {
+            is ApiResult.Success -> com.chesstree.multiplayer.contract.AuthResponse(
+                accessToken = "",
+                user = result.value.user,
+            )
+            is ApiResult.Failure -> if (result.code == "http_401") null else {
+                error(result.message)
+            }
+        }
+    })
     val initialGameCode = gameCodeFromUrl(window.location.href)
     ComposeViewport(viewportContainerId = "webApp") {
         val pieceFont by preloadFont(

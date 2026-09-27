@@ -1,205 +1,208 @@
-# Шахматы на троих: правила игры
+# Three-Player Chess: Rules
 
-Статус документа: текстовая спецификация исходных правил из
-[`rules.pdf`](./rules.pdf). Формулировки нормализованы для последующей реализации,
-но неуказанные в оригинале правила намеренно не додуманы.
+Document status: a text specification transcribed from the original rules PDF.
+The PDF is not included in this repository. The wording has been normalized for
+implementation, but rules not specified in the original have intentionally not
+been inferred.
 
-## 1. Доска и участники
+## 1. Board and players
 
-- В партии участвуют три игрока: белый, красный и чёрный.
-- Цвета определяются жеребьёвкой.
-- Доска состоит из трёх секторов, соединённых общей центральной областью.
-  Вертикали, горизонтали и диагонали продолжаются через центр по линиям,
-  показанным на диаграммах оригинала. Поэтому доску нельзя считать обычной
-  прямоугольной сеткой.
-- В исходной нотации используются вертикали `A`-`N` и горизонтали `1`-`12`.
-  Не каждая формальная пара «буква + число» обязательно является полем доски.
-- Белые занимают сторону между обозначениями `A` и `H`, красные - между `A` и
-  `N`, чёрные - между `H` и `N` (диаграмма 1 оригинала).
-- Набор фигур у каждого игрока обычный: король, ферзь, две ладьи, два слона,
-  два коня и восемь пешек.
-- Белые и чёрные ставят ферзя на поле своего цвета, красные - на белое поле.
-- Порядок ходов постоянный и идёт по часовой стрелке: белые, красные, чёрные,
-  затем снова белые.
+- Three players take part: white, red, and black.
+- Colors are assigned by drawing lots.
+- The board consists of three sectors connected through a shared central area.
+  Files, ranks, and diagonals continue through the center along the lines shown
+  in the source diagrams. The board is therefore not a normal rectangular grid.
+- The source notation uses files `A`–`N` and ranks `1`–`12`. Not every formal
+  letter-and-number pair is necessarily a board square.
+- White occupies the side between `A` and `H`, red between `A` and `N`, and
+  black between `H` and `N` (source diagram 1).
+- Each player has a standard set of pieces: a king, queen, two rooks, two
+  bishops, two knights, and eight pawns.
+- White and black place their queen on a square of their own color; red places
+  the queen on a white square.
+- Turn order is fixed and clockwise: white, red, black, then white again.
 
-## 2. Ходы фигур
+## 2. Piece movement
 
-В общем случае фигуры ходят и бьют по правилам обычных шахмат, с поправкой на
-геометрию трёхсторонней доски.
+In general, pieces move and capture according to standard chess rules, adjusted
+for the geometry of the three-sided board.
 
-### 2.1. Пешка
+### 2.1. Pawn
 
-- Любая пешка первым ходом может пройти на одну или две клетки.
-- До центра пешка идёт вперёд по своей линии и бьёт на две соседние диагонали.
-- В центральной области у пешки появляются три направления взятия, но обычный
-  ход продолжается только по вертикали, на которой пешка стоит. После взятия
-  пешка продолжает движение по вертикали клетки назначения (например, после
-  взятия на `K9` — по вертикали `K`).
-- Достигнув последней клетки своего маршрута, пешка превращается по выбору
-  игрока в ферзя, ладью, слона или коня. Превращение в короля запрещено.
+- Any pawn may move one or two squares on its first move.
+- Before reaching the center, a pawn moves forward along its file and captures
+  on the two adjacent diagonals.
+- In the central area, a pawn gains a third capture direction, but an ordinary
+  move continues only along the file it occupies. After a capture, the pawn
+  continues along the file of its destination square (for example, after a
+  capture on `K9`, it moves along file `K`).
+- On reaching the last square of its route, a pawn promotes at the player's
+  choice to a queen, rook, bishop, or knight. Promotion to a king is forbidden.
 
-### 2.2. Ладья
+### 2.2. Rook
 
-- Ладья движется по вертикалям и горизонталям на любое число свободных клеток.
-- В центральной области линия может продолжаться в один из других секторов;
-  допустимые продолжения заданы геометрией доски (диаграммы 5 и 6).
+- A rook moves any number of unobstructed squares along files and ranks.
+- In the central area, a line may continue into another sector; valid
+  continuations are defined by the board geometry (source diagrams 5 and 6).
 
-### 2.3. Конь
+### 2.3. Knight
 
-- Конь сохраняет шахматный ход «две клетки по одному направлению и одна в
-  поперечном» с учётом связей полей доски.
-- В центре множество достижимых полей отличается от прямоугольной доски и
-  должно задаваться топологией, показанной на диаграмме 8.
+- The knight keeps the chess move of two squares in one direction and one
+  perpendicular square, following the connections between board squares.
+- The set of reachable squares in the center differs from a rectangular board
+  and must follow the topology in source diagram 8.
 
-### 2.4. Слон
+### 2.4. Bishop
 
-- Слон движется на любое число свободных клеток вдоль диагоналей своего цвета.
-- Диагонали имеют форму дуг и продолжаются через центральную область в другие
-  сектора (диаграммы 9 и 10).
-- Цвет поля сохраняется на всём пути слона.
+- A bishop moves any number of unobstructed squares along diagonals of its color.
+- Diagonals form arcs and continue through the central area into other sectors
+  (source diagrams 9 and 10).
+- The square color remains the same throughout a bishop's path.
 
-### 2.5. Ферзь
+### 2.5. Queen
 
-- Ферзь объединяет возможности ладьи и слона.
-- В центре он может продолжать движение по соответствующим прямым и дуговым
-  линиям в другие сектора (диаграммы 11 и 12).
-- На диаграмме 12 отдельно указано, что ферзь не может попасть на `K5`: в этом
-  положении он идёт либо по чёрным диагоналям, либо на смежные поля.
+- A queen combines the movement of a rook and a bishop.
+- In the center, it can continue along the corresponding straight and curved
+  lines into other sectors (source diagrams 11 and 12).
+- Source diagram 12 specifically shows that the queen cannot reach `K5` from
+  the depicted position: it can move along black diagonals or to adjacent
+  squares.
 
-### 2.6. Король
+### 2.6. King
 
-- Король ходит на одно смежное поле с учётом геометрии доски и не может идти
-  под шах.
-- В центре набор соседних полей определяется диаграммой 14.
-- На диаграмме 14 отдельно указано, что король не может попасть на `K9`: в этом
-  положении он идёт либо по белым диагоналям, либо на смежные поля.
-- Рокировка существует: в приведённой партии встречаются короткие рокировки
-  белых и чёрных (`0-0`). Остальные условия рокировки оригинал отдельно не
-  переопределяет.
+- A king moves to one adjacent square according to the board geometry and may
+  not move into check.
+- Its neighbors in the center are defined by source diagram 14.
+- Source diagram 14 specifically shows that the king cannot reach `K9` from the
+  depicted position: it can move along white diagonals or to adjacent squares.
+- Castling exists: the example game contains short castling by white and black
+  (`0-0`). The source does not further specify the other castling conditions.
 
-## 3. Шах и мат
+## 3. Check and checkmate
 
-- Шах может исходить от фигур одного или одновременно двух соперников.
-- Получивший мат игрок немедленно выбывает и занимает третье, самое низкое,
-  место.
-- Король получившего мат игрока снимается с доски.
-- Если мат возник как вскрытый или двойной шах и неясно, кому он принадлежит,
-  автор мата определяется с учётом очередности ходов и возможности следующего
-  игрока устранить матующую фигуру. Разборы приведены в разделе 8 оригинала.
+- Check can come from pieces belonging to one or two opponents at the same time.
+- A checkmated player is immediately eliminated and takes third, last place.
+- The checkmated player's king is removed from the board.
+- If a discovered or double check makes the author of mate unclear, determine it
+  based on turn order and whether the next player can remove the mating piece.
+  Examples are described in section 8 of the source.
 
-### 3.1. Определение автора мата в сложных позициях
+### 3.1. Attributing mate in complex positions
 
-Диаграммы 8.1-8.3 задают следующие принципы:
+Diagrams 8.1–8.3 establish these principles:
 
-1. Если ход игрока открывает линию атаки фигуры другого игрока и возникает мат,
-   мат может быть засчитан владельцу открывшейся атакующей фигуры.
-2. Если следующий по очереди игрок обязан сделать ход и способен снять матующую
-   фигуру, текущая позиция ещё не считается окончательным матом.
-3. При двойном шахе учитываются все обязательные промежуточные ходы. Автором
-   мата считается игрок, чья атака остаётся решающей после них.
-4. На диаграмме 8.3 красный конь одновременно шахует двух королей: чёрный уходит,
-   а белому остаётся мат от красного коня. Автор мата - красный.
+1. If a player's move opens an attack line for another player's piece and causes
+   mate, the mate may be credited to the owner of the revealed attacking piece.
+2. If the next player in turn order must move and can capture the mating piece,
+   the current position is not yet treated as final checkmate.
+3. For double check, consider all required intermediate moves. The player whose
+   attack remains decisive afterward is the author of mate.
+4. In diagram 8.3, a red knight checks two kings at once: black escapes, while
+   white remains mated by the red knight. Red is credited with the mate.
 
-Для движка эти случаи должны быть оформлены отдельным правилом атрибуции мата,
-а не определяться только цветом фигуры, сделавшей последний ход.
+The engine should implement these cases as a distinct mate-attribution rule
+rather than determining attribution solely from the color of the piece that
+made the last move.
 
-## 4. Продолжение после первого мата
+## 4. Play after the first checkmate
 
-- Все фигуры выбывшего игрока, кроме снятого короля, остаются на своих полях.
-- Эти фигуры переходят под управление игрока, поставившего мат.
-- Получивший дополнительную армию игрок всё равно делает ровно один ход в свою
-  очередь: он выбирает одну фигуру любого из управляемых им цветов.
-- Две армии под общим управлением считаются союзными и не могут брать фигуры
-  друг друга.
-- Когда один из двух оставшихся активных игроков получает мат, он занимает
-  второе место, а поставивший мат игрок - первое.
+- All pieces of the eliminated player, except the removed king, stay on their
+  squares.
+- Those pieces come under the control of the player who delivered checkmate.
+- A player controlling an additional army still makes only one move on their
+  turn, choosing any piece among the armies they control.
+- Two armies under the same player's control are allied and cannot capture each
+  other's pieces.
+- When one of the two remaining active players is checkmated, they take second
+  place and the player who delivered mate takes first.
 
-Следствие для модели: цвет армии и текущий управляющий ею игрок - разные
-характеристики. После мата цвет фигуры не меняется, меняется её принадлежность.
+Modeling consequence: army color and the player currently controlling that army
+are separate properties. After checkmate, a piece keeps its color but changes
+controller.
 
-## 5. Пат
+## 5. Stalemate
 
-- Игрок, попавший в пат, прекращает участие в игре.
-- Все его фигуры остаются на доске, но теряют право хода.
-- Если эти фигуры мешают проходу фигур оставшихся игроков, их можно брать.
-- Исключение - король игрока в пате: он остаётся неподвижным и неприкосновенным
-  до конца партии.
-- Любые фигуры, кроме королей, могут подходить вплотную к королю игрока в пате.
-- Если в пат попадает ещё один игрок либо оставшиеся игроки соглашаются на
-  ничью, партия заканчивается ничьёй между всеми тремя игроками.
+- A stalemated player stops participating in the game.
+- All of their pieces stay on the board but lose the right to move.
+- If these pieces block the remaining players, they may be captured.
+- Exception: the stalemated player's king remains immobile and invulnerable
+  until the end of the game.
+- Any piece other than a king may move adjacent to the stalemated player's king.
+- If another player becomes stalemated, or the remaining players agree to a
+  draw, the game ends in a draw among all three players.
 
-## 6. Редкие позиции
+## 6. Rare positions
 
-Оригинал отдельно подтверждает допустимость следующих ситуаций:
+The source specifically confirms that these situations are allowed:
 
-- Два короля могут стоять рядом, если конкретная геометрия и состояние партии
-  не создают запрещённой атаки (см. диаграмму 14 и раздел 7 оригинала).
-- Белые и чёрные пешки после перехода под управление белого короля считаются
-  союзными: они не могут брать друг друга и обе могут превратиться в ферзей.
+- Two kings may stand next to each other if the board geometry and game state
+  do not create a prohibited attack (see diagram 14 and source section 7).
+- White and black pawns under the control of the white king are allied: they
+  cannot capture one another, and both may promote to queens.
 
-## 7. Нотация
+## 7. Notation
 
-- Используется алгебраическая запись с буквами полей и номерами до 12.
-- Обозначения фигур в оригинале русские: `Кр` - король, `Ф` - ферзь, `Л` -
-  ладья, `С` - слон, `К` - конь. Пешка записывается без буквы.
-- `:` обозначает взятие, `+` - шах, `++` - двойной шах, `x` - мат, `0-0` -
-  короткую рокировку.
-- Один номер хода объединяет по одному ходу белых, красных и чёрных именно в
-  таком порядке.
+- Algebraic notation uses square letters and numbers up to 12.
+- The source uses Cyrillic abbreviations for the king, queen, rook, bishop, and
+  knight. A pawn has no letter.
+- `:` means capture, `+` means check, `++` means double check, `x` means
+  checkmate, and `0-0` means short castling.
+- One move number groups one move each by white, red, and black, in that order.
 
-## 8. Что оригинал не определяет однозначно
+## 8. Rules not fully specified by the source
 
-### 8.1. Принятые проектом уточнения
+### 8.1. Project decisions
 
-Для детерминированной реализации приняты следующие правила варианта:
+The following variant rules have been chosen for deterministic implementation:
 
-- короткая и длинная рокировка используют обычные ограничения: король и
-  соответствующая ладья не ходили, клетки между ними свободны, а король не
-  находится под шахом и не пересекает атакованную клетку; право привязано к
-  конкретной ладье и теряется после хода или взятия этой ладьи;
-- после двойного хода пешки каждый активный соперник может взять её en passant
-  на своём ближайшем ходу; пропуск расходует только возможность этого соперника,
-  поэтому в позиции допускается несколько одновременных целей;
-- мат и пат проверяются, когда очередь должна перейти к игроку; это позволяет
-  промежуточному игроку устранить вскрытый шах;
-- при нескольких атакующих контроллерах сначала выбирается единственный новый
-  атакующий, появившийся после последнего хода; затем — последний ходивший, если
-  он входит в число атакующих; иначе используется детерминированный порядок
-  игроков. Этот fallback нужен только для позиций, авторство которых исходный
-  текст не определяет однозначно;
-- если после сочетания одного мата и одного пата остаётся единственный активный
-  игрок, партия заканчивается местами: активный игрок — первый, выбывший
-  последним — второй, выбывший ранее — третий. Два пата по-прежнему дают общую
-  ничью согласно исходному правилу;
-- если после хода остаются ровно два активных игрока и на доске находятся либо
-  только два их короля, либо эти два короля и единственный конь одного из
-  игроков, партия сразу заканчивается ничьёй между ними: оба делят первое место,
-  а ранее выбывший игрок остаётся третьим. В обоих случаях на доске также может
-  оставаться неподвижный и неприкосновенный король игрока в пате: он не считается
-  материалом активных игроков. Это правило применяется после проверки вызванных
-  ходом матов и патов.
+- Short and long castling use standard restrictions: neither the king nor the
+  relevant rook has moved, the squares between them are clear, and the king is
+  not in check or passing through an attacked square. The right is tied to a
+  specific rook and is lost if that rook moves or is captured.
+- After a pawn's two-square move, each active opponent may capture it en passant
+  on their next turn. Skipping that opportunity consumes only that opponent's
+  right, so multiple en-passant targets may coexist in one position.
+- Checkmate and stalemate are checked when the turn would pass to a player. This
+  allows an intermediate player to remove a discovered check.
+- If multiple controllers are attacking, first select the sole new attacker
+  introduced by the last move; next select the player who just moved if they are
+  among the attackers; otherwise use a deterministic player order. This fallback
+  is only needed for positions whose attribution is ambiguous in the source.
+- If one player is checkmated and another is stalemated, leaving one active
+  player, the final ranking is: active player first, most recently eliminated
+  player second, and the earlier eliminated player third. Two stalemates still
+  produce a draw among all players, as in the source rule.
+- If exactly two active players remain after a move and the board contains
+  either only their two kings or those kings plus one knight belonging to one
+  player, the game immediately ends in a draw between them. They share first
+  place, and the previously eliminated player remains third. In either case,
+  an immobile, invulnerable king belonging to a stalemated player may also
+  remain on the board; it does not count as material for the active players.
+  This rule is applied after checking for mate and stalemate caused by the move.
 
-До реализации полного движка нужно принять и зафиксировать решения по следующим
-вопросам:
+Before implementing a complete engine, settle and document these remaining
+questions:
 
-1. Полный машинно-читаемый перечень полей и связей между ними. Диаграммы задают
-   геометрию визуально, но не содержат таблицу смежности.
-2. Точная привязка всех стартовых полей к глобальным координатам `A`-`N` и
-   `1`-`12`; текст и схема недостаточны для безошибочного восстановления всех
-   координат без отдельной верификации.
-3. Судьба права на рокировку у ладьи, перешедшей под чужое управление до того,
-   как её исходный король выбыл (если такая позиция станет представимой).
-4. Ничья по повторению позиции, правилу 50/75 ходов и остальные случаи
-   недостатка материала, кроме зафиксированных выше `K vs K` и `K+N vs K`.
-5. Возможность добровольной сдачи и её влияние на оставшиеся армии и места.
-6. Полная атрибуция редких многопользовательских матов за пределами принятого
-   детерминированного fallback.
+1. The complete machine-readable list of squares and their connections. The
+   diagrams show the geometry but do not provide an adjacency table.
+2. The exact mapping of all starting squares to global coordinates `A`–`N` and
+   `1`–`12`; the text and diagrams are not sufficient to reconstruct every
+   coordinate without separate verification.
+3. Whether a rook retains castling rights if it comes under another player's
+   control before its original king is eliminated, if such a position becomes
+   representable.
+4. Draws by repetition, the 50/75-move rules, and other insufficient-material
+   cases besides the documented `K vs K` and `K+N vs K` cases.
+5. Whether voluntary resignation is possible and how it affects remaining
+   armies and rankings.
+6. Complete attribution rules for rare multiplayer checkmates beyond the
+   deterministic fallback adopted by the project.
 
-До принятия этих решений код не должен молча наследовать конкретный вариант
-обычных шахмат.
+Until these decisions are made, the code must not silently inherit a particular
+standard chess variant.
 
-## 9. Источник
+## 9. Source
 
-Единственный нормативный источник этой версии документа - `docs/rules.pdf`, три
-сканированные страницы: текст правил и начальная позиция, диаграммы движения
-фигур, разбор вскрытого/двойного шаха и редких позиций.
+The original source was a three-page scan containing the rules and starting
+position, piece-movement diagrams, and examples of discovered/double check and
+rare positions. The source PDF is not included in this repository.

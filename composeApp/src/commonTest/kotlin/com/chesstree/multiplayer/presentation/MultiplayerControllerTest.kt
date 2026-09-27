@@ -19,6 +19,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -147,6 +148,22 @@ class MultiplayerControllerTest {
         restored.logout()
         runCurrent()
         assertNull(store.authentication)
+    }
+
+    @Test
+    fun crossTabSessionInvalidationSignsOutTheController() = runTest {
+        val store = FakeSessionStore().apply {
+            authentication = AuthResponse("token", UserResponse("user-id", "Alice"))
+            collectInvalidations = true
+        }
+        val controller = MultiplayerController(FakeApi(), this, sessionStore = store)
+        runCurrent()
+        assertEquals("Alice", controller.state.value.authentication?.user?.username)
+
+        store.notifyInvalidation()
+        runCurrent()
+
+        assertNull(controller.state.value.authentication)
     }
 
     @Test
@@ -503,6 +520,8 @@ class MultiplayerControllerTest {
 
     private class FakeSessionStore : OnlineSessionStore {
         var authentication: AuthResponse? = null
+        var collectInvalidations = false
+        private val sessionInvalidations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
         override suspend fun load(): AuthResponse? = authentication
         override suspend fun save(authentication: AuthResponse) {
@@ -511,6 +530,13 @@ class MultiplayerControllerTest {
 
         override suspend fun clear() {
             authentication = null
+        }
+
+        override fun invalidations(): Flow<Unit> =
+            if (collectInvalidations) sessionInvalidations.take(1) else emptyFlow()
+
+        fun notifyInvalidation() {
+            sessionInvalidations.tryEmit(Unit)
         }
     }
 }

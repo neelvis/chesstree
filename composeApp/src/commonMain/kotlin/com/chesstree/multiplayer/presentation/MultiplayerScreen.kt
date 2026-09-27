@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -100,6 +101,9 @@ fun MultiplayerScreen(
     val scope = rememberCoroutineScope()
     val controller = remember(api, scope, initialGameCode, sessionStore, resetKey) {
         MultiplayerController(api, scope, initialGameCode, sessionStore)
+    }
+    DisposableEffect(controller) {
+        onDispose(controller::close)
     }
     val state by controller.state.collectAsState()
     val isGameStarted = state.game?.status == "ACTIVE" || state.game?.status == "FINISHED"

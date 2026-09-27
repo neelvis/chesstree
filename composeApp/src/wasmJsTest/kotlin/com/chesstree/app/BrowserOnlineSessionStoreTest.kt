@@ -2,30 +2,61 @@ package com.chesstree.app
 
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.UserResponse
-import kotlinx.browser.localStorage
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class BrowserOnlineSessionStoreTest {
     @Test
-    fun activeSessionIsSharedWithoutPersistentBrowserStorage() = runTest {
-        val firstTab = BrowserOnlineSessionStore(TEST_CHANNEL_NAME)
-        val authentication = AuthResponse("token", UserResponse("user-id", "Alice"))
-
-        var secondTab: BrowserOnlineSessionStore? = null
+    fun sessionRestoresFromServerAndLogoutInvalidatesOtherTabs() = runTest {
+        val authentication = AuthResponse("", UserResponse("user-id", "Alice"))
+        val firstTab = BrowserOnlineSessionStore(
+            restoreSession = { authentication },
+            channelName = TEST_CHANNEL_NAME,
+        )
+        val secondTab = BrowserOnlineSessionStore(
+            restoreSession = { authentication },
+            channelName = TEST_CHANNEL_NAME,
+        )
         try {
-            localStorage.removeItem(TEST_CHANNEL_NAME)
-            firstTab.save(authentication)
-            val restoredTab = BrowserOnlineSessionStore(TEST_CHANNEL_NAME)
-            secondTab = restoredTab
+            assertEquals(authentication, firstTab.load())
+            val invalidation = async { secondTab.invalidations().first() }
 
-            assertEquals(authentication, restoredTab.load())
-            assertNull(localStorage.getItem(TEST_CHANNEL_NAME))
+            firstTab.clear()
+
+            assertEquals(Unit, invalidation.await())
         } finally {
             firstTab.close()
-            secondTab?.close()
+            secondTab.close()
+        }
+    }
+
+    @Test
+    fun logoutDuringSessionRestoreDiscardsTheStaleResponse() = runTest {
+        val authentication = AuthResponse("", UserResponse("user-id", "Alice"))
+        val pendingRestore = CompletableDeferred<AuthResponse?>()
+        val firstTab = BrowserOnlineSessionStore(
+            restoreSession = { pendingRestore.await() },
+            channelName = TEST_CHANNEL_NAME,
+        )
+        val secondTab = BrowserOnlineSessionStore(
+            restoreSession = { authentication },
+            channelName = TEST_CHANNEL_NAME,
+        )
+        try {
+            val restore = async { firstTab.load() }
+            val invalidation = async { firstTab.invalidations().first() }
+            secondTab.clear()
+            invalidation.await()
+            pendingRestore.complete(authentication)
+
+            assertEquals(null, restore.await())
+        } finally {
+            firstTab.close()
+            secondTab.close()
         }
     }
 

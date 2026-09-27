@@ -26,7 +26,7 @@ rsync -e "ssh -p $CHESSTREE_DEPLOY_SSH_PORT" -az --delete "$CHESSTREE_DEPLOY_DIR
 if [[ -f "$firebase_service_account" ]]; then
     ssh -p "$CHESSTREE_DEPLOY_SSH_PORT" "$CHESSTREE_DEPLOY_HOST" \
         "mkdir -p '$remote_staging/secrets'"
-    rsync -e "ssh -p $CHESSTREE_DEPLOY_SSH_PORT" -az --chmod=F600 "$firebase_service_account" \
+    rsync -e "ssh -p $CHESSTREE_DEPLOY_SSH_PORT" -az --chmod=Fu=rw,Fgo= "$firebase_service_account" \
         "$CHESSTREE_DEPLOY_HOST:$remote_staging/secrets/firebase-service-account.json"
 else
     printf 'Firebase service-account key not found locally; leaving the server copy unchanged.\n'

@@ -89,15 +89,15 @@ class FcmPushNotifications private constructor(
         }
 
         if (state.game.status != GameStatus.ACTIVE) return
-        val session = GameSession.replay(
+        val gameState = state.domainState ?: GameSession.replay(
             StandardGame.scenario,
             state.moves.map(GameMoveRecord::intent),
-        ) ?: run {
+        )?.state ?: run {
             logWarning("Push skipped because the stored game history could not be replayed")
             return
         }
-        if (session.state.phase is GamePhase.Finished) return
-        val turn = session.state.turn?.player ?: return
+        if (gameState.phase is GamePhase.Finished) return
+        val turn = gameState.turn?.player ?: return
         val nextPlayer = state.game.players.firstOrNull { it.color?.name == turn.name } ?: return
         dispatch(
             setOf(nextPlayer.user.id),

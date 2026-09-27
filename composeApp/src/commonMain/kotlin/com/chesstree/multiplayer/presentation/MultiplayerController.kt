@@ -69,6 +69,7 @@ class MultiplayerController(
     private var request: Job? = null
     private var observation: Job? = null
     private var sync: Job? = null
+    private var invalidationJob: Job? = null
     private var gamesLoadId = 0
 
     init {
@@ -85,6 +86,26 @@ class MultiplayerController(
                     mutableState.value.copy(error = "i18n:saved_login_restore_failed")
             }
         }
+        invalidationJob = scope.launch {
+            sessionStore.invalidations().collect {
+                val current = mutableState.value
+                gamesLoadId++
+                request?.cancel()
+                observation?.cancel()
+                sync?.cancel()
+                mutableState.value = MultiplayerUiState(
+                    authMode = current.authMode,
+                    gameCode = current.gameCode,
+                )
+            }
+        }
+    }
+
+    fun close() {
+        invalidationJob?.cancel()
+        request?.cancel()
+        observation?.cancel()
+        sync?.cancel()
     }
 
     fun setAuthMode(mode: AuthMode) = update { copy(authMode = mode, error = null) }
@@ -198,7 +219,11 @@ class MultiplayerController(
         sync = scope.launch {
             mutableState.value = mutableState.value.copy(syncing = true)
             try {
-                when (val result = api.getGameState(token, code)) {
+                val currentState = mutableState.value.remoteState
+                val afterMoveCount = if (currentState?.game?.code == code) {
+                    currentState.moveOffset + currentState.moves.size
+                } else 0
+                when (val result = api.getGameState(token, code, afterMoveCount)) {
                     is ApiResult.Success -> {
                         applyRemoteState(result.value, expectedGameCode = code)
                         mutableState.value = mutableState.value.copy(syncing = false)
@@ -236,6 +261,7 @@ class MultiplayerController(
             val command = MoveCommandRequest(
                 commandId = commandId(),
                 expectedRevision = currentRemote.revision,
+                expectedMoveCount = confirmedSession.moves.size,
                 from = intent.from.response(),
                 to = intent.to.response(),
                 promotion = intent.promotion?.name,
@@ -313,7 +339,15 @@ class MultiplayerController(
         observation?.cancel()
         sync?.cancel()
         request = scope.launch {
-            if (token != null) api.logout(token)
+            if (token != null) {
+                when (val result = api.logout(token)) {
+                    is ApiResult.Success -> Unit
+                    is ApiResult.Failure -> {
+                        mutableState.value = current.copy(error = result.toUiMessage())
+                        return@launch
+                    }
+                }
+            }
             runCatching { sessionStore.clear() }
             mutableState.value = MultiplayerUiState(
                 authMode = current.authMode,
@@ -480,7 +514,7 @@ private suspend fun GameStateResponse.toSession(
 ): GameSession? = withContext(dispatcher) {
     runCatching {
         val intents = moves.mapIndexed { index, move ->
-            require(move.revision == index + 1)
+            require(move.revision == moveOffset + index + 1)
             MoveIntent(
                 actor = PlayerId.valueOf(move.actor),
                 from = move.from.toDomain(),
@@ -490,10 +524,28 @@ private suspend fun GameStateResponse.toSession(
         }
         val current = currentSession
         if (current != null) {
-            // Reuse derived state for unchanged history; apply only an appended suffix.
-            if (current.moves == intents) return@runCatching current
+            // A WebSocket suffix can arrive after its move was already applied optimistically.
+            // Reconcile the part that overlaps local history, then apply only unseen moves.
+            if (moveOffset > 0 && moveOffset <= current.moves.size) {
+                val overlapCount = minOf(intents.size, current.moves.size - moveOffset)
+                if ((0 until overlapCount).any { index ->
+                        current.moves[moveOffset + index] != intents[index]
+                    }
+                ) {
+                    return@runCatching null
+                }
+                if (overlapCount == intents.size) return@runCatching current
+                var advanced = current
+                intents.drop(overlapCount).forEach { intent ->
+                    advanced = (advanced?.apply(intent) as? SessionMoveResult.Applied)?.session
+                        ?: return@runCatching null
+                }
+                return@runCatching advanced
+            }
+            // Full responses are used for initial sync and after an undo truncates history.
+            if (moveOffset == 0 && current.moves == intents) return@runCatching current
             val currentMoveCount = current.moves.size
-            if (
+            if (moveOffset == 0 &&
                 intents.size > currentMoveCount &&
                 current.moves.indices.all { index -> intents[index] == current.moves[index] }
             ) {

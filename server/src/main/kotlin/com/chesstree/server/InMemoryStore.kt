@@ -5,6 +5,7 @@ import java.util.UUID
 
 class InMemoryStore : ChessTreeStore {
     private val users = linkedMapOf<UUID, UserRecord>()
+    private val passwordHashes = mutableMapOf<UUID, String>()
     private val usernames = mutableMapOf<String, UUID>()
     private val sessions = mutableMapOf<String, Pair<UUID, Instant>>()
     private val games = linkedMapOf<String, MutableGame>()
@@ -19,14 +20,17 @@ class InMemoryStore : ChessTreeStore {
         passwordHash: String,
     ): CreateUserResult = synchronized(this) {
         if (normalizedUsername in usernames) return@synchronized CreateUserResult.UsernameTaken
-        val user = UserRecord(UUID.randomUUID(), username, normalizedUsername, passwordHash)
+        val user = UserRecord(UUID.randomUUID(), username)
         users[user.id] = user
+        passwordHashes[user.id] = passwordHash
         usernames[normalizedUsername] = user.id
         CreateUserResult.Created(user)
     }
 
-    override suspend fun findUser(normalizedUsername: String): UserRecord? = synchronized(this) {
-        usernames[normalizedUsername]?.let(users::get)
+    override suspend fun findUser(normalizedUsername: String): UserCredentials? = synchronized(this) {
+        val userId = usernames[normalizedUsername] ?: return@synchronized null
+        val user = users[userId] ?: return@synchronized null
+        UserCredentials(user, passwordHashes.getValue(userId))
     }
 
     override suspend fun saveSession(tokenHash: String, userId: UUID, expiresAt: Instant) {
@@ -99,8 +103,12 @@ class InMemoryStore : ChessTreeStore {
             .sortedByDescending { it.startedAt }
     }
 
-    override suspend fun findGameState(code: String): GameStateRecord? = synchronized(this) {
-        games[code]?.let { game -> state(code, game) }
+    override suspend fun findGameState(code: String, afterMoveCount: Int): GameStateRecord? = synchronized(this) {
+        games[code]?.let { game ->
+            val full = state(code, game)
+            val offset = afterMoveCount.takeIf { it in 0..full.moves.size } ?: 0
+            full.copy(moves = full.moves.drop(offset), moveOffset = offset)
+        }
     }
 
     override suspend fun submitMove(
@@ -116,10 +124,16 @@ class InMemoryStore : ChessTreeStore {
                 gameMoves += evaluation.move
                 revisions[code] = revisions.getValue(code) + 1
                 if (evaluation.finished) game.status = GameStatus.FINISHED
-                SubmitMoveResult.Applied(state(code, game))
+                SubmitMoveResult.Applied(
+                    stateAfterMoveCount(code, game, command.expectedMoveCount)
+                        .copy(domainState = evaluation.state),
+                )
             }
 
-            MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(state, wasDuplicate = true)
+            MoveEvaluation.Duplicate -> SubmitMoveResult.Applied(
+                stateAfterMoveCount(code, game, command.expectedMoveCount),
+                wasDuplicate = true,
+            )
             MoveEvaluation.Stale -> SubmitMoveResult.Stale(state)
             MoveEvaluation.NotActive -> SubmitMoveResult.NotActive
             MoveEvaluation.NotParticipant -> SubmitMoveResult.NotParticipant
@@ -128,6 +142,16 @@ class InMemoryStore : ChessTreeStore {
             MoveEvaluation.CommandConflict -> SubmitMoveResult.CommandConflict
             MoveEvaluation.UndoPending -> SubmitMoveResult.UndoPending
         }
+    }
+
+    private fun stateAfterMoveCount(
+        code: String,
+        game: MutableGame,
+        expectedMoveCount: Int?,
+    ): GameStateRecord {
+        val full = state(code, game)
+        val offset = expectedMoveCount?.takeIf { it in 0..full.moves.size } ?: 0
+        return full.copy(moves = full.moves.drop(offset), moveOffset = offset)
     }
 
     override suspend fun requestUndo(

@@ -5,6 +5,7 @@ import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.BrowserAuthResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GameHistoryResponse
@@ -20,6 +21,10 @@ import com.chesstree.multiplayer.contract.UndoRequestResponse
 import com.chesstree.multiplayer.contract.UndoVoteCommand
 import com.chesstree.multiplayer.contract.UserResponse
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.auth.AuthScheme
+import io.ktor.http.auth.HttpAuthHeader
+import io.ktor.http.auth.parseAuthorizationHeader
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.serialization.kotlinx.json.json
@@ -32,12 +37,15 @@ import io.ktor.server.auth.bearer
 import io.ktor.server.auth.principal
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.forwardedheaders.XForwardedHeaders
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.receive
+import io.ktor.server.plugins.origin
+import io.ktor.server.request.httpMethod
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -53,6 +61,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import java.util.UUID
+import java.net.URI
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -63,6 +72,7 @@ data class ServerServices(
     val publicBaseUrl: String,
     val updates: GameUpdateHub = GameUpdateHub(),
     val pushNotifications: PushNotifications = NoOpPushNotifications,
+    val browserCookieSecure: Boolean = publicBaseUrl.startsWith("https://"),
 )
 
 data class AuthenticatedUserPrincipal(val user: UserRecord, val token: String)
@@ -70,12 +80,17 @@ data class AuthenticatedUserPrincipal(val user: UserRecord, val token: String)
 fun Application.chessTreeModule(
     services: ServerServices,
     allowedCorsHosts: List<String> = emptyList(),
+    trustedProxyAddresses: Set<String> = setOf("127.0.0.1", "::1"),
 ) {
     val logger = environment.log
+    val browserAllowedHosts = (allowedCorsHosts + runCatching {
+        URI(services.publicBaseUrl).rawAuthority
+    }.getOrNull().orEmpty()).distinct()
     val json = Json { ignoreUnknownKeys = false; explicitNulls = false }
     install(ContentNegotiation) {
         json(json)
     }
+    install(XForwardedHeaders)
     install(WebSockets) {
         contentConverter = KotlinxWebsocketSerializationConverter(json)
         pingPeriodMillis = 20_000
@@ -88,6 +103,7 @@ fun Application.chessTreeModule(
             allowedCorsHosts.forEach { host -> allowHost(host, schemes = listOf("http", "https")) }
             allowHeader(HttpHeaders.ContentType)
             allowHeader(HttpHeaders.Authorization)
+            allowCredentials = true
         }
     }
     install(StatusPages) {
@@ -109,13 +125,27 @@ fun Application.chessTreeModule(
     install(RateLimit) {
         register(AUTH_RATE_LIMIT) {
             rateLimiter(limit = 10, refillPeriod = 1.minutes)
-            requestKey { call -> call.request.local.remoteHost }
+            requestKey { call ->
+                val directPeer = call.request.local.remoteHost
+                if (directPeer in trustedProxyAddresses) call.request.origin.remoteHost else directPeer
+            }
         }
     }
     install(Authentication) {
         bearer(AUTH_PROVIDER) {
+            authHeader { call ->
+                call.request.headers[HttpHeaders.Authorization]?.let(::parseAuthorizationHeader)
+                    ?: call.request.cookies[WEB_SESSION_COOKIE]?.takeIf {
+                        call.request.httpMethod in setOf(HttpMethod.Get, HttpMethod.Head) ||
+                            call.hasAllowedBrowserOrigin(browserAllowedHosts)
+                    }?.let { HttpAuthHeader.Single(AuthScheme.Bearer, it) }
+            }
             authenticate { credential ->
                 services.auth.authenticate(credential.token)?.let { user ->
+                    if (request.cookies[WEB_SESSION_COOKIE] == credential.token) {
+                        response.headers.append(HttpHeaders.CacheControl, "no-store")
+                        setBrowserSessionCookie(credential.token, services)
+                    }
                     AuthenticatedUserPrincipal(user, credential.token)
                 }
             }
@@ -128,8 +158,43 @@ fun Application.chessTreeModule(
             rateLimit(AUTH_RATE_LIMIT) {
                 post("/auth/register") { call.respondAuth(services.auth.register(call.receive())) }
                 post("/auth/login") { call.respondAuth(services.auth.login(call.receive())) }
+                post("/auth/browser/register") {
+                    if (!call.hasAllowedBrowserOrigin(browserAllowedHosts)) {
+                        call.respond(HttpStatusCode.Forbidden)
+                    } else {
+                        call.respondBrowserAuth(services.auth.register(call.receive()), services)
+                    }
+                }
+                post("/auth/browser/login") {
+                    if (!call.hasAllowedBrowserOrigin(browserAllowedHosts)) {
+                        call.respond(HttpStatusCode.Forbidden)
+                    } else {
+                        call.respondBrowserAuth(services.auth.login(call.receive()), services)
+                    }
+                }
+                post("/auth/browser/logout") {
+                    if (!call.hasAllowedBrowserOrigin(browserAllowedHosts)) {
+                        call.respond(HttpStatusCode.Forbidden)
+                    } else {
+                        call.request.cookies[WEB_SESSION_COOKIE]?.let { token ->
+                            services.auth.logout(token)
+                        }
+                        call.clearBrowserSessionCookie(services)
+                        call.respond(HttpStatusCode.NoContent)
+                    }
+                }
             }
             authenticate(AUTH_PROVIDER) {
+                get("/auth/browser/session") {
+                    if (call.request.cookies[WEB_SESSION_COOKIE] == null ||
+                        !call.hasAllowedBrowserOriginOrSameSite(browserAllowedHosts)
+                    ) {
+                        call.respond(HttpStatusCode.Unauthorized)
+                    } else {
+                        call.response.headers.append(HttpHeaders.CacheControl, "no-store")
+                        call.respond(BrowserAuthResponse(call.authenticatedUser().response()))
+                    }
+                }
                 post("/push/devices") {
                     val user = call.authenticatedUser()
                     val request = call.receive<PushDeviceRegistrationRequest>()
@@ -161,6 +226,9 @@ fun Application.chessTreeModule(
                 }
                 post("/auth/logout") {
                     services.auth.logout(checkNotNull(call.principal<AuthenticatedUserPrincipal>()).token)
+                    if (call.request.cookies[WEB_SESSION_COOKIE] != null) {
+                        call.clearBrowserSessionCookie(services)
+                    }
                     call.respond(HttpStatusCode.NoContent)
                 }
                 post("/games") {
@@ -212,7 +280,11 @@ fun Application.chessTreeModule(
                 }
                 get("/games/{code}/state") {
                     val user = call.authenticatedUser()
-                    val state = services.store.findGameState(call.gameCode())
+                    val afterMoveCount = call.request.queryParameters["afterMoveCount"]?.let { value ->
+                        value.toIntOrNull()?.takeIf { it >= 0 }
+                            ?: throw BadRequestException("Invalid move cursor")
+                    } ?: 0
+                    val state = services.store.findGameState(call.gameCode(), afterMoveCount)
                     if (state == null || state.game.players.none { it.user.id == user.id }) {
                         call.respond(
                             HttpStatusCode.NotFound,
@@ -334,7 +406,10 @@ fun Application.chessTreeModule(
                 val authRequest = runCatching {
                     withTimeout(10.seconds) { receiveDeserialized<GameSocketAuthRequest>() }
                 }.getOrNull()
-                val user = authRequest?.let { services.auth.authenticate(it.accessToken) }
+                val cookieToken = call.request.cookies[WEB_SESSION_COOKIE]
+                    ?.takeIf { call.hasAllowedBrowserOrigin(browserAllowedHosts) }
+                val sessionToken = cookieToken ?: authRequest?.accessToken?.takeIf(String::isNotBlank)
+                val user = sessionToken?.let { services.auth.authenticate(it) }
                 val initialState = user?.let { authenticated ->
                     services.store.findGameState(code)?.takeIf { state ->
                         state.game.players.any { it.user.id == authenticated.id }
@@ -344,7 +419,7 @@ fun Application.chessTreeModule(
                     close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Authentication failed"))
                     return@webSocket
                 }
-                if (authRequest.protocolVersion != API_VERSION) {
+                if (authRequest?.protocolVersion != API_VERSION) {
                     sendSerialized(
                         GameStatePush(
                             protocolVersion = API_VERSION,
@@ -357,17 +432,19 @@ fun Application.chessTreeModule(
                     close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Protocol mismatch"))
                     return@webSocket
                 }
+                var afterMoveCount = 0
                 services.updates.updates(code).collect {
-                    if (services.auth.authenticate(authRequest.accessToken)?.id != user.id) {
+                    if (services.auth.authenticate(checkNotNull(sessionToken))?.id != user.id) {
                         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Session expired"))
                         throw CancellationException("WebSocket session expired")
                     }
-                    val state = services.store.findGameState(code) ?: return@collect
+                    val state = services.store.findGameState(code, afterMoveCount) ?: return@collect
                     if (state.game.players.none { it.user.id == user.id }) {
                         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Access revoked"))
                         throw CancellationException("WebSocket access revoked")
                     }
                     sendSerialized(GameStatePush(state = state.response(services.publicBaseUrl)))
+                    afterMoveCount = state.moveOffset + state.moves.size
                 }
             }
         }
@@ -399,6 +476,66 @@ private suspend fun ApplicationCall.respondAuth(result: AuthResult) {
         )
     }
 }
+
+private suspend fun ApplicationCall.respondBrowserAuth(result: AuthResult, services: ServerServices) {
+    response.headers.append(HttpHeaders.CacheControl, "no-store")
+    response.headers.append(HttpHeaders.Pragma, "no-cache")
+    when (result) {
+        is AuthResult.Authenticated -> {
+            setBrowserSessionCookie(result.token, services)
+            respond(BrowserAuthResponse(result.user.response()))
+        }
+
+        is AuthResult.Invalid -> respond(
+            HttpStatusCode.BadRequest,
+            ErrorResponse(result.reason.apiCode, result.reason.apiCode),
+        )
+
+        AuthResult.UsernameTaken -> respond(
+            HttpStatusCode.Conflict,
+            ErrorResponse("username_taken", "username_taken"),
+        )
+
+        AuthResult.InvalidCredentials -> respond(
+            HttpStatusCode.Unauthorized,
+            ErrorResponse("invalid_credentials", "invalid_credentials"),
+        )
+    }
+}
+
+private fun ApplicationCall.setBrowserSessionCookie(token: String, services: ServerServices) {
+    response.cookies.append(
+        name = WEB_SESSION_COOKIE,
+        value = token,
+        maxAge = WEB_SESSION_MAX_AGE_SECONDS,
+        path = "/api/v1",
+        secure = services.browserCookieSecure,
+        httpOnly = true,
+        extensions = mapOf("SameSite" to "Strict"),
+    )
+}
+
+private fun ApplicationCall.clearBrowserSessionCookie(services: ServerServices) {
+    response.cookies.append(
+        name = WEB_SESSION_COOKIE,
+        value = "",
+        maxAge = 0,
+        path = "/api/v1",
+        secure = services.browserCookieSecure,
+        httpOnly = true,
+        extensions = mapOf("SameSite" to "Strict"),
+    )
+}
+
+private fun ApplicationCall.hasAllowedBrowserOrigin(allowedHosts: List<String>): Boolean {
+    val origin = request.headers[HttpHeaders.Origin]?.let { runCatching { URI(it) }.getOrNull() }
+        ?: return false
+    if (origin.scheme !in setOf("http", "https") || origin.rawAuthority.isNullOrBlank()) return false
+    return allowedHosts.any { allowed -> origin.rawAuthority.equals(allowed, ignoreCase = true) }
+}
+
+private fun ApplicationCall.hasAllowedBrowserOriginOrSameSite(allowedHosts: List<String>): Boolean =
+    request.headers[HttpHeaders.Origin]?.let { hasAllowedBrowserOrigin(allowedHosts) } ?: true
 
 private fun ApplicationCall.authenticatedUser(): UserRecord =
     checkNotNull(principal<AuthenticatedUserPrincipal>()).user
@@ -440,16 +577,17 @@ private fun GameStateRecord.response(
     includeUndoRequest: Boolean = true,
 ) = GameStateResponse(
     game = game.response(publicBaseUrl),
-    revision = if (includeUndoRequest) revision else moves.size,
+    revision = if (includeUndoRequest) revision else moveOffset + moves.size,
     moves = moves.mapIndexed { index, move ->
         MoveEventResponse(
-            revision = index + 1,
+            revision = moveOffset + index + 1,
             actor = move.intent.actor.name,
             from = move.intent.from.response(),
             to = move.intent.to.response(),
             promotion = move.intent.promotion?.name,
         )
     },
+    moveOffset = moveOffset,
     undoRequest = undoRequest?.takeIf { includeUndoRequest }?.let { request ->
         UndoRequestResponse(
             id = request.id.toString(),
@@ -505,13 +643,14 @@ private suspend fun ApplicationCall.respondUndoResult(
 private fun BoardCoordinate.response() = CoordinateResponse(vertex, column, row)
 
 private fun MoveCommandRequest.toDomainCommand(): GameMoveCommand = try {
-    require(expectedRevision >= 0)
+    require(expectedRevision >= 0 && expectedMoveCount?.let { it >= 0 } != false)
     val fromCoordinate = BoardCoordinate(from.vertex, from.column, from.row)
     val toCoordinate = BoardCoordinate(to.vertex, to.column, to.row)
     require(fromCoordinate != toCoordinate)
     GameMoveCommand(
         commandId = UUID.fromString(commandId),
         expectedRevision = expectedRevision,
+        expectedMoveCount = expectedMoveCount,
         from = fromCoordinate,
         to = toCoordinate,
         promotion = promotion?.let(PromotionChoice::valueOf),
@@ -521,6 +660,8 @@ private fun MoveCommandRequest.toDomainCommand(): GameMoveCommand = try {
 }
 
 private const val AUTH_PROVIDER = "auth-bearer"
+private const val WEB_SESSION_COOKIE = "chesstree_web_session"
+private const val WEB_SESSION_MAX_AGE_SECONDS = 30L * 24 * 60 * 60
 private const val MIN_PUSH_TOKEN_LENGTH = 20
 private const val MAX_PUSH_TOKEN_LENGTH = 4096
 private val AUTH_RATE_LIMIT = RateLimitName("authentication")

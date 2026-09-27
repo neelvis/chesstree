@@ -2,6 +2,7 @@ package com.chesstree.server
 
 import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.MoveIntent
+import com.chesstree.game.domain.GameState
 import com.chesstree.game.domain.PromotionChoice
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -10,7 +11,10 @@ import java.util.UUID
 data class UserRecord(
     val id: UUID,
     val username: String,
-    val normalizedUsername: String,
+)
+
+data class UserCredentials(
+    val user: UserRecord,
     val passwordHash: String,
 )
 
@@ -46,6 +50,7 @@ data class GameMoveCommand(
     val from: BoardCoordinate,
     val to: BoardCoordinate,
     val promotion: PromotionChoice?,
+    val expectedMoveCount: Int? = null,
 )
 
 data class GameMoveRecord(
@@ -66,6 +71,8 @@ data class GameStateRecord(
     val game: GameRecord,
     val moves: List<GameMoveRecord>,
     val revision: Int = moves.size,
+    val moveOffset: Int = 0,
+    val domainState: GameState? = null,
     val undoRequest: UndoRequestRecord? = null,
 )
 

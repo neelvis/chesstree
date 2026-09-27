@@ -1,6 +1,7 @@
 package com.chesstree.server
 
 import com.chesstree.game.domain.GamePhase
+import com.chesstree.game.domain.GameState
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.scenario.StandardGame
@@ -9,7 +10,7 @@ import com.chesstree.game.domain.session.SessionMoveResult
 import java.util.UUID
 
 sealed interface MoveEvaluation {
-    data class Accepted(val move: GameMoveRecord, val finished: Boolean) : MoveEvaluation
+    data class Accepted(val move: GameMoveRecord, val state: GameState, val finished: Boolean) : MoveEvaluation
     data object Duplicate : MoveEvaluation
     data object Stale : MoveEvaluation
     data object NotActive : MoveEvaluation
@@ -24,10 +25,12 @@ fun evaluateMove(
     state: GameStateRecord,
     userId: UUID,
     command: GameMoveCommand,
+    cachedState: GameState? = null,
+    existingCommand: GameMoveRecord? = null,
 ): MoveEvaluation {
     val player = state.game.players.firstOrNull { it.user.id == userId }
         ?: return MoveEvaluation.NotParticipant
-    state.moves.firstOrNull { it.commandId == command.commandId }?.let { existing ->
+    (existingCommand ?: state.moves.firstOrNull { it.commandId == command.commandId })?.let { existing ->
         return if (
             existing.userId == userId &&
             existing.expectedRevision == command.expectedRevision &&
@@ -43,18 +46,22 @@ fun evaluateMove(
     if (state.undoRequest != null) return MoveEvaluation.UndoPending
     if (state.game.status != GameStatus.ACTIVE || player.color == null) return MoveEvaluation.NotActive
     if (command.expectedRevision != state.revision) return MoveEvaluation.Stale
-    val session = checkNotNull(
+    if (command.expectedMoveCount != null && command.expectedMoveCount != state.moveOffset + state.moves.size) {
+        return MoveEvaluation.Stale
+    }
+    val gameState = cachedState ?: checkNotNull(
         GameSession.replay(
             StandardGame.scenario,
             state.moves.map(GameMoveRecord::intent)
-        )
+        )?.state
     ) {
         "Stored move history is invalid"
     }
-    if (session.state.phase is GamePhase.Finished) return MoveEvaluation.NotActive
+    if (gameState.phase is GamePhase.Finished) return MoveEvaluation.NotActive
     val actor = PlayerId.valueOf(player.color.name)
-    if (session.state.turn?.player != actor) return MoveEvaluation.NotTurn
+    if (gameState.turn?.player != actor) return MoveEvaluation.NotTurn
     val intent = MoveIntent(actor, command.from, command.to, command.promotion)
+    val session = GameSession(StandardGame.scenario, state = gameState)
     return when (val result = session.apply(intent)) {
         SessionMoveResult.Rejected -> MoveEvaluation.IllegalMove
         is SessionMoveResult.Applied -> MoveEvaluation.Accepted(
@@ -64,6 +71,7 @@ fun evaluateMove(
                 expectedRevision = command.expectedRevision,
                 intent = result.session.moves.last(),
             ),
+            state = result.session.state,
             finished = result.session.state.phase is GamePhase.Finished,
         )
     }

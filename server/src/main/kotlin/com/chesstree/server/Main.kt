@@ -11,27 +11,30 @@ fun main() {
         url = environment.required("CHESSTREE_DATABASE_URL"),
         user = environment.required("CHESSTREE_DATABASE_USER"),
         password = environment.required("CHESSTREE_DATABASE_PASSWORD"),
+        maximumPoolSize = environment["CHESSTREE_DB_POOL_SIZE"]?.toIntOrNull() ?: 10,
     )
     val store = JdbcStore(databaseConfig)
-    runBlocking { store.initialize() }
-    val tokens = TokenGenerator()
-    val updates = GameUpdateHub(PostgresGameUpdateTransport(databaseConfig))
-    val pushNotifications = FcmPushNotifications.fromServiceAccountFile(
-        store = store,
-        serviceAccountFile = environment["CHESSTREE_FCM_SERVICE_ACCOUNT_FILE"]
-            ?: DEFAULT_FCM_SERVICE_ACCOUNT_FILE,
-        publicBaseUrl = environment["CHESSTREE_PUBLIC_BASE_URL"] ?: "http://localhost:8080",
-        logWarning = Logger.getLogger("com.chesstree.push")::warning,
-    ) ?: NoOpPushNotifications
-    val services = ServerServices(
-        store = store,
-        auth = AuthService(store, Argon2PasswordHasher(), tokens),
-        tokens = tokens,
-        publicBaseUrl = environment["CHESSTREE_PUBLIC_BASE_URL"] ?: "http://localhost:8080",
-        updates = updates,
-        pushNotifications = pushNotifications,
-    )
+    var updates: GameUpdateHub? = null
+    var pushNotifications: PushNotifications? = null
     try {
+        runBlocking { store.initialize() }
+        val tokens = TokenGenerator()
+        updates = GameUpdateHub(PostgresGameUpdateTransport(databaseConfig))
+        pushNotifications = FcmPushNotifications.fromServiceAccountFile(
+            store = store,
+            serviceAccountFile = environment["CHESSTREE_FCM_SERVICE_ACCOUNT_FILE"]
+                ?: DEFAULT_FCM_SERVICE_ACCOUNT_FILE,
+            publicBaseUrl = environment["CHESSTREE_PUBLIC_BASE_URL"] ?: "http://localhost:8080",
+            logWarning = Logger.getLogger("com.chesstree.push")::warning,
+        ) ?: NoOpPushNotifications
+        val services = ServerServices(
+            store = store,
+            auth = AuthService(store, Argon2PasswordHasher(), tokens),
+            tokens = tokens,
+            publicBaseUrl = environment["CHESSTREE_PUBLIC_BASE_URL"] ?: "http://localhost:8080",
+            updates = checkNotNull(updates),
+            pushNotifications = checkNotNull(pushNotifications),
+        )
         embeddedServer(
             factory = Netty,
             port = environment["PORT"]?.toIntOrNull() ?: 8081,
@@ -43,12 +46,19 @@ fun main() {
                         ?.map(String::trim)
                         ?.filter(String::isNotEmpty)
                         .orEmpty(),
+                    trustedProxyAddresses = environment["CHESSTREE_TRUSTED_PROXY_ADDRESSES"]
+                        ?.split(',')
+                        ?.map(String::trim)
+                        ?.filter(String::isNotEmpty)
+                        ?.toSet()
+                        ?: setOf("127.0.0.1", "::1"),
                 )
             },
         ).start(wait = true)
     } finally {
         (pushNotifications as? AutoCloseable)?.close()
-        updates.close()
+        updates?.close()
+        store.close()
     }
 }
 

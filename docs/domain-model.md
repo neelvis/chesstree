@@ -1,69 +1,70 @@
-# Базовая доменная модель шахмат на троих
+# Three-Player Chess Domain Model
 
-## Цель и границы
+## Purpose and boundaries
 
-Домен располагается в `gameDomain/src/commonMain` и одинаково используется на
-Android, iOS и Web. Он не зависит от Compose, платформенных API, хранения данных
-или сети. Топология, генерация легальных ходов и переходы игрового состояния
-реализованы как общий детерминированный код.
+The domain lives in `gameDomain/src/commonMain` and is shared by Android, iOS,
+and Web. It does not depend on Compose, platform APIs, storage, or networking.
+Board topology, legal move generation, and game-state transitions are shared
+deterministic code.
 
-Модель следует практикам зрелых шахматных движков: позиция отделена от записи
-хода, тип фигуры - от её размещения, а завершённый ход - от пользовательского
-намерения. Для варианта на троих дополнительно разделены цвет армии и игрок,
-который сейчас ею управляет.
+The model follows established chess-engine design practices: position is
+separate from move history, a piece's type is separate from its placement, and
+a confirmed move is separate from the user's intent. The three-player variant
+also distinguishes an army's color from the player who currently controls it.
 
-## Основные сущности
+## Core entities
 
-| Сущность                                          | Ответственность                                                                                                 |
-|---------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
-| `PlayerId`                                        | Место игрока и цвет его исходной армии: белый, красный, чёрный.                                                 |
-| `ArmyColor`, `ArmyControl`                        | Неизменяемый цвет армии и единый текущий управляющий всей армией.                                               |
-| `BoardFile`, `Square`, `ThreePlayerBoardNotation` | Буквенно-цифровое имя поля и взаимно-однозначное преобразование всех 96 клеток в машинные координаты и обратно. |
-| `BoardCoordinate`, `ThreePlayerBoardTopology`     | Авторитетный машинный адрес одной из 96 клеток и связи прямых/диагональных направлений.                         |
-| `PieceId`                                         | Стабильная идентичность фигуры между ходами и сменой владельца.                                                 |
-| `PieceType`, `Piece`                              | Тип, исходная армия, поле и факт предыдущего хода.                                                              |
-| `PieceAppearance`                                 | Семантические цвета основания и корпуса фигуры для общего UI.                                                   |
-| `ParticipantStatus`                               | Активен, получил мат или находится в пате.                                                                      |
-| `Position`                                        | Неизменяемая расстановка фигур и позиционные права (рокировка, взятие на проходе).                              |
-| `MoveIntent`                                      | Запрос игрока: откуда, куда и в кого превратить пешку.                                                          |
-| `Move`                                            | Уже подтверждённый доменом ход с фигурой, типом хода и взятием.                                                 |
-| `Turn`                                            | Игрок, который должен ходить, и сквозной номер полухода.                                                        |
-| `GameState`                                       | Агрегат текущей позиции, участников, очереди и фазы партии.                                                     |
-| `GameOutcome`                                     | Итоговые места, общая ничья либо ничья двух оставшихся игроков с сохранением третьего места выбывшего.          |
+| Entity | Responsibility |
+| --- | --- |
+| `PlayerId` | A player's seat and the color of their original army: white, red, or black. |
+| `ArmyColor`, `ArmyControl` | An army's immutable color and its single current controller. |
+| `BoardFile`, `Square`, `ThreePlayerBoardNotation` | Algebraic square names and a bijective mapping between all 96 board cells and machine coordinates. |
+| `BoardCoordinate`, `ThreePlayerBoardTopology` | The authoritative machine address of one of 96 cells and the connections between straight and diagonal directions. |
+| `PieceId` | Stable piece identity across moves and changes of control. |
+| `PieceType`, `Piece` | Piece type, original army, square, and whether it has moved before. |
+| `PieceAppearance` | Semantic colors for a piece's base and body in the shared UI. |
+| `ParticipantStatus` | Active, checkmated, or stalemated. |
+| `Position` | Immutable piece placement and positional rights (castling and en passant). |
+| `MoveIntent` | A player's request: source, destination, and optional pawn promotion. |
+| `Move` | A move confirmed by the domain, including the piece, move type, and capture. |
+| `Turn` | The player to move and the global ply number. |
+| `GameState` | Aggregate of the current position, participants, turn, and phase. |
+| `GameOutcome` | Final ranking, a three-way draw, or a draw between the two remaining players while the eliminated player keeps third place. |
 
-## Ключевые инварианты
+## Key invariants
 
-- В одной позиции нет двух фигур с одинаковым `PieceId` или на одном поле.
-- Ключ карты фигур совпадает с идентификатором самой фигуры.
-- В партии присутствуют ровно три участника.
-- Ходить может только активный участник.
-- У законченной партии нет следующего хода; у продолжающейся он есть.
-- Цвет армии не меняется при первом мате, а `ArmyControl` атомарно передаёт всю
-  армию новому игроку. У отдельных фигур нет собственного контроллера, поэтому
-  частичная передача армии не представима.
-- Основание фигуры всегда имеет цвет её исходной армии. Корпус имеет цвет
-  текущего управляющего: в начале цвета совпадают, после передачи армии фигура
-  становится двухцветной. Конкретные RGB/Material-цвета выбирает UI.
-- Переданные в агрегаты карты и множества копируются: последующее изменение
-  исходной mutable-коллекции не меняет доменное состояние.
-- Король не является допустимым результатом превращения пешки.
-- Топология доски, а не диапазон координат, отвечает на вопрос о существовании
-  поля и допустимом продолжении линии через центр.
+- A position cannot contain two pieces with the same `PieceId` or on the same
+  square.
+- A piece map's key must match the ID of its value.
+- A game has exactly three participants.
+- Only an active participant may move.
+- A finished game has no next turn; an ongoing game does.
+- An army's color does not change after the first checkmate. `ArmyControl`
+  transfers the entire army atomically to another player. Pieces have no
+  individual controller, so partial army transfers cannot be represented.
+- A piece's base always uses its original army color. Its body uses the current
+  controller's color: these match initially, and the piece becomes two-toned
+  after an army transfer. The UI chooses the concrete RGB/Material colors.
+- Maps and sets passed into aggregates are copied, so later mutation of the
+  original mutable collection cannot change domain state.
+- A king is not a valid pawn-promotion choice.
+- Board topology, rather than coordinate ranges, determines whether a square
+  exists and whether a line continues through the center.
 
-## Сценарии для ручного тестирования
+## Manual test scenarios
 
-Именованные стартовые состояния находятся в
-`game/presentation/scenario/ManualGameScenarios.kt`. Они собраны в `commonMain`,
-поэтому Android, iOS, JS и Wasm запускают совершенно одинаковую позицию. Выбрать
-сценарий можно из меню над доской; при выборе состояние и выделенная фигура
-сбрасываются.
+Named starting states are in
+`composeApp/src/commonMain/kotlin/com/chesstree/game/presentation/scenario/ManualGameScenarios.kt`.
+They are declared in `commonMain`, so Android, iOS, JS, and Wasm use the same
+position. Choose a scenario from the menu above the board; selecting one resets
+the game state and selected piece.
 
-Новый сценарий задаётся через общий DSL:
+Define a new scenario with the shared DSL:
 
 ```kotlin
 val example = gameScenario("example") {
-    title = "Проверка ладьи"
-    description = "Произвольная разреженная позиция."
+    title = "Rook test"
+    description = "An arbitrary sparse position."
     turn(PlayerId.WHITE, ply = 1)
     piece("white-king", ArmyColor.WHITE, PieceType.KING, BoardCoordinate(0, 3, 0))
     piece("white-rook", ArmyColor.WHITE, PieceType.ROOK, BoardCoordinate(0, 1, 1))
@@ -72,108 +73,118 @@ val example = gameScenario("example") {
 }
 ```
 
-После объявления сценарий нужно добавить в `ManualGameScenarios.all`. Координата
-задаётся тройкой `vertex`, `column`, `row`; каждая её компонента проверяется
-конструктором. Для отображения, журналов и пользовательского ввода
-`ThreePlayerBoardNotation` преобразует её в буквенно-цифровую запись вроде `a1`
-и обратно. Таблица соответствия покрывает все 96 клеток и проверяется на
-уникальность и обратимость общими тестами.
+After defining a scenario, add it to `ManualGameScenarios.all`. A coordinate is
+the triple `vertex`, `column`, `row`; the constructor validates each component.
+`ThreePlayerBoardNotation` converts coordinates to and from algebraic notation
+such as `a1` for display, logs, and user input. The mapping covers all 96 cells
+and common tests verify uniqueness and reversibility.
 
-Сценарий допускает недостижимую из обычного начала расстановку и произвольное
-сочетание типов в пределах 16 фигур каждой исходной армии. Для активного игрока
-и игрока в пате требуется один король, а для уже получившего мат игрока — ни
-одного. `checkmated(...)` одновременно отмечает выбывшего участника и передаёт
-его армию автору мата. Сам факт шаха, мата или пата в начальной позиции не
-вычисляется: начальное состояние считается доверенным. После первого
-применённого хода редьюсер автоматически проверяет игрока, которому передаётся
-очередь.
+A scenario may use a position unreachable from the normal starting state and
+any combination of up to 16 pieces from each original army. Each active or
+stalemated player must have one king; an already checkmated player must have
+none. `checkmated(...)` marks the participant as eliminated and transfers their
+army to the player who delivered mate. The initial position is trusted: check,
+checkmate, and stalemate are not calculated when it is created. After the first
+applied move, the reducer automatically checks the player whose turn is next.
 
-## Доменные сервисы ходов
+## Domain move services
 
-`LegalMoveGenerator` строит псевдолегальные и легальные ходы только для игрока,
-чья очередь указана в `GameState`. Он учитывает занятость клеток, блокировку
-лучей, текущего управляющего каждой армией, первый двойной ход пешки, превращение
-и безопасность короля. Карта атак пока является внутренней частью генератора;
-атаки всех активных противников объединяются, поэтому поддерживается шах от двух
-игроков одновременно. Короли не считаются фигурами, которые можно снять обычным
-взятием.
+`LegalMoveGenerator` builds pseudo-legal and legal moves only for the player
+whose turn is recorded in `GameState`. It accounts for occupied squares, blocked
+rays, each army's current controller, a pawn's initial two-square move,
+promotion, and king safety. The attack map is currently internal to the
+generator. Attacks from all active opponents are combined, so simultaneous
+checks by two players are supported. Kings cannot be captured as ordinary
+pieces.
 
-`GameReducer.reduce` - единственная точка применения `MoveIntent`. Успешный
-результат содержит новый неизменяемый `GameState` и канонический `Move`, а отказ -
-типизированную причину без изменения исходного состояния. Редьюсер выполняет
-обычный ход, взятие, превращение, рокировку или en passant, обновляет позиционные
-права и передаёт очередь следующему активному игроку. Если у следующего игрока
-нет легальных ходов, редьюсер автоматически объявляет мат либо пат, передаёт
-армии после мата и при необходимости завершает партию.
+`GameReducer.reduce` is the only entry point for applying a `MoveIntent`. Success
+returns a new immutable `GameState` and canonical `Move`; failure returns a
+typed reason without changing the original state. The reducer applies ordinary
+moves, captures, promotion, castling, and en passant, updates positional rights,
+and advances to the next active player. If the next player has no legal moves,
+the reducer declares checkmate or stalemate, transfers the army after checkmate,
+and ends the game when required.
 
-Если после хода остаются два активных игрока и материал сокращается до `K vs K`
-или `K+N vs K`, редьюсер завершает партию `TwoWayDraw`: эти игроки
-делят первое место, а уже выбывший сохраняет третье. Неподвижный король игрока в
-пате остаётся на доске, но в этом подсчёте материала не участвует. Реплей старой
-сохранённой истории, в которой после такой позиции уже записаны ходы, остаётся
-допустимым; правило срабатывает на следующем новом ходе и тем самым завершает
-устаревшую партию без потери истории.
+If two active players remain after a move and the material is reduced to
+`K vs K` or `K+N vs K`, the reducer finishes the game as a `TwoWayDraw`: both
+players share first place and the previously eliminated player keeps third. A
+stalemated player's immobile king remains on the board but is not counted in
+this material check. Replaying an older saved history that contains moves after
+such a position is still allowed; the rule takes effect on the next new move,
+ending the stale game without losing history.
 
-`Move` хранит перемещение ладьи при рокировке явно, поэтому подтверждённый ход
-можно повторить без повторного вывода плана из позиции. `Position` хранит
-несколько целей en passant: после двух последовательных двойных ходов у третьего
-игрока действительно могут одновременно существовать две возможности.
+`Move` stores the rook's castling movement explicitly, so a confirmed move can
+be replayed without deriving the plan from the position again. `Position` stores
+multiple en-passant targets: after two consecutive double pawn moves, the third
+player can have two such opportunities at once.
 
-## Журнал и восстановление
+## Move log and recovery
 
-`GameLogCodec` строит журнал из подтверждённой истории `GameSession`, не создавая
-второго источника игрового состояния. Один полуход записывается в строке как
-расширение стандартной алгебраической нотации (SAN) для трёх игроков:
+`GameLogCodec` builds the move log from confirmed `GameSession` history without
+creating a second source of game state. Each ply is written as an extension of
+standard algebraic notation (SAN) for three players:
 
 ```text
 <N>: <Army>.<SAN>
 ```
 
-`Army` принимает значения `W`, `R`, `B`. Основная часть использует обычные
-обозначения фигур `Q`, `K`, `N`, `B`, `R`, взятие `x`, уточнение исходной линии
-или горизонтали при неоднозначности, рокировки `O-O`/`O-O-O`, превращение
-`=Q`/`=R`/`=B`/`=N` и суффиксы `+`/`#`. Имена клеток берутся из
-`ThreePlayerBoardNotation`, включая дополнительные линии и горизонтали
-трёхсторонней доски. Например: `12: R.exd8=N+`.
+`Army` is `W`, `R`, or `B`. The main notation uses standard piece letters `Q`,
+`K`, `N`, `B`, and `R`, capture marker `x`, source-file or rank disambiguation,
+castling `O-O`/`O-O-O`, promotion `=Q`/`=R`/`=B`/`=N`, and `+`/`#` suffixes.
+Square names come from `ThreePlayerBoardNotation`, including the additional
+files and ranks on the three-sided board. Example: `12: R.exd8=N+`.
 
-При импорте метаданные `N` и `Army` намеренно не проверяются: SAN сопоставляется
-с доступными ходами текущей позиции, а выбранный ход применяется через
-`GameReducer`. Нераспознанные и неприменимые строки пропускаются, после чего UI
-сообщает количество восстановленных строк от общего числа непустых строк.
-Суффиксы шаха и мата при вводе необязательны. Для совместимости импорт также
-понимает первоначальный формат с последней парой `From->To`; новый экспорт всегда
-использует SAN и поэтому не теряет выбор фигуры при превращении.
+On import, the `N` and `Army` metadata are intentionally not validated: SAN is
+matched against legal moves in the current position, and the selected move is
+applied through `GameReducer`. Unrecognized or inapplicable lines are skipped;
+the UI reports the number restored out of all non-empty lines. Check and mate
+suffixes are optional on input. For compatibility, import also accepts the
+original format ending in a `From->To` pair. New exports always use SAN and
+therefore preserve the selected piece when a pawn is promoted.
 
-Compose-диалог и платформенные действия находятся вне домена. Android использует
-системный выбор файла, iOS — системное меню сохранения/обмена, а Web — браузерное
-скачивание; буфер обмена также реализован отдельно для каждой платформы.
+The Compose dialog and platform actions are outside the domain. Android uses
+the system file picker, iOS uses the system save/share menu, and Web downloads
+through the browser. Clipboard support is also implemented separately per
+platform.
 
-## Почему модель находится в `commonMain`
+## Why the model is in `commonMain`
 
-Правила детерминированы и не используют платформенные возможности. Один общий
-домен предотвращает расхождение Android, iOS и браузерной версии. Платформенным
-слоям останется только отображать `GameState` и отправлять `MoveIntent`; они не
-должны самостоятельно решать, легален ли ход.
+The rules are deterministic and use no platform features. One shared domain
+prevents Android, iOS, and browser behavior from diverging. Platform layers
+should display `GameState` and send `MoveIntent`; they must not decide whether a
+move is legal.
 
-## Общая доска
+## Shared board
 
-В `commonMain` добавлена адаптивная Compose-доска, одинаковая для Android, iOS и
-Web. Геометрия строится из правильного шестиугольника как 96 уникальных
-четырёхугольных клеток. Раскраска чередуется по соседству, причём `A1` считается
-тёмной. Внешние обозначения линий соответствуют эталонной SVG-схеме.
+The adaptive Compose board in `commonMain` is shared by Android, iOS, and Web.
+Its geometry uses a regular hexagon to construct 96 unique quadrilateral cells.
+Cell colors alternate by adjacency, with `A1` treated as dark. The external
+file/rank labels match the reference SVG.
 
-UI поддерживает выбор управляемой фигуры и отправляет намерение хода при нажатии
-на подсвеченную клетку. Подсказки строятся из `LegalMoveGenerator`, поэтому
-учитывают занятость, шах, рокировку и en passant. `MovementDirections` остаётся
-низкоуровневым описанием геометрических маршрутов и напрямую как разрешение хода
-не используется.
+The UI lets a player select a piece they control and sends a move intent when a
+highlighted square is tapped. Hints come from `LegalMoveGenerator`, so they
+account for occupancy, check, castling, and en passant. `MovementDirections`
+remains a low-level description of geometric paths and is not itself used as
+move authorization.
 
-## Не включено намеренно
+## Application and online play
 
-- анимации перемещения фигур;
-- локальное или сетевое хранение;
-- пользователи, аккаунты и сетевой мультиплеер;
-- часы и контроль времени;
-- повторение позиции, правило 50/75 ходов и другие ничейные политики, кроме
-  явно реализованных `K vs K` и `K+N vs K`, из
+The game rules live in `gameDomain` and do not depend on UI, networking, or
+databases. Manual scenarios live in `composeApp` as UI support and use the shared
+domain. `composeApp` renders state and sends typed intents. Local game persistence
+and its snapshot codec also live in `composeApp`; this storage format is separate
+from the network API format.
+
+For online games, the server validates each move again with the same shared
+engine. The database stores participants, game revisions, and immutable move
+commands; API DTOs and SQL models are not domain types. On reconnect, the client
+rebuilds state from the move journal, while WebSocket messages report new
+revisions. See [`api.md`](api.md) for the contract and
+[`architecture.md`](architecture.md) for module boundaries.
+
+## Open rules
+
+- Clocks and time controls.
+- Position repetition, the 50/75-move rules, and other draw policies besides the
+  explicitly implemented `K vs K` and `K+N vs K` cases in
   [`three-player-chess-rules.md`](./three-player-chess-rules.md).

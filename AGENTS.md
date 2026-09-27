@@ -7,15 +7,13 @@ alwaysApply: true
 
 ## Product and supported targets
 
-ChessTree is a production-oriented graphical board-game application. The current
-product is a checkers game; authentication, online multiplayer, persistence, and
-other capabilities may be added later.
+ChessTree is a production-oriented three-player chess application with local play,
+accounts, online multiplayer, game history, and push notifications.
 
-The required product targets are Android, iOS, and Web. The repository currently
-contains a desktop JVM target, but desktop/Windows is not a required acceptance
-target unless the user explicitly includes it. Preserve existing desktop support;
-do not expand or remove it incidentally. Web support must use the project's chosen
-Kotlin target and must not be claimed until a browser target and its checks exist.
+The required product targets are Android, iOS, and Web. `gameDomain` and the
+backend use JVM; there is no desktop Compose application target. Do not claim
+desktop UI support unless that target and its checks are added. Web support uses
+the configured Kotlin/Wasm and Kotlin/JS browser targets.
 
 The user is new to KMP. Explain material KMP-specific decisions and trade-offs in
 plain language. Do not make the user choose between implementation details when a
@@ -23,6 +21,8 @@ well-supported default can be selected from project evidence and official docs.
 
 ## General workflow
 
+- Write all Markdown files in English, including project documentation, agent
+  instructions, reports, and deployment guides.
 - Read this file, the invoked skill, and only task-related project documentation
   before modifying code.
 - Keep changes tightly scoped. Preserve user-owned edits and generated files.
@@ -60,15 +60,14 @@ well-supported default can be selected from project evidence and official docs.
   use exceptions as normal domain control flow, or expose transport DTOs directly
   to UI state.
 
-## Checkers domain
+## Three-player chess domain
 
 - Keep the rules engine deterministic, platform-independent, and separately
   testable in common Kotlin.
 - Represent board coordinates, pieces, side-to-move, moves, captures, promotion,
   and terminal results with explicit domain types and immutable state.
-- Do not infer a rule variant. Before behavior depends on capture priority,
-  multi-jump rules, king movement, promotion timing, board size, draw rules, or
-  notation, obtain or document the chosen ruleset.
+- The implemented variant is defined by `docs/three-player-chess-rules.md` and
+  `docs/domain-model.md`. Do not infer rules that those documents leave open.
 - The domain validates legal moves; the UI only presents candidates and sends
   intent. Never make animation or pointer state authoritative game state.
 - Make state transitions serializable and deterministic enough for future replay,
@@ -125,4 +124,3 @@ well-supported default can be selected from project evidence and official docs.
   platform boundary. Record the reason for a new dependency.
 - Avoid deprecated and experimental APIs unless the benefit is explicit, support
   across required targets is verified, and opt-in/migration risk is documented.
-

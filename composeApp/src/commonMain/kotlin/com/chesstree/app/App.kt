@@ -68,6 +68,7 @@ import com.chesstree.game.presentation.history.NoOpGameLogExporter
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.data.ChessTreeApi
+import com.chesstree.multiplayer.data.ApiResult
 import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
 import com.chesstree.multiplayer.data.NoOpPushTokenProvider
@@ -78,6 +79,7 @@ import com.chesstree.resources.Res
 import com.chesstree.resources.allDrawableResources
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import org.jetbrains.compose.resources.imageResource
 
 @Composable
@@ -144,6 +146,14 @@ fun App(
                 }
             }
         }
+        LaunchedEffect(onlineSessionStore) {
+            onlineSessionStore.invalidations().collect {
+                authenticatedUser = null
+                accountError = null
+                accountLoading = false
+                multiplayerResetKey += 1
+            }
+        }
         LaunchedEffect(onlineApi, authenticatedUser?.accessToken, pushTokenProvider) {
             val api = onlineApi ?: return@LaunchedEffect
             val authToken = authenticatedUser?.accessToken ?: return@LaunchedEffect
@@ -187,7 +197,15 @@ fun App(
                                     } catch (_: Throwable) {
                                     }
                                 }
-                                if (authentication != null) onlineApi.logout(authentication.accessToken)
+                                if (authentication != null) {
+                                    when (onlineApi.logout(authentication.accessToken)) {
+                                        is ApiResult.Success -> Unit
+                                        is ApiResult.Failure -> {
+                                            accountError = "i18n:logout_failed"
+                                            return@launch
+                                        }
+                                    }
+                                }
                                 onlineSessionStore.clear()
                                 authenticatedUser = null
                                 accountError = null

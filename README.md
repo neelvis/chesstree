@@ -1,20 +1,24 @@
 # ChessTree
 
-An empty Kotlin Multiplatform project for a cross-platform chess game. The shared
-Compose UI lives in `composeApp` and is used by Android, iOS, and web apps.
+ChessTree is a Kotlin Multiplatform three-player chess application. Its shared
+Compose UI and deterministic game domain serve Android, iOS, and Web. A Ktor
+backend provides account registration, online lobbies, authoritative move
+validation, history synchronization, and optional push notifications.
 
 ## Run
 
 - Android: open the project in Android Studio and run `androidApp`.
 - iOS: open `iosApp/iosApp.xcodeproj` in Xcode and run the `iosApp` scheme.
 - Web (Wasm): run `./gradlew :composeApp:wasmJsBrowserDevelopmentRun`.
-- Web compatibility bundle: run `./gradlew composeCompatibilityBrowserDistribution`.
+- Web JavaScript compatibility bundle: run `./gradlew :composeApp:jsBrowserDistribution`.
 
-Во время ручной проверки стартовую позицию можно выбрать в меню сценариев над
-доской. Как добавлять собственные произвольные позиции, описано в
-[`docs/domain-model.md`](docs/domain-model.md#сценарии-для-ручного-тестирования).
+For manual testing, choose a starting position from the scenario menu above the
+board. See [`docs/domain-model.md`](docs/domain-model.md#manual-test-scenarios)
+for instructions on adding custom positions.
 
-Requires JDK 17 or newer, Android SDK 37, and Xcode for iOS builds.
+Requires JDK 17 or newer, Android SDK 37, and Xcode for iOS builds. The browser
+targets are Kotlin/Wasm and Kotlin/JS. JVM is configured for the domain and server;
+there is no desktop Compose application target.
 
 ## Multiplayer backend MVP
 
@@ -58,19 +62,26 @@ The service exposes:
 - `WS /api/v1/games/{code}/events` to receive authenticated state updates;
 - `GET /health` for a process health check.
 
+The complete API contract, authorization rules, revision and retry semantics,
+WebSocket synchronization, and deployment assumptions are described in
+[`docs/api.md`](docs/api.md). The module and source-set boundaries are summarized
+in [`docs/architecture.md`](docs/architecture.md).
+
 For any non-local deployment, expose the service only through HTTPS, replace the
-development database password, and configure the reverse proxy to preserve the
-real client address or enforce its own authentication rate limit. Serve the Web
-client from the same origin (or add an explicit allowlisted CORS policy).
+development database password, and keep the backend reachable only through the
+trusted reverse proxy. The shipped Nginx config limits authentication requests by
+the client IP; Ktor uses forwarded addresses only when the direct peer is trusted.
+Serve the Web client from the same origin (or add an explicit allowlisted CORS
+policy for a same-site Web origin so credentialed cookie requests are allowed.
 
 When the third distinct user joins, the lobby becomes `ACTIVE` and the server
 randomly assigns `WHITE`, `RED`, and `BLACK`. The shared Compose UI provides
 registration, login, lobby creation, code entry, and joining. Lobby and game
 changes arrive through WebSocket push; REST remains authoritative for commands and
 full-state resynchronization. Android encrypts the access token with a key from
-Android Keystore, iOS stores it in Keychain, and Web intentionally keeps it only in
-memory because browser storage cannot provide the same protection from script
-access.
+Android Keystore, iOS stores it in Keychain, and Web keeps its bearer credential
+in an `HttpOnly; SameSite=Strict` cookie so page scripts cannot read it. The Web
+session restores after reload and signs out other open tabs when the user logs out.
 
 Once the lobby is active, all moves are validated by the same deterministic domain
 engine on the server. Each command contains an expected revision and a unique

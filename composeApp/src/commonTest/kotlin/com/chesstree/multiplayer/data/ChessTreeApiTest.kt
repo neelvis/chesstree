@@ -19,6 +19,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class ChessTreeApiTest {
     @Test
@@ -36,6 +37,55 @@ class ChessTreeApiTest {
         val result = api(engine).createGame("session-token")
 
         assertEquals("ABC1234", assertIs<ApiResult.Success<GameResponse>>(result).value.code)
+    }
+
+    @Test
+    fun browserAuthUsesCookieRoutesAndNeverSendsBearerHeaders() = runTest {
+        val visited = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            assertNull(request.headers[HttpHeaders.Authorization])
+            visited += "${request.method.value} ${request.url}"
+            when {
+                request.url.encodedPath.endsWith("/auth/browser/register") -> respond(
+                    content = """{"user":{"id":"user-id","username":"Alice"}}""",
+                    status = HttpStatusCode.OK,
+                    headers = JSON_HEADERS,
+                )
+
+                request.url.encodedPath.endsWith("/auth/browser/session") -> respond(
+                    content = """{"user":{"id":"user-id","username":"Alice"}}""",
+                    status = HttpStatusCode.OK,
+                    headers = JSON_HEADERS,
+                )
+
+                request.url.encodedPath.endsWith("/auth/browser/logout") -> respond(
+                    "",
+                    HttpStatusCode.NoContent,
+                )
+
+                else -> error("Unexpected browser request: ${request.url.encodedPath}")
+            }
+        }
+        val api = api(engine, browserSession = true)
+
+        val registered = assertIs<ApiResult.Success<com.chesstree.multiplayer.contract.AuthResponse>>(
+            api.register("Alice", "correct-horse"),
+        ).value
+        assertEquals("", registered.accessToken)
+        assertEquals("Alice", registered.user.username)
+        assertEquals("Alice", assertIs<ApiResult.Success<com.chesstree.multiplayer.contract.BrowserAuthResponse>>(
+            api.restoreBrowserSession(),
+        ).value.user.username)
+        assertIs<ApiResult.Success<Unit>>(api.logout(registered.accessToken))
+
+        assertEquals(
+            listOf(
+                "POST https://server.test/api/v1/auth/browser/register",
+                "GET https://server.test/api/v1/auth/browser/session",
+                "POST https://server.test/api/v1/auth/browser/logout",
+            ),
+            visited,
+        )
     }
 
     @Test
@@ -138,12 +188,13 @@ class ChessTreeApiTest {
         )
     }
 
-    private fun api(engine: MockEngine): KtorChessTreeApi = KtorChessTreeApi(
+    private fun api(engine: MockEngine, browserSession: Boolean = false): KtorChessTreeApi = KtorChessTreeApi(
         serverBaseUrl = "https://server.test",
         client = HttpClient(engine) {
             expectSuccess = false
             install(ContentNegotiation) { json(Json { explicitNulls = false }) }
         },
+        browserSession = browserSession,
     )
 
     private companion object {

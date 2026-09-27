@@ -1,12 +1,12 @@
 package com.chesstree.multiplayer.data
 
-import io.ktor.client.engine.js.Js
 import kotlin.test.Test
-import kotlin.test.assertSame
+import kotlin.test.assertNotNull
 
 class DefaultHttpClientEngineTest {
     @Test
-    fun browserUsesFetchEngine() {
-        assertSame(Js, defaultHttpClientEngine())
+    fun browserBuildsFetchEngineWithCookieAndWithoutCookieModes() {
+        assertNotNull(defaultHttpClientEngine(browserSession = false))
+        assertNotNull(defaultHttpClientEngine(browserSession = true))
     }
 }

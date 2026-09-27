@@ -3,6 +3,7 @@ package com.chesstree.multiplayer.data
 import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.AuthResponse
+import com.chesstree.multiplayer.contract.BrowserAuthResponse
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GameHistoryResponse
 import com.chesstree.multiplayer.contract.GameResponse
@@ -17,8 +18,8 @@ import com.chesstree.multiplayer.contract.RegisterRequest
 import com.chesstree.multiplayer.contract.UndoRequestCommand
 import com.chesstree.multiplayer.contract.UndoVoteCommand
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.call.body
-import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.receiveDeserialized
@@ -45,6 +46,8 @@ interface ChessTreeApi {
     suspend fun register(username: String, password: String): ApiResult<AuthResponse>
     suspend fun login(username: String, password: String): ApiResult<AuthResponse>
     suspend fun logout(token: String): ApiResult<Unit>
+    suspend fun restoreBrowserSession(): ApiResult<BrowserAuthResponse> =
+        ApiResult.Failure("unsupported", "i18n:login_restore_failed")
     suspend fun registerPushDevice(
         sessionToken: String,
         deviceToken: String,
@@ -59,6 +62,11 @@ interface ChessTreeApi {
     suspend fun joinGame(token: String, code: String): ApiResult<GameResponse>
     suspend fun getGame(token: String, code: String): ApiResult<GameResponse>
     suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse>
+    suspend fun getGameState(
+        token: String,
+        code: String,
+        afterMoveCount: Int,
+    ): ApiResult<GameStateResponse> = getGameState(token, code)
     fun observeGame(token: String, code: String): Flow<ApiResult<GameStateResponse>>
     suspend fun submitMove(
         token: String,
@@ -86,30 +94,44 @@ sealed interface ApiResult<out T> {
 
 class KtorChessTreeApi(
     serverBaseUrl: String,
-    private val client: HttpClient = defaultHttpClient(),
+    client: HttpClient? = null,
+    private val browserSession: Boolean = false,
 ) : ChessTreeApi {
+    private val client: HttpClient = client ?: defaultHttpClient(browserSession)
     private val apiBaseUrl = "${serverBaseUrl.trimEnd('/')}/api/v1"
     private val socketApiBaseUrl = serverBaseUrl.trimEnd('/').toWebSocketUrl() + "/api/v1"
 
     override suspend fun register(username: String, password: String): ApiResult<AuthResponse> =
         request {
-            client.post("$apiBaseUrl/auth/register") {
+            client.post("$apiBaseUrl/auth/${if (browserSession) "browser/" else ""}register") {
                 contentType(ContentType.Application.Json)
                 setBody(RegisterRequest(username, password))
-            }.decode()
+            }.let { response ->
+                if (browserSession) response.decode<BrowserAuthResponse>().mapBrowserAuth()
+                else response.decode()
+            }
         }
 
     override suspend fun login(username: String, password: String): ApiResult<AuthResponse> =
         request {
-            client.post("$apiBaseUrl/auth/login") {
+            client.post("$apiBaseUrl/auth/${if (browserSession) "browser/" else ""}login") {
                 contentType(ContentType.Application.Json)
                 setBody(LoginRequest(username, password))
-            }.decode()
+            }.let { response ->
+                if (browserSession) response.decode<BrowserAuthResponse>().mapBrowserAuth()
+                else response.decode()
+            }
         }
 
     override suspend fun logout(token: String): ApiResult<Unit> = request {
-        val response = client.post("$apiBaseUrl/auth/logout") { bearerAuth(token) }
+        val response = client.post("$apiBaseUrl/auth/${if (browserSession) "browser/" else ""}logout") {
+            if (!browserSession) bearerAuth(token)
+        }
         if (response.status == HttpStatusCode.NoContent) ApiResult.Success(Unit) else response.failure()
+    }
+
+    override suspend fun restoreBrowserSession(): ApiResult<BrowserAuthResponse> = request {
+        client.get("$apiBaseUrl/auth/browser/session").decode()
     }
 
     override suspend fun registerPushDevice(
@@ -118,7 +140,7 @@ class KtorChessTreeApi(
         platform: String,
     ): ApiResult<Unit> = request {
         val response = client.post("$apiBaseUrl/push/devices") {
-            bearerAuth(sessionToken)
+            authorize(sessionToken)
             contentType(ContentType.Application.Json)
             setBody(PushDeviceRegistrationRequest(token = deviceToken, platform = platform))
         }
@@ -127,7 +149,7 @@ class KtorChessTreeApi(
 
     override suspend fun unregisterPushDevice(token: String, deviceToken: String): ApiResult<Unit> = request {
         val response = client.post("$apiBaseUrl/push/devices/unregister") {
-            bearerAuth(token)
+            authorize(token)
             contentType(ContentType.Application.Json)
             setBody(PushDeviceRemovalRequest(deviceToken))
         }
@@ -135,27 +157,35 @@ class KtorChessTreeApi(
     }
 
     override suspend fun createGame(token: String): ApiResult<GameResponse> = request {
-        client.post("$apiBaseUrl/games") { bearerAuth(token) }.decode()
+        client.post("$apiBaseUrl/games") { authorize(token) }.decode()
     }
 
     override suspend fun getMyGames(token: String): ApiResult<List<GameHistoryResponse>> = request {
-        client.get("$apiBaseUrl/games") { bearerAuth(token) }.decode()
+        client.get("$apiBaseUrl/games") { authorize(token) }.decode()
     }
 
     override suspend fun joinGame(token: String, code: String): ApiResult<GameResponse> = request {
-        client.post("$apiBaseUrl/games/${code.trim().uppercase()}/join") { bearerAuth(token) }
+        client.post("$apiBaseUrl/games/${code.trim().uppercase()}/join") { authorize(token) }
             .decode()
     }
 
     override suspend fun getGame(token: String, code: String): ApiResult<GameResponse> = request {
-        client.get("$apiBaseUrl/games/${code.trim().uppercase()}") { bearerAuth(token) }.decode()
+        client.get("$apiBaseUrl/games/${code.trim().uppercase()}") { authorize(token) }.decode()
     }
 
     override suspend fun getGameState(token: String, code: String): ApiResult<GameStateResponse> =
+        getGameState(token, code, afterMoveCount = 0)
+
+    override suspend fun getGameState(
+        token: String,
+        code: String,
+        afterMoveCount: Int,
+    ): ApiResult<GameStateResponse> =
         request {
             client.get("$apiBaseUrl/games/${code.trim().uppercase()}/state") {
-                bearerAuth(token)
+                authorize(token)
                 header(API_VERSION_HEADER, API_VERSION)
+                if (afterMoveCount > 0) url.parameters.append("afterMoveCount", afterMoveCount.toString())
             }.decode()
         }
 
@@ -166,9 +196,7 @@ class KtorChessTreeApi(
                 var protocolSupported = true
                 try {
                     client.webSocket("$socketApiBaseUrl/games/${code.trim().uppercase()}/events") {
-                        sendSerialized(
-                            GameSocketAuthRequest(token, API_VERSION),
-                        )
+                        sendSerialized(GameSocketAuthRequest(if (browserSession) "" else token, API_VERSION))
                         retryDelayMillis = 1_000L
                         while (currentCoroutineContext().isActive) {
                             val push = receiveDeserialized<GameStatePush>()
@@ -207,7 +235,7 @@ class KtorChessTreeApi(
         command: MoveCommandRequest,
     ): ApiResult<GameStateResponse> = request {
         client.post("$apiBaseUrl/games/${code.trim().uppercase()}/moves") {
-            bearerAuth(token)
+            authorize(token)
             contentType(ContentType.Application.Json)
             setBody(command)
         }.decode()
@@ -219,7 +247,7 @@ class KtorChessTreeApi(
         command: UndoRequestCommand,
     ): ApiResult<GameStateResponse> = request {
         client.post("$apiBaseUrl/games/${code.trim().uppercase()}/undo-requests") {
-            bearerAuth(token)
+            authorize(token)
             contentType(ContentType.Application.Json)
             setBody(command)
         }.decode()
@@ -235,14 +263,13 @@ class KtorChessTreeApi(
                 code.trim().uppercase()
             }/undo-requests/${command.requestId}/votes"
         ) {
-            bearerAuth(token)
+            authorize(token)
             contentType(ContentType.Application.Json)
             setBody(command)
         }.decode()
     }
 
     fun close() = client.close()
-
     private suspend inline fun <T> request(block: suspend () -> ApiResult<T>): ApiResult<T> = try {
         block()
     } catch (error: CancellationException) {
@@ -254,6 +281,10 @@ class KtorChessTreeApi(
     private suspend inline fun <reified T> io.ktor.client.statement.HttpResponse.decode(): ApiResult<T> =
         if (status.value in 200..299) ApiResult.Success(body()) else failure()
 
+    private fun io.ktor.client.request.HttpRequestBuilder.authorize(token: String) {
+        if (!browserSession) bearerAuth(token)
+    }
+
     private suspend fun io.ktor.client.statement.HttpResponse.failure(): ApiResult.Failure =
         runCatching { body<ErrorResponse>() }
             .getOrNull()
@@ -261,22 +292,28 @@ class KtorChessTreeApi(
             ?: ApiResult.Failure("http_${status.value}", "i18n:server_rejected")
 
     companion object {
-        fun defaultHttpClient(): HttpClient = HttpClient(defaultHttpClientEngine()) {
-            expectSuccess = false
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = false; explicitNulls = false })
+        fun defaultHttpClient(browserSession: Boolean = false): HttpClient =
+            HttpClient(defaultHttpClientEngine(browserSession)) {
+                expectSuccess = false
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = false; explicitNulls = false })
+                }
+                install(WebSockets) {
+                    contentConverter =
+                        io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter(
+                            Json { ignoreUnknownKeys = true; explicitNulls = false },
+                        )
+                }
             }
-            install(WebSockets) {
-                contentConverter =
-                    io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter(
-                        Json { ignoreUnknownKeys = true; explicitNulls = false },
-                    )
-            }
-        }
     }
 }
 
-internal expect fun defaultHttpClientEngine(): HttpClientEngineFactory<*>
+private fun ApiResult<BrowserAuthResponse>.mapBrowserAuth(): ApiResult<AuthResponse> = when (this) {
+    is ApiResult.Success -> ApiResult.Success(AuthResponse(accessToken = "", user = value.user))
+    is ApiResult.Failure -> this
+}
+
+internal expect fun defaultHttpClientEngine(browserSession: Boolean): HttpClientEngine
 
 private fun String.toWebSocketUrl(): String = when {
     startsWith("https://") -> "wss://${removePrefix("https://")}"

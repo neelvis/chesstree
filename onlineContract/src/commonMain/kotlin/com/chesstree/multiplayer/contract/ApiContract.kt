@@ -2,7 +2,7 @@ package com.chesstree.multiplayer.contract
 
 import kotlinx.serialization.Serializable
 
-const val API_VERSION: Int = 2
+const val API_VERSION: Int = 3
 const val API_VERSION_HEADER: String = "X-ChessTree-Protocol-Version"
 
 @Serializable
@@ -22,6 +22,9 @@ data class UserResponse(val id: String, val username: String)
 
 @Serializable
 data class AuthResponse(val accessToken: String, val user: UserResponse)
+
+@Serializable
+data class BrowserAuthResponse(val user: UserResponse)
 
 @Serializable
 data class GamePlayerResponse(val user: UserResponse, val color: String? = null)
@@ -54,6 +57,7 @@ data class MoveCommandRequest(
     val from: CoordinateResponse,
     val to: CoordinateResponse,
     val promotion: String? = null,
+    val expectedMoveCount: Int? = null,
 )
 
 @Serializable
@@ -88,6 +92,7 @@ data class GameStateResponse(
     val game: GameResponse,
     val revision: Int,
     val moves: List<MoveEventResponse>,
+    val moveOffset: Int = 0,
     val undoRequest: UndoRequestResponse? = null,
 )
 
