@@ -72,7 +72,7 @@ fun ThreePlayerChessBoard(
     moveHints: List<MoveHint>,
     moveLineHints: List<MoveHint> = emptyList(),
     trophies: List<BoardTrophy> = emptyList(),
-    pieceSet: PieceSet = PieceSet.STANDARD,
+    pieceSet: PieceSet = PieceSet.FAIRY,
     showDecorativeBirds: Boolean = true,
     onCellSelected: (BoardCellId?) -> Unit,
     modifier: Modifier = Modifier,

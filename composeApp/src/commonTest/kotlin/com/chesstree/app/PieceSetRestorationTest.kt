@@ -7,13 +7,10 @@ import kotlin.test.assertEquals
 
 class PieceSetRestorationTest {
     @Test
-    fun fairyPieceSetNameRestores() {
-        assertEquals(PieceSet.FAIRY, restorePieceSet(PieceSet.FAIRY.name))
-    }
-
-    @Test
-    fun unknownPieceSetFallsBackToStandard() {
-        assertEquals(PieceSet.STANDARD, restorePieceSet("REMOVED_SET"))
+    fun previouslySavedPieceSetsMigrateToPremium() {
+        val standardSettings = GameSettings(pieceSet = PieceSet.STANDARD)
+        assertEquals(PieceSet.FAIRY, restoreGameSettings(encodeGameSettings(standardSettings)).pieceSet)
+        assertEquals(PieceSet.FAIRY, restoreGameSettings("1|true|false|STANDARD").pieceSet)
     }
 
     @Test
@@ -34,7 +31,7 @@ class PieceSetRestorationTest {
     }
 
     @Test
-    fun turnIndicatorUsesKingsForStandardAndBirdsForPremium() {
+    fun turnIndicatorUsesBirdsForPremium() {
         assertEquals("king_0", turnIndicatorAssetName(PlayerId.WHITE, PieceSet.STANDARD))
         assertEquals("king_1", turnIndicatorAssetName(PlayerId.RED, PieceSet.STANDARD))
         assertEquals("bird_2", turnIndicatorAssetName(PlayerId.BLACK, PieceSet.FAIRY))

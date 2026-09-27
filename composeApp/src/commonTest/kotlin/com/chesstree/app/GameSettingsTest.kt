@@ -12,6 +12,11 @@ class GameSettingsTest {
     }
 
     @Test
+    fun premiumPieceSetIsSelectedByDefault() {
+        assertEquals(PieceSet.FAIRY, GameSettings().pieceSet)
+    }
+
+    @Test
     fun currentSettingsRoundTrip() {
         val settings = GameSettings(
             showCurrentPossibleMoves = false,

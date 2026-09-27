@@ -91,7 +91,7 @@ fun MultiplayerScreen(
     selectedTab: AppTab = AppTab.GAMES,
     showProfile: Boolean = false,
     profileContent: @Composable (Modifier) -> Unit = {},
-    pieceSet: PieceSet = PieceSet.STANDARD,
+    pieceSet: PieceSet = PieceSet.FAIRY,
     showCurrentPossibleMoves: Boolean = true,
     showMoveLines: Boolean = false,
     onAuthenticationSuccess: (AuthResponse) -> Unit = {},
@@ -173,21 +173,6 @@ fun MultiplayerScreen(
                                 localized("game_title_code", state.game?.code.orEmpty()),
                                 style = MaterialTheme.typography.headlineMedium
                             )
-                            if (isGameStarted) {
-                                val userArmy = state.game?.players
-                                    ?.firstOrNull { it.user.id == state.authentication?.user?.id }
-                                    ?.color
-                                    ?.let { runCatching { ArmyColor.valueOf(it) }.getOrNull() }
-                                if (userArmy != null) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(localized("your_color"))
-                                        ArmyQueenGlyph(userArmy)
-                                    }
-                                }
-                            }
                             if (state.game?.status == "ACTIVE" || state.game?.status == "FINISHED") {
                                 if (state.session != null) {
                                     OnlineGame(
@@ -540,27 +525,30 @@ private fun OnlineGame(
         }
     }
 
-    Text(localized("revision", state.remoteState?.revision ?: 0))
     val turnPlayer = session.state.turn?.player
     Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            when {
-                undoRequest != null -> localized("paused_for_undo_vote")
-                game.status == "FINISHED" -> localized("game_finished")
-                canAct -> localized("your_turn")
-                else -> localized("waiting_for_other_turn")
-            },
-        )
-        turnPlayer?.let { ArmyQueenGlyph(ArmyColor.valueOf(it.name)) }
+        Text(localized("your_color"))
+        assignedPlayer?.let { ArmyQueenGlyph(ArmyColor.valueOf(it.name), size = 56.dp) }
+        Spacer(Modifier.weight(1f))
+        when {
+            canAct -> Text(localized("your_turn"))
+            undoRequest != null -> Text(localized("paused_for_undo_vote"))
+            game.status == "FINISHED" -> Text(localized("game_finished"))
+            else -> {
+                Text(localized("current_turn"))
+                turnPlayer?.let { ArmyQueenGlyph(ArmyColor.valueOf(it.name), size = 56.dp) }
+            }
+        }
     }
     ThreePlayerChessBoard(
         pieces = session.state.toBoardPieces(),
         selectedPieceId = selectedPieceId,
         moveHints = hints,
         moveLineHints = moveLines,
+        showDecorativeBirds = false,
         trophies = session.capturedPieces.map { captured ->
             BoardTrophy(
                 id = captured.id,
@@ -681,14 +669,15 @@ private fun OnlineGame(
 }
 
 @Composable
-private fun ArmyQueenGlyph(army: ArmyColor) {
-    val textStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 19.2f.sp)
-    val outlineWidth = with(LocalDensity.current) { 1.dp.toPx() }
+private fun ArmyQueenGlyph(army: ArmyColor, size: androidx.compose.ui.unit.Dp = 28.dp) {
+    val scale = size / 28.dp
+    val textStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 19.2f.sp * scale * 1.25f)
+    val outlineWidth = with(LocalDensity.current) { (1.dp * scale).toPx() }
     Surface(
-        modifier = Modifier.size(28.dp),
-        shape = RoundedCornerShape(6.dp),
+        modifier = Modifier.size(size),
+        shape = RoundedCornerShape(6.dp * scale),
         color = ChessTreeColors.SageContainer,
-        border = androidx.compose.foundation.BorderStroke(1.dp, ChessTreeColors.Sage),
+        border = androidx.compose.foundation.BorderStroke(1.dp * scale, ChessTreeColors.Sage),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(

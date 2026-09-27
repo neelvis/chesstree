@@ -6,7 +6,7 @@ internal data class GameSettings(
     val showCurrentPossibleMoves: Boolean = true,
     val showMoveLines: Boolean = false,
     val showGameHistory: Boolean = false,
-    val pieceSet: PieceSet = PieceSet.STANDARD,
+    val pieceSet: PieceSet = PieceSet.FAIRY,
 )
 
 internal fun encodeGameSettings(settings: GameSettings): String = listOf(
@@ -25,7 +25,7 @@ internal fun restoreGameSettings(saved: String): GameSettings {
         return GameSettings(
             showCurrentPossibleMoves = showCurrentPossibleMoves,
             showMoveLines = showMoveLines,
-            pieceSet = restorePieceSet(fields[3]),
+            pieceSet = PieceSet.FAIRY,
         )
     }
     if (fields.size != SETTINGS_FIELD_COUNT || fields[0] != SETTINGS_VERSION) return GameSettings()
@@ -36,12 +36,9 @@ internal fun restoreGameSettings(saved: String): GameSettings {
         showCurrentPossibleMoves = showCurrentPossibleMoves,
         showMoveLines = showMoveLines,
         showGameHistory = showGameHistory,
-        pieceSet = restorePieceSet(fields[4]),
+        pieceSet = PieceSet.FAIRY,
     )
 }
-
-internal fun restorePieceSet(savedName: String): PieceSet =
-    PieceSet.entries.firstOrNull { it.name == savedName } ?: PieceSet.STANDARD
 
 private const val SETTINGS_VERSION = "2"
 private const val LEGACY_SETTINGS_VERSION = "1"

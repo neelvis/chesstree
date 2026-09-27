@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.chesstree.game.presentation.board.PieceSet
 
 enum class AppTab {
     SETTINGS,
@@ -311,24 +310,6 @@ internal fun SettingsScreen(
             }
         }
         accountError?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
-        Text(
-            localized("appearance"),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.secondary
-        )
-        SettingsGroup {
-            SettingRow(
-                localized("piece_set"),
-                localized(if (settings.pieceSet == PieceSet.FAIRY) "premium" else "classic")
-            ) {
-                Switch(
-                    checked = settings.pieceSet == PieceSet.FAIRY,
-                    onCheckedChange = { enabled ->
-                        onSettingsChanged(settings.copy(pieceSet = if (enabled) PieceSet.FAIRY else PieceSet.STANDARD))
-                    },
-                )
-            }
-        }
         Text(
             localized("gameplay"),
             style = MaterialTheme.typography.labelLarge,

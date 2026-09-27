@@ -1,6 +1,5 @@
 package com.chesstree.app
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -37,13 +38,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.GameSnapshot
 import com.chesstree.game.data.GameSnapshotCodec
 import com.chesstree.game.data.NoOpGameSaveStore
 import com.chesstree.game.data.SaveGameResult
+import com.chesstree.game.domain.ArmyColor
 import com.chesstree.game.domain.GameOutcome
 import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.LegalMoveGenerator
@@ -75,12 +80,10 @@ import com.chesstree.multiplayer.data.NoOpPushTokenProvider
 import com.chesstree.multiplayer.data.PushTokenProvider
 import com.chesstree.multiplayer.presentation.GameLinkSharer
 import com.chesstree.multiplayer.presentation.MultiplayerScreen
-import com.chesstree.resources.Res
-import com.chesstree.resources.allDrawableResources
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
-import org.jetbrains.compose.resources.imageResource
 
 @Composable
 fun App(
@@ -304,6 +307,12 @@ fun App(
             historyNavigation.displayedSession(session)
         }
         val gameState = displayedSession.state
+        LaunchedEffect(storageMessage) {
+            if (storageMessage != null) {
+                delay(3_000)
+                storageMessage = null
+            }
+        }
         val isViewingLatest = historyNavigation.isAtLatest(session)
         val displayedMoveCount = historyNavigation.displayedMoveCount(session)
         val pieces = remember(gameState) { gameState.toBoardPieces() }
@@ -449,9 +458,6 @@ fun App(
                                 }
                             }
                         }
-                        storageMessage?.let { message ->
-                            Text(localizedMessage(message), style = MaterialTheme.typography.bodySmall)
-                        }
                         Text(
                             text = localized("current_turn"),
                             style = MaterialTheme.typography.titleMedium,
@@ -459,7 +465,6 @@ fun App(
                         )
                         TurnPieceIndicator(
                             player = gameState.turn?.player,
-                            pieceSet = settings.pieceSet,
                             finishedText = gameState.statusText(),
                         )
                         Text(
@@ -570,6 +575,12 @@ fun App(
                             },
                             onZoomChanged = { boardZoom = it },
                         )
+                        storageMessage?.let { message ->
+                            Text(
+                                localizedMessage(message),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }
@@ -631,7 +642,6 @@ fun App(
 @Composable
 private fun TurnPieceIndicator(
     player: PlayerId?,
-    pieceSet: PieceSet,
     finishedText: String,
 ) {
     if (player == null) {
@@ -643,32 +653,26 @@ private fun TurnPieceIndicator(
         )
         return
     }
-    val resourceName = turnIndicatorAssetName(player, pieceSet)
-    Image(
-        bitmap = imageResource(Res.allDrawableResources.getValue(resourceName)),
-        contentDescription = turnIndicatorDescription(player, pieceSet),
-        modifier = Modifier.size(128.dp),
-        contentScale = ContentScale.Fit,
-    )
+    val army = ArmyColor.valueOf(player.name)
+    val textStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 76.8f.sp)
+    val outlineWidth = with(LocalDensity.current) { 4.dp.toPx() }
+    Surface(
+        modifier = Modifier.size(112.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = ChessTreeColors.SageContainer,
+        border = BorderStroke(4.dp, ChessTreeColors.Sage),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text("♛", style = textStyle.copy(color = ChessTreeColors.Sage, drawStyle = Stroke(width = outlineWidth)))
+            Text("♛", style = textStyle.copy(color = army.displayColor()))
+        }
+    }
 }
 
-internal fun turnIndicatorAssetName(player: PlayerId, pieceSet: PieceSet): String {
-    val index = when (player) {
-        PlayerId.WHITE -> 0
-        PlayerId.RED -> 1
-        PlayerId.BLACK -> 2
-    }
-    return if (pieceSet == PieceSet.FAIRY) "bird_$index" else "king_$index"
-}
-
-@Composable
-private fun turnIndicatorDescription(player: PlayerId, pieceSet: PieceSet): String {
-    val key = when (player) {
-        PlayerId.WHITE -> if (pieceSet == PieceSet.FAIRY) "turn_white_bird" else "turn_white_king_piece"
-        PlayerId.RED -> if (pieceSet == PieceSet.FAIRY) "turn_red_bird" else "turn_red_king_piece"
-        PlayerId.BLACK -> if (pieceSet == PieceSet.FAIRY) "turn_black_bird" else "turn_black_king_piece"
-    }
-    return localized(key)
+private fun ArmyColor.displayColor(): Color = when (this) {
+    ArmyColor.WHITE -> Color(0xFFF7F1E4)
+    ArmyColor.RED -> Color(0xFFE58A7A)
+    ArmyColor.BLACK -> Color(0xFF343A40)
 }
 
 @Composable
