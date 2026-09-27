@@ -112,7 +112,7 @@
     <string name="collapse">Show less</string>
     <string name="unknown_date">Date unknown</string>
     <string name="revision">Revision: %1$s</string>
-    <string name="paused_for_undo_vote">Game paused: undo vote in progress</string>
+    <string name="paused_for_undo_vote">Paused</string>
     <string name="your_turn">Your turn</string>
     <string name="waiting_for_other_turn">Waiting for the other player's turn:</string>
     <string name="request_sent_waiting">Request sent. Waiting for the other two players to agree.</string>

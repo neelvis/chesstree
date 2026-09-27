@@ -1,8 +1,11 @@
 package com.chesstree.app
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -14,6 +17,8 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.NoOpGameSaveStore
 import com.chesstree.game.presentation.history.GameLogExporter
@@ -40,6 +45,7 @@ fun App(
     initialGameCode: String? = null,
     gameLinkSharer: GameLinkSharer? = null,
     gameLogExporter: GameLogExporter = NoOpGameLogExporter,
+    topContentPadding: Dp = 0.dp,
 ) {
     ChessTreeTheme {
         val saveableStateHolder = rememberSaveableStateHolder()
@@ -209,7 +215,13 @@ fun App(
             return@ChessTreeTheme
         }
         if (selectedTab == AppTab.SETTINGS || !showChessGame) {
-            Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .safeDrawingPadding()
+                    .padding(top = topContentPadding),
+            ) {
                 when (selectedTab) {
                     AppTab.GAMES -> GamesHomeScreen(
                         onPlaySolo = {

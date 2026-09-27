@@ -5,12 +5,17 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
+const val CHESS_TREE_CANVAS_ARGB: Int = 0xFFF7F4EF.toInt()
+
 internal object ChessTreeColors {
-    val Canvas = Color(0xFFF7F4EF)
+    val Canvas = Color(CHESS_TREE_CANVAS_ARGB)
     val Surface = Color(0xFFFFFDF9)
     val SurfaceMuted = Color(0xFFEAE6DF)
     val Sage = Color(0xFF626D5D)
     val SageContainer = Color(0xFFE7E9E0)
+    val TabContainer = Color(0xFFDEEBD7)
+    val TabSelectedOutline = Color(0xFF405C3D)
+    val TabUnselectedOutline = Color(0xFFB8D0AF)
     val OnSageContainer = Color(0xFF3D413A)
     val Ink = Color(0xFF37342F)
     val InkMuted = Color(0xFF807970)

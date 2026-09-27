@@ -32,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
@@ -173,7 +172,12 @@ internal fun ChessNavigationRoot(
         clearTransientState()
         storageMessage = "i18n:game_restarted"
     }
-    Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding(),
+    ) {
         Surface(
             modifier = Modifier.weight(1f),
             color = MaterialTheme.colorScheme.background,
@@ -181,14 +185,7 @@ internal fun ChessNavigationRoot(
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.background,
-                                ChessTreeColors.SurfaceMuted,
-                            ),
-                        ),
-                    ),
+                    .background(MaterialTheme.colorScheme.background),
                 contentAlignment = Alignment.Center,
             ) {
                 val compactLayout = maxWidth < 600.dp

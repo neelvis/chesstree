@@ -2,6 +2,7 @@ package com.chesstree.app
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,8 +52,8 @@ internal fun AppTabBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp,
+        color = MaterialTheme.colorScheme.background,
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
@@ -85,14 +86,25 @@ private fun AppTabItem(
     onSelected: (AppTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val selectedColor = ChessTreeColors.TabSelectedOutline
+    val buttonShape = RoundedCornerShape(16.dp)
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         TextButton(
             onClick = { onSelected(tab) },
-            modifier = Modifier.width(96.dp).height(56.dp),
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .width(96.dp)
+                .height(56.dp)
+                .then(
+                    if (selected) {
+                        Modifier.border(2.dp, selectedColor, buttonShape)
+                    } else {
+                        Modifier.border(1.dp, ChessTreeColors.TabUnselectedOutline, buttonShape)
+                    },
+                ),
+            shape = buttonShape,
             colors = ButtonDefaults.textButtonColors(
-                containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                containerColor = ChessTreeColors.TabContainer,
+                contentColor = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
         ) {
@@ -102,11 +114,11 @@ private fun AppTabItem(
             ) {
                 AppTabIcon(
                     tab,
-                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    if (selected) selectedColor else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = label,
-                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                 )

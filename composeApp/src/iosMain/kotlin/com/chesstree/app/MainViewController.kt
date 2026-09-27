@@ -1,7 +1,15 @@
 package com.chesstree.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ComposeUIViewController
 import com.chesstree.game.presentation.history.IosGameLogExporter
 import com.chesstree.multiplayer.data.KtorChessTreeApi
@@ -18,15 +26,27 @@ fun MainViewController(): UIViewController {
     lateinit var rootViewController: UIViewController
     rootViewController = ComposeUIViewController {
         val initialGameCode by linkedGameCode.collectAsState()
-        App(
-            gameSaveStore = saveStore,
-            onlineApi = onlineApi,
-            onlineSessionStore = onlineSessionStore,
-            pushTokenProvider = IosPushTokenProvider,
-            initialGameCode = initialGameCode,
-            gameLinkSharer = IosGameLinkSharer { rootViewController },
-            gameLogExporter = IosGameLogExporter { rootViewController },
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF7F4EF)),
+        ) {
+            App(
+                gameSaveStore = saveStore,
+                onlineApi = onlineApi,
+                onlineSessionStore = onlineSessionStore,
+                pushTokenProvider = IosPushTokenProvider,
+                initialGameCode = initialGameCode,
+                gameLinkSharer = IosGameLinkSharer { rootViewController },
+                gameLogExporter = IosGameLogExporter { rootViewController },
+                topContentPadding = 40.dp,
+            )
+            IosNotchArtwork(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 15.dp),
+            )
+        }
     }
     return rootViewController
 }

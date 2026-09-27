@@ -112,7 +112,7 @@
     <string name="collapse">Свернуть</string>
     <string name="unknown_date">Дата неизвестна</string>
     <string name="revision">Ревизия: %1$s</string>
-    <string name="paused_for_undo_vote">Игра приостановлена: голосование за отмену хода</string>
+    <string name="paused_for_undo_vote">Пауза</string>
     <string name="your_turn">Ваш ход</string>
     <string name="waiting_for_other_turn">Ожидаем ход другого игрока:</string>
     <string name="request_sent_waiting">Запрос отправлен. Ожидаем согласия двух других участников.</string>

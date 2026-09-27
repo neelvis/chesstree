@@ -112,7 +112,7 @@
     <string name="collapse">Weniger anzeigen</string>
     <string name="unknown_date">Datum unbekannt</string>
     <string name="revision">Revision: %1$s</string>
-    <string name="paused_for_undo_vote">Partie pausiert: Abstimmung zum Zurücknehmen</string>
+    <string name="paused_for_undo_vote">Pausiert</string>
     <string name="your_turn">Du bist am Zug</string>
     <string name="waiting_for_other_turn">Warte auf den Zug des anderen Spielers:</string>
     <string name="request_sent_waiting">Anfrage gesendet. Warte auf die Zustimmung der beiden anderen Spieler.</string>
