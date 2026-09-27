@@ -287,6 +287,8 @@ fun ThreePlayerChessBoard(
     val currentOnZoomChanged by rememberUpdatedState(onZoomChanged)
     var viewport by remember { mutableStateOf(BoardViewport()) }
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
+    var previousSelectedPieceId by remember { mutableStateOf(selectedPieceId) }
+    var previousResetViewportKey by remember { mutableStateOf(resetViewportKey) }
     val currentBoardSnapshot = BoardAnimationSnapshot(moveAnimationKey, pieces, trophies)
     val previousBoardSnapshot = remember {
         BoardAnimationSnapshotHolder(currentBoardSnapshot)
@@ -353,7 +355,13 @@ fun ThreePlayerChessBoard(
             viewport = interpolateBoardViewport(start, targetViewport, value)
         }
     }
-    LaunchedEffect(resetViewportKey) {
+    LaunchedEffect(resetViewportKey, selectedPieceId) {
+        val selectionWasCleared = previousSelectedPieceId != null && selectedPieceId == null
+        val resetWasRequested = previousResetViewportKey != resetViewportKey
+        previousSelectedPieceId = selectedPieceId
+        previousResetViewportKey = resetViewportKey
+        if (!selectionWasCleared && !resetWasRequested) return@LaunchedEffect
+
         val start = viewport
         val target = BoardViewport()
         currentOnZoomChanged(MIN_BOARD_ZOOM)
