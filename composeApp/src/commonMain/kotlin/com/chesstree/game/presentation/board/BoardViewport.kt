@@ -111,7 +111,7 @@ internal fun coerceBoardViewport(
 internal const val MIN_BOARD_ZOOM: Float = 1f
 internal const val MAX_BOARD_ZOOM: Float = 2.5f
 
-internal const val STANDARD_BOARD_CONTENT_WIDTH: Float = 2.35f
-internal const val STANDARD_BOARD_CONTENT_HEIGHT: Float = 2.18f
+internal const val STANDARD_BOARD_CONTENT_WIDTH: Float = 2.24f
+internal const val STANDARD_BOARD_CONTENT_HEIGHT: Float = 2.15f
 internal const val FAIRY_BOARD_CONTENT_WIDTH: Float = 2.50f
 internal const val FAIRY_BOARD_CONTENT_HEIGHT: Float = 2.78f

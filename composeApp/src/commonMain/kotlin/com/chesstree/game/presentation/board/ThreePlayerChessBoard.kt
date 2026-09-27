@@ -1,6 +1,20 @@
 package com.chesstree.game.presentation.board
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -8,7 +22,10 @@ import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -30,6 +49,7 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -38,13 +58,19 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.chesstree.app.ChessTreeColors
+import com.chesstree.app.ChessTreeTheme
+import com.chesstree.app.localized
 import com.chesstree.game.domain.ArmyColor
+import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.PieceType
 import com.chesstree.resources.Res
-import com.chesstree.app.localized
 import com.chesstree.resources.allDrawableResources
 import com.chesstree.resources.allFontResources
 import org.jetbrains.compose.resources.Font
@@ -52,6 +78,153 @@ import org.jetbrains.compose.resources.imageResource
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
+
+@Preview
+@Composable
+private fun ThreePlayerChessBoardPreview() {
+    ChessTreeTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(threePlayerBoardAspectRatio(PieceSet.FAIRY, showDecorativeBirds = false, zoom = 1f)),
+        ) {
+            ThreePlayerChessBoard(
+                pieces = initialBoardPieces(),
+                selectedPieceId = null,
+                moveHints = emptyList(),
+                pieceSet = PieceSet.FAIRY,
+                showDecorativeBirds = false,
+                onCellSelected = {},
+            )
+        }
+    }
+}
+
+@Composable
+fun PromotionPiecePickerDialog(
+    moves: List<Move>,
+    army: ArmyColor,
+    pieceSet: PieceSet,
+    onMoveSelected: (Move) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selectedPieceType by remember(moves) { mutableStateOf<PieceType?>(null) }
+    val fairyPieceImages = if (pieceSet == PieceSet.FAIRY) loadFairyPieceImages() else null
+    val standardFontResource = Font(Res.allFontResources.getValue("noto_sans_symbols_2_regular"))
+    val standardPieceFont = remember(standardFontResource) { FontFamily(standardFontResource) }
+    val pieceTypes = listOf(
+        PieceType.QUEEN,
+        PieceType.ROOK,
+        PieceType.BISHOP,
+        PieceType.KNIGHT,
+        PieceType.PAWN,
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(localized("promotion_title")) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    pieceTypes.forEach { type ->
+                        val isSelected = selectedPieceType == type
+                        val description = localized(type.localizationKey())
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clickable {
+                                    if (isSelected) {
+                                        if (type == PieceType.PAWN) {
+                                            onDismiss()
+                                        } else {
+                                            moves.firstOrNull { it.promotion?.pieceType == type }
+                                                ?.let(onMoveSelected)
+                                        }
+                                    } else {
+                                        selectedPieceType = type
+                                    }
+                                }
+                                .semantics {
+                                    contentDescription = description
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) ChessTreeColors.SageContainer else ChessTreeColors.Surface,
+                            border = BorderStroke(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) ChessTreeColors.Sage else MaterialTheme.colorScheme.outline,
+                            ),
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(2.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (pieceSet == PieceSet.FAIRY) {
+                                    Image(
+                                        bitmap = checkNotNull(fairyPieceImages)
+                                            .pieces.getValue(type to army),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                } else {
+                                    val color = pieceColor(army)
+                                    Text(
+                                        text = pieceGlyph(type),
+                                        color = color,
+                                        fontFamily = standardPieceFont,
+                                        fontSize = 40.sp,
+                                        style = TextStyle(
+                                            shadow = Shadow(
+                                                color = if (army == ArmyColor.BLACK) {
+                                                    Color.White.copy(alpha = 0.7f)
+                                                } else {
+                                                    Color.Black.copy(alpha = 0.7f)
+                                                },
+                                                offset = Offset(1.dp.value, 1.dp.value),
+                                                blurRadius = 2.dp.value,
+                                            ),
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selectedPieceType != null) {
+                        Text(
+                            localized("promotion_confirm_again"),
+                            color = ChessTreeColors.OnSageContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {},
+        containerColor = ChessTreeColors.SageContainer,
+        titleContentColor = ChessTreeColors.Ink,
+        textContentColor = ChessTreeColors.Ink,
+    )
+}
+
+private fun PieceType.localizationKey(): String = when (this) {
+    PieceType.QUEEN -> "queen"
+    PieceType.ROOK -> "rook"
+    PieceType.BISHOP -> "bishop"
+    PieceType.KNIGHT -> "knight"
+    PieceType.PAWN -> "pawn"
+    PieceType.KING -> "king"
+}
 
 data class BoardPalette(
     val lightCell: Color = Color(0xFFD7B98E),
@@ -120,6 +293,7 @@ fun ThreePlayerChessBoard(
     Canvas(
         modifier = modifier
             .fillMaxSize()
+            .clip(RoundedCornerShape(10.dp))
             .onSizeChanged { size ->
                 val coerced = coerceBoardViewport(
                     viewport = viewport,
@@ -333,7 +507,7 @@ fun ThreePlayerChessBoard(
                             cellId = BoardCellId(0, 0, 0),
                         ),
                         center = point,
-                        radius = scale * 0.042f,
+                        radius = scale * 0.063f,
                         textMeasurer = textMeasurer,
                         pieceSet = pieceSet,
                         standardPieceFont = standardPieceFont,

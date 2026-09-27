@@ -31,7 +31,7 @@
     <string name="back_with_chevron">‹ Назад</string>
     <string name="restart">Рестарт</string>
     <string name="scenario">Сценарий</string>
-    <string name="current_turn">Сейчас ход:</string>
+    <string name="current_turn">Сейчас ход</string>
     <string name="total_moves">Всего ходов: %1$s</string>
     <string name="move_review">Просмотр: %1$s из %2$s ходов</string>
     <string name="forward">Вперёд</string>
@@ -43,6 +43,7 @@
     <string name="game_restarted">Партия перезапущена; последнее сохранение не изменено</string>
     <string name="promotion_title">Превращение пешки</string>
     <string name="promotion_prompt">Выберите новую фигуру</string>
+    <string name="promotion_confirm_again">Нажмите ещё раз для подтверждения</string>
     <string name="cancel">Отмена</string>
     <string name="restore_moves">Восстановлено %1$s ходов из %2$s</string>
     <string name="turn_player_white">Белые</string>
@@ -58,6 +59,7 @@
     <string name="rook">Ладья</string>
     <string name="bishop">Слон</string>
     <string name="knight">Конь</string>
+    <string name="pawn">Пешка</string>
     <string name="turn_status">Ход: %1$s, полуход %2$s%3$s</string>
     <string name="check_suffix">, шах</string>
     <string name="game_in_progress">Партия продолжается</string>
@@ -95,7 +97,7 @@
     <string name="join_game">Присоединиться к игре</string>
     <string name="game_code">Код игры</string>
     <string name="join">Присоединиться</string>
-    <string name="your_color">Ваш цвет:</string>
+    <string name="your_color">Ваш цвет</string>
     <string name="loading_game_position">Загружаем позицию партии…</string>
     <string name="games_history">История игр</string>
     <string name="unfinished_games">Незавершённые</string>

@@ -31,7 +31,7 @@
     <string name="back_with_chevron">‹ Back</string>
     <string name="restart">Restart</string>
     <string name="scenario">Scenario</string>
-    <string name="current_turn">Current turn:</string>
+    <string name="current_turn">Current turn</string>
     <string name="total_moves">Total moves: %1$s</string>
     <string name="move_review">Review: %1$s of %2$s moves</string>
     <string name="forward">Forward</string>
@@ -43,6 +43,7 @@
     <string name="game_restarted">Game restarted; the last save was not changed</string>
     <string name="promotion_title">Pawn promotion</string>
     <string name="promotion_prompt">Choose a new piece</string>
+    <string name="promotion_confirm_again">Tap again to confirm</string>
     <string name="cancel">Cancel</string>
     <string name="restore_moves">Restored %1$s of %2$s moves</string>
     <string name="turn_player_white">White</string>
@@ -58,6 +59,7 @@
     <string name="rook">Rook</string>
     <string name="bishop">Bishop</string>
     <string name="knight">Knight</string>
+    <string name="pawn">Pawn</string>
     <string name="turn_status">Turn: %1$s, ply %2$s%3$s</string>
     <string name="check_suffix">, check</string>
     <string name="game_in_progress">Game in progress</string>
@@ -95,7 +97,7 @@
     <string name="join_game">Join a game</string>
     <string name="game_code">Game code</string>
     <string name="join">Join</string>
-    <string name="your_color">Your color:</string>
+    <string name="your_color">Your color</string>
     <string name="loading_game_position">Loading game position…</string>
     <string name="games_history">Game history</string>
     <string name="unfinished_games">In progress</string>

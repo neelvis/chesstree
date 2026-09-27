@@ -19,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -57,12 +56,12 @@ import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.ParticipantStatus
 import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PlayerId
-import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.domain.session.GameLogCodec
 import com.chesstree.game.domain.session.GameSession
 import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.PieceSet
+import com.chesstree.game.presentation.board.PromotionPiecePickerDialog
 import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.threePlayerBoardAspectRatio
 import com.chesstree.game.presentation.board.toBoardPieces
@@ -363,7 +362,7 @@ fun App(
                     session = result.session
                     historyNavigation = GameHistoryNavigation.latest()
                     storageMessage = when (val saveResult = save(result.session)) {
-                        SaveGameResult.Saved -> "i18n:game_saved"
+                        SaveGameResult.Saved -> null
                         is SaveGameResult.Failed ->
                             "i18n:save_failed|${saveResult.message}"
                     }
@@ -458,15 +457,17 @@ fun App(
                                 }
                             }
                         }
-                        Text(
-                            text = localized("current_turn"),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
                         TurnPieceIndicator(
                             player = gameState.turn?.player,
                             finishedText = gameState.statusText(),
                         )
+                        if (gameState.turn != null) {
+                            Text(
+                                text = localized("current_turn"),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onBackground,
+                            )
+                        }
                         Text(
                             text = if (isViewingLatest) {
                                 localized("total_moves", session.moves.size)
@@ -575,34 +576,27 @@ fun App(
                             },
                             onZoomChanged = { boardZoom = it },
                         )
-                        storageMessage?.let { message ->
-                            Text(
-                                localizedMessage(message),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(24.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            storageMessage?.let { message ->
+                                Text(
+                                    localizedMessage(message),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
                         }
                     }
                 }
             }
             if (pendingPromotionMoves.isNotEmpty()) {
-                AlertDialog(
-                    onDismissRequest = { pendingPromotionMoves = emptyList() },
-                    title = { Text(localized("promotion_title")) },
-                    text = { Text(localized("promotion_prompt")) },
-                    confirmButton = {
-                        Column {
-                            pendingPromotionMoves.forEach { move ->
-                                TextButton(onClick = { applyMove(move) }) {
-                                    Text(checkNotNull(move.promotion).displayName())
-                                }
-                            }
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { pendingPromotionMoves = emptyList() }) {
-                            Text(localized("cancel"))
-                        }
-                    },
+                PromotionPiecePickerDialog(
+                    moves = pendingPromotionMoves,
+                    army = gameState.position.pieces.getValue(pendingPromotionMoves.first().pieceId).army,
+                    pieceSet = settings.pieceSet,
+                    onMoveSelected = ::applyMove,
+                    onDismiss = { pendingPromotionMoves = emptyList() },
                 )
             }
             AppTabBar(
@@ -671,16 +665,8 @@ private fun TurnPieceIndicator(
 
 private fun ArmyColor.displayColor(): Color = when (this) {
     ArmyColor.WHITE -> Color(0xFFF7F1E4)
-    ArmyColor.RED -> Color(0xFFE58A7A)
+    ArmyColor.RED -> Color(0xFFD62839)
     ArmyColor.BLACK -> Color(0xFF343A40)
-}
-
-@Composable
-private fun PromotionChoice.displayName(): String = when (this) {
-    PromotionChoice.QUEEN -> localized("queen")
-    PromotionChoice.ROOK -> localized("rook")
-    PromotionChoice.BISHOP -> localized("bishop")
-    PromotionChoice.KNIGHT -> localized("knight")
 }
 
 @Composable

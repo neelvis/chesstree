@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,14 +61,13 @@ import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PieceId
-import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.MoveHint
 import com.chesstree.game.presentation.board.PieceSet
+import com.chesstree.game.presentation.board.PromotionPiecePickerDialog
 import com.chesstree.game.presentation.board.ThreePlayerChessBoard
 import com.chesstree.game.presentation.board.educationalMoveHintsFor
 import com.chesstree.game.presentation.board.legalMoveHintsFor
-import com.chesstree.game.presentation.board.threePlayerBoardAspectRatio
 import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.GameHistoryResponse
@@ -107,6 +105,7 @@ fun MultiplayerScreen(
     }
     val state by controller.state.collectAsState()
     val isGameStarted = state.game?.status == "ACTIVE" || state.game?.status == "FINISHED"
+    val currentGame = state.game
     fun handleBack() {
         when {
             showProfile && selectedTab == AppTab.SETTINGS -> onSelectTab(AppTab.GAMES)
@@ -141,6 +140,40 @@ fun MultiplayerScreen(
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     profileContent(Modifier.fillMaxSize())
                 }
+            } else if (isGameStarted && currentGame != null) {
+                val gameTitle = localized("game_title_code", currentGame.code)
+                if (state.session != null) {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        OnlineGame(
+                            state = state,
+                            controller = controller,
+                            pieceSet = pieceSet,
+                            showCurrentPossibleMoves = showCurrentPossibleMoves,
+                            showMoveLines = showMoveLines,
+                            gameTitle = gameTitle,
+                            showBackButton = !hasSystemBackNavigation,
+                            onBack = ::handleBack,
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxWidth().padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        GameTitleHeader(
+                            title = gameTitle,
+                            showBackButton = !hasSystemBackNavigation,
+                            onBack = ::handleBack,
+                        )
+                        Box(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (state.loading) CircularProgressIndicator()
+                        }
+                        state.error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
+                    }
+                }
             } else {
                 Column(
                     modifier = Modifier.weight(1f).fillMaxWidth()
@@ -171,21 +204,11 @@ fun MultiplayerScreen(
                         ) {
                             Text(
                                 localized("game_title_code", state.game?.code.orEmpty()),
-                                style = MaterialTheme.typography.headlineMedium
+                                modifier = Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.headlineMedium,
+                                textAlign = TextAlign.Center,
                             )
-                            if (state.game?.status == "ACTIVE" || state.game?.status == "FINISHED") {
-                                if (state.session != null) {
-                                    OnlineGame(
-                                        state = state,
-                                        controller = controller,
-                                        pieceSet = pieceSet,
-                                        showCurrentPossibleMoves = showCurrentPossibleMoves,
-                                        showMoveLines = showMoveLines,
-                                    )
-                                } else Text(localized("loading_game_position"))
-                            } else {
-                                GameLobby(checkNotNull(state.game), controller, gameLinkSharer)
-                            }
+                            GameLobby(checkNotNull(state.game), controller, gameLinkSharer)
                             state.error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
                             if (state.loading && !state.submittingMove && state.openingGameCode == null) {
                                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -481,12 +504,45 @@ private fun HistoryGameRow(
 }
 
 @Composable
+private fun GameTitleHeader(
+    title: String,
+    showBackButton: Boolean,
+    onBack: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .widthIn(max = 520.dp)
+            .fillMaxWidth()
+            .heightIn(min = 48.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+        )
+        if (showBackButton) {
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Text(localized("back_with_chevron"))
+            }
+        }
+    }
+}
+
+@Composable
 private fun OnlineGame(
     state: MultiplayerUiState,
     controller: MultiplayerController,
     pieceSet: PieceSet,
     showCurrentPossibleMoves: Boolean,
     showMoveLines: Boolean,
+    gameTitle: String,
+    showBackButton: Boolean,
+    onBack: () -> Unit,
 ) {
     val session = checkNotNull(state.session)
     val game = checkNotNull(state.game)
@@ -526,144 +582,153 @@ private fun OnlineGame(
     }
 
     val turnPlayer = session.state.turn?.player
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+    val currentTurnArmy = (if (canAct) assignedPlayer else turnPlayer)
+        ?.let { ArmyColor.valueOf(it.name) }
+        ?: assignedPlayer?.let { ArmyColor.valueOf(it.name) }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(localized("your_color"))
-        assignedPlayer?.let { ArmyQueenGlyph(ArmyColor.valueOf(it.name), size = 56.dp) }
-        Spacer(Modifier.weight(1f))
-        when {
-            canAct -> Text(localized("your_turn"))
-            undoRequest != null -> Text(localized("paused_for_undo_vote"))
-            game.status == "FINISHED" -> Text(localized("game_finished"))
-            else -> {
-                Text(localized("current_turn"))
-                turnPlayer?.let { ArmyQueenGlyph(ArmyColor.valueOf(it.name), size = 56.dp) }
+        GameTitleHeader(gameTitle, showBackButton, onBack)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                assignedPlayer?.let { ArmyQueenGlyph(ArmyColor.valueOf(it.name), size = 56.dp) }
+                Text(localized("your_color"))
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                currentTurnArmy?.let { ArmyQueenGlyph(it, size = 56.dp) }
+                Text(
+                    when {
+                        canAct -> localized("your_turn")
+                        undoRequest != null -> localized("paused_for_undo_vote")
+                        game.status == "FINISHED" -> localized("game_finished")
+                        else -> localized("current_turn")
+                    },
+                )
             }
         }
-    }
-    ThreePlayerChessBoard(
-        pieces = session.state.toBoardPieces(),
-        selectedPieceId = selectedPieceId,
-        moveHints = hints,
-        moveLineHints = moveLines,
-        showDecorativeBirds = false,
-        trophies = session.capturedPieces.map { captured ->
-            BoardTrophy(
-                id = captured.id,
-                type = captured.type,
-                army = captured.army,
-                bodyArmy = captured.bodyArmy,
-                capturedByArmy = captured.capturedByArmy,
-            )
-        },
-        onCellSelected = { cell ->
-            if (cell == null) {
-                selectedPieceId = null
-                return@ThreePlayerChessBoard
-            }
-            val selected = selectedPieceId?.let(::PieceId)
-            val matchingMoves = if (canAct) {
-                selected?.let { pieceId ->
-                    LegalMoveGenerator.legalMoves(session.state, pieceId).filter { it.to == cell }
-                }.orEmpty()
-            } else {
-                emptyList()
-            }
-            if (canAct && matchingMoves.isNotEmpty()) {
-                if (matchingMoves.size == 1) {
-                    val move = matchingMoves.single()
-                    controller.submitMove(
-                        MoveIntent(
-                            move.actor,
-                            move.from,
-                            move.to,
-                            move.promotion
-                        )
-                    )
+        ThreePlayerChessBoard(
+            pieces = session.state.toBoardPieces(),
+            selectedPieceId = selectedPieceId,
+            moveHints = hints,
+            moveLineHints = moveLines,
+            showDecorativeBirds = false,
+            trophies = session.capturedPieces.map { captured ->
+                BoardTrophy(
+                    id = captured.id,
+                    type = captured.type,
+                    army = captured.army,
+                    bodyArmy = captured.bodyArmy,
+                    capturedByArmy = captured.capturedByArmy,
+                )
+            },
+            onCellSelected = { cell ->
+                if (cell == null) {
                     selectedPieceId = null
-                } else {
-                    pendingPromotionMoves = matchingMoves
+                    return@ThreePlayerChessBoard
                 }
-            } else {
-                val piece =
-                    session.state.position.pieces.values.firstOrNull { it.coordinate == cell }
-                selectedPieceId = piece
-                    ?.takeIf {
-                        showMoveLines ||
-                                (canAct && session.state.armies.getValue(it.army).controller == assignedPlayer)
+                val selected = selectedPieceId?.let(::PieceId)
+                val matchingMoves = if (canAct) {
+                    selected?.let { pieceId ->
+                        LegalMoveGenerator.legalMoves(session.state, pieceId).filter { it.to == cell }
+                    }.orEmpty()
+                } else {
+                    emptyList()
+                }
+                if (canAct && matchingMoves.isNotEmpty()) {
+                    if (matchingMoves.size == 1) {
+                        val move = matchingMoves.single()
+                        controller.submitMove(
+                            MoveIntent(
+                                move.actor,
+                                move.from,
+                                move.to,
+                                move.promotion
+                            )
+                        )
+                        selectedPieceId = null
+                    } else {
+                        pendingPromotionMoves = matchingMoves
                     }
-                    ?.id?.value
-            }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(threePlayerBoardAspectRatio(pieceSet, true, boardZoom)),
-        pieceSet = pieceSet,
-        onZoomChanged = { boardZoom = it },
-    )
-    OutlinedButton(
-        onClick = controller::requestUndo,
-        enabled = !state.loading && undoRequest == null && session.moves.isNotEmpty(),
-        modifier = Modifier.fillMaxWidth(),
-    ) { Text(localized("undo_move")) }
-    if (undoRequest != null) {
-        val requesterName = game.players
-            .firstOrNull { it.user.id == undoRequest.requestedByUserId }
-            ?.user?.username
-            ?: localized("participant")
-        if (isUndoRequester) {
-            Text(localized("request_sent_waiting"))
-        } else if (hasApprovedUndo) {
-            Text(localized("agreed_waiting"))
-        } else {
-            Text(localized("requester_undo", requesterName))
-            Row(
+                } else {
+                    val piece =
+                        session.state.position.pieces.values.firstOrNull { it.coordinate == cell }
+                    selectedPieceId = piece
+                        ?.takeIf {
+                            showMoveLines ||
+                                    (canAct && session.state.armies.getValue(it.army).controller == assignedPlayer)
+                        }
+                        ?.id?.value
+                }
+            },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            pieceSet = pieceSet,
+            onZoomChanged = { boardZoom = it },
+        )
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(
+                onClick = controller::requestUndo,
+                enabled = !state.loading && undoRequest == null && session.moves.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(
-                    onClick = { controller.voteUndo(true) },
-                    enabled = !state.loading,
-                    modifier = Modifier.weight(1f),
-                ) { Text(localized("agree")) }
-                OutlinedButton(
-                    onClick = { controller.voteUndo(false) },
-                    enabled = !state.loading,
-                    modifier = Modifier.weight(1f),
-                ) { Text(localized("disagree")) }
+            ) { Text(localized("undo_move")) }
+            if (undoRequest != null) {
+                val requesterName = game.players
+                    .firstOrNull { it.user.id == undoRequest.requestedByUserId }
+                    ?.user?.username
+                    ?: localized("participant")
+                if (isUndoRequester) {
+                    Text(localized("request_sent_waiting"))
+                } else if (hasApprovedUndo) {
+                    Text(localized("agreed_waiting"))
+                } else {
+                    Text(localized("requester_undo", requesterName))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            onClick = { controller.voteUndo(true) },
+                            enabled = !state.loading,
+                            modifier = Modifier.weight(1f),
+                        ) { Text(localized("agree")) }
+                        OutlinedButton(
+                            onClick = { controller.voteUndo(false) },
+                            enabled = !state.loading,
+                            modifier = Modifier.weight(1f),
+                        ) { Text(localized("disagree")) }
+                    }
+                }
             }
+            state.error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
         }
     }
     if (pendingPromotionMoves.isNotEmpty()) {
-        AlertDialog(
-            onDismissRequest = { pendingPromotionMoves = emptyList() },
-            title = { Text(localized("promotion_title")) },
-            text = { Text(localized("promotion_prompt")) },
-            confirmButton = {
-                Column {
-                    pendingPromotionMoves.forEach { move ->
-                        TextButton(onClick = {
-                            controller.submitMove(
-                                MoveIntent(
-                                    move.actor,
-                                    move.from,
-                                    move.to,
-                                    move.promotion
-                                )
-                            )
-                            pendingPromotionMoves = emptyList()
-                            selectedPieceId = null
-                        }) {
-                            Text(checkNotNull(move.promotion).displayName())
-                        }
-                    }
-                }
+        PromotionPiecePickerDialog(
+            moves = pendingPromotionMoves,
+            army = session.state.position.pieces.getValue(pendingPromotionMoves.first().pieceId).army,
+            pieceSet = pieceSet,
+            onMoveSelected = { move ->
+                controller.submitMove(
+                    MoveIntent(
+                        move.actor,
+                        move.from,
+                        move.to,
+                        move.promotion,
+                    ),
+                )
+                pendingPromotionMoves = emptyList()
+                selectedPieceId = null
             },
-            dismissButton = {
-                TextButton(onClick = { pendingPromotionMoves = emptyList() }) { Text(localized("cancel")) }
-            },
+            onDismiss = { pendingPromotionMoves = emptyList() },
         )
     }
 }
@@ -751,12 +816,4 @@ private fun GameLobby(
     game.players.forEach { player ->
         Text("${player.user.username}${player.color?.let { " — $it" }.orEmpty()}")
     }
-}
-
-@Composable
-private fun PromotionChoice.displayName(): String = when (this) {
-    PromotionChoice.QUEEN -> localized("queen")
-    PromotionChoice.ROOK -> localized("rook")
-    PromotionChoice.BISHOP -> localized("bishop")
-    PromotionChoice.KNIGHT -> localized("knight")
 }

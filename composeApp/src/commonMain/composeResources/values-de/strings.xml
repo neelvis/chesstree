@@ -31,7 +31,7 @@
     <string name="back_with_chevron">‹ Zurück</string>
     <string name="restart">Neustart</string>
     <string name="scenario">Szenario</string>
-    <string name="current_turn">Am Zug:</string>
+    <string name="current_turn">Am Zug</string>
     <string name="total_moves">Züge insgesamt: %1$s</string>
     <string name="move_review">Verlauf: %1$s von %2$s Zügen</string>
     <string name="forward">Vor</string>
@@ -43,6 +43,7 @@
     <string name="game_restarted">Partie neu gestartet; der letzte Spielstand wurde nicht geändert</string>
     <string name="promotion_title">Bauernumwandlung</string>
     <string name="promotion_prompt">Neue Figur auswählen</string>
+    <string name="promotion_confirm_again">Zum Bestätigen erneut tippen</string>
     <string name="cancel">Abbrechen</string>
     <string name="restore_moves">%1$s von %2$s Zügen wiederhergestellt</string>
     <string name="turn_player_white">Weiß</string>
@@ -58,6 +59,7 @@
     <string name="rook">Turm</string>
     <string name="bishop">Läufer</string>
     <string name="knight">Springer</string>
+    <string name="pawn">Bauer</string>
     <string name="turn_status">Zug: %1$s, Halbzug %2$s%3$s</string>
     <string name="check_suffix">, Schach</string>
     <string name="game_in_progress">Partie läuft</string>
@@ -95,7 +97,7 @@
     <string name="join_game">Partie beitreten</string>
     <string name="game_code">Partiecode</string>
     <string name="join">Beitreten</string>
-    <string name="your_color">Deine Farbe:</string>
+    <string name="your_color">Deine Farbe</string>
     <string name="loading_game_position">Partiestellung wird geladen…</string>
     <string name="games_history">Partieverlauf</string>
     <string name="unfinished_games">Laufend</string>
