@@ -102,6 +102,14 @@ object ThreePlayerBoardTopology {
     fun diagonalNeighbours(coordinate: BoardCoordinate): Set<BoardCoordinate> =
         diagonalRays(coordinate).mapTo(linkedSetOf()) { route -> route[1] }
 
+    /** Diagonal neighbours on the side of the cell toward which a pawn advances. */
+    fun diagonalNeighboursAhead(
+        coordinate: BoardCoordinate,
+        direction: OrthogonalDirection,
+    ): Set<BoardCoordinate> = forwardCorners(direction).flatMapTo(linkedSetOf()) { corner ->
+        diagonalRays(coordinate, corner).map { route -> route[1] }
+    }
+
     private fun straightRay(
         origin: BoardCoordinate,
         initialDirection: OrthogonalDirection,
@@ -201,6 +209,13 @@ object ThreePlayerBoardTopology {
 
     private fun cellColour(coordinate: BoardCoordinate): Int =
         (coordinate.vertex + coordinate.column + coordinate.row) % 2
+
+    private fun forwardCorners(direction: OrthogonalDirection): List<CellCorner> = when (direction) {
+        OrthogonalDirection.LEFT -> listOf(CellCorner.TOP_LEFT, CellCorner.BOTTOM_LEFT)
+        OrthogonalDirection.TOP -> listOf(CellCorner.TOP_LEFT, CellCorner.TOP_RIGHT)
+        OrthogonalDirection.RIGHT -> listOf(CellCorner.TOP_RIGHT, CellCorner.BOTTOM_RIGHT)
+        OrthogonalDirection.BOTTOM -> listOf(CellCorner.BOTTOM_LEFT, CellCorner.BOTTOM_RIGHT)
+    }
 
     private enum class CellCorner(
         val isRight: Boolean,

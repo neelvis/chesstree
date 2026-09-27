@@ -7,6 +7,17 @@ import kotlin.test.assertTrue
 
 class BoardTopologyTest {
     @Test
+    fun whitePawnOnK7CapturesForwardAndDropsItsBackwardCaptureAfterCrossingCentre() {
+        val k7 = ThreePlayerBoardNotation.parse("K7")!!
+        val captures = MovementDirections.forPiece(PieceType.PAWN, k7, ArmyColor.WHITE)
+            .filter { it.kind == DirectionKind.CAPTURE }
+            .map { ThreePlayerBoardNotation.square(it.target).toString().uppercase() }
+            .toSet()
+
+        assertEquals(setOf("D8", "L8"), captures)
+    }
+
+    @Test
     fun topologyContainsNinetySixUniqueCoordinates() {
         assertEquals(96, ThreePlayerBoardTopology.coordinates.size)
     }

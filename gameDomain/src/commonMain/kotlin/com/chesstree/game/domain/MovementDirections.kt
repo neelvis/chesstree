@@ -81,11 +81,18 @@ object MovementDirections {
         army: ArmyColor,
     ): List<MovementDirection> {
         val distances = pawnDistances.getValue(army)
-        val originDistance = distances.getValue(origin)
-        val captures = ThreePlayerBoardTopology.diagonalNeighbours(origin)
-            .filter { coordinate -> distances.getValue(coordinate) >= originDistance }
+        val forwardRoutes = pawnForwardRoutes(origin, distances)
+        val forwardStep = forwardRoutes.firstOrNull()?.getOrNull(1)
+        val forwardDirection = forwardStep?.let { target ->
+            OrthogonalDirection.entries.firstOrNull { direction ->
+                ThreePlayerBoardTopology.orthogonalStep(origin, direction)?.coordinate == target
+            }
+        }
+        val captures = forwardDirection?.let { direction ->
+            ThreePlayerBoardTopology.diagonalNeighboursAhead(origin, direction)
+        }.orEmpty()
 
-        return pawnForwardRoutes(origin, distances).map(::MovementDirection) +
+        return forwardRoutes.map(::MovementDirection) +
                 captures.map { target ->
                     MovementDirection(
                         route = listOf(origin, target),
