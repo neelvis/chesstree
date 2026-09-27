@@ -60,6 +60,7 @@ import com.chesstree.game.domain.session.GameLogCodec
 import com.chesstree.game.domain.session.GameSession
 import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.presentation.board.BoardTrophy
+import com.chesstree.game.presentation.board.BoardCellId
 import com.chesstree.game.presentation.board.PieceSet
 import com.chesstree.game.presentation.board.PromotionPiecePickerDialog
 import com.chesstree.game.presentation.board.ThreePlayerChessBoard
@@ -245,6 +246,7 @@ fun App(
                 pieceSet = settings.pieceSet,
                 showCurrentPossibleMoves = settings.showCurrentPossibleMoves,
                 showMoveLines = settings.showMoveLines,
+                zoomBeforeMove = settings.zoomBeforeMove,
                 onAuthenticationSuccess = { authentication ->
                     authenticatedUser = authentication
                     if (returnToSettingsAfterAuthentication) {
@@ -298,6 +300,9 @@ fun App(
         }
         var selectedPieceId by remember { mutableStateOf<String?>(null) }
         var pendingPromotionMoves by remember { mutableStateOf(emptyList<Move>()) }
+        var zoomConfirmationArmed by remember { mutableStateOf(false) }
+        var zoomToCell by remember { mutableStateOf<BoardCellId?>(null) }
+        var zoomOutRequest by remember { mutableStateOf(0L) }
         var scenarioMenuExpanded by remember { mutableStateOf(false) }
         var boardZoom by remember { mutableStateOf(1f) }
         var storageMessage by remember { mutableStateOf<String?>(null) }
@@ -338,6 +343,8 @@ fun App(
         fun clearTransientState() {
             selectedPieceId = null
             pendingPromotionMoves = emptyList()
+            zoomConfirmationArmed = false
+            zoomToCell = null
         }
 
         fun save(updatedSession: GameSession): SaveGameResult {
@@ -533,6 +540,9 @@ fun App(
                                 if (!isViewingLatest) return@ThreePlayerChessBoard
                                 if (cell == null) {
                                     selectedPieceId = null
+                                    zoomConfirmationArmed = false
+                                    zoomToCell = null
+                                    zoomOutRequest += 1
                                     return@ThreePlayerChessBoard
                                 }
 
@@ -544,12 +554,18 @@ fun App(
                                         .filter { move -> move.to == cell }
                                 }.orEmpty()
                                 if (selectedPiece != null && matchingMoves.isNotEmpty()) {
-                                    if (matchingMoves.size == 1) {
+                                    if (settings.zoomBeforeMove && !zoomConfirmationArmed) {
+                                        zoomConfirmationArmed = true
+                                        zoomToCell = cell
+                                    } else if (matchingMoves.size == 1) {
                                         applyMove(matchingMoves.single())
                                     } else {
                                         pendingPromotionMoves = matchingMoves
                                     }
                                 } else {
+                                    zoomConfirmationArmed = false
+                                    zoomToCell = null
+                                    zoomOutRequest += 1
                                     val tappedPiece = gameState.position.pieces.values
                                         .firstOrNull { piece -> piece.coordinate == cell }
                                     val canMovePiece = tappedPiece?.let { piece ->
@@ -561,6 +577,8 @@ fun App(
                                         ?.id?.value
                                 }
                             },
+                            zoomToCell = zoomToCell,
+                            resetViewportKey = gameState to zoomOutRequest,
                             modifier = if (compactLayout) {
                                 Modifier
                                     .fillMaxWidth()
@@ -596,7 +614,11 @@ fun App(
                     army = gameState.position.pieces.getValue(pendingPromotionMoves.first().pieceId).army,
                     pieceSet = settings.pieceSet,
                     onMoveSelected = ::applyMove,
-                    onDismiss = { pendingPromotionMoves = emptyList() },
+                    onDismiss = {
+                        pendingPromotionMoves = emptyList()
+                        zoomConfirmationArmed = false
+                        zoomToCell = null
+                    },
                 )
             }
             AppTabBar(

@@ -62,6 +62,7 @@ import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PieceId
 import com.chesstree.game.presentation.board.BoardTrophy
+import com.chesstree.game.presentation.board.BoardCellId
 import com.chesstree.game.presentation.board.MoveHint
 import com.chesstree.game.presentation.board.PieceSet
 import com.chesstree.game.presentation.board.PromotionPiecePickerDialog
@@ -92,6 +93,7 @@ fun MultiplayerScreen(
     pieceSet: PieceSet = PieceSet.FAIRY,
     showCurrentPossibleMoves: Boolean = true,
     showMoveLines: Boolean = false,
+    zoomBeforeMove: Boolean = false,
     onAuthenticationSuccess: (AuthResponse) -> Unit = {},
     onSelectTab: (AppTab) -> Unit = {},
     onClose: () -> Unit,
@@ -150,6 +152,7 @@ fun MultiplayerScreen(
                             pieceSet = pieceSet,
                             showCurrentPossibleMoves = showCurrentPossibleMoves,
                             showMoveLines = showMoveLines,
+                            zoomBeforeMove = zoomBeforeMove,
                             gameTitle = gameTitle,
                             showBackButton = !hasSystemBackNavigation,
                             onBack = ::handleBack,
@@ -540,6 +543,7 @@ private fun OnlineGame(
     pieceSet: PieceSet,
     showCurrentPossibleMoves: Boolean,
     showMoveLines: Boolean,
+    zoomBeforeMove: Boolean,
     gameTitle: String,
     showBackButton: Boolean,
     onBack: () -> Unit,
@@ -553,6 +557,9 @@ private fun OnlineGame(
         ?.let { runCatching { com.chesstree.game.domain.PlayerId.valueOf(it) }.getOrNull() }
     var selectedPieceId by remember(session.state) { mutableStateOf<String?>(null) }
     var pendingPromotionMoves by remember(session.state) { mutableStateOf(emptyList<Move>()) }
+    var zoomConfirmationArmed by remember(session.state) { mutableStateOf(false) }
+    var zoomToCell by remember(session.state) { mutableStateOf<BoardCellId?>(null) }
+    var zoomOutRequest by remember(session.state) { mutableStateOf(0L) }
     val hints = remember(session.state, selectedPieceId, showCurrentPossibleMoves) {
         if (showCurrentPossibleMoves) {
             selectedPieceId?.let(::PieceId)?.let { legalMoveHintsFor(session.state, it) }.orEmpty()
@@ -630,6 +637,9 @@ private fun OnlineGame(
             onCellSelected = { cell ->
                 if (cell == null) {
                     selectedPieceId = null
+                    zoomConfirmationArmed = false
+                    zoomToCell = null
+                    zoomOutRequest += 1
                     return@ThreePlayerChessBoard
                 }
                 val selected = selectedPieceId?.let(::PieceId)
@@ -641,7 +651,10 @@ private fun OnlineGame(
                     emptyList()
                 }
                 if (canAct && matchingMoves.isNotEmpty()) {
-                    if (matchingMoves.size == 1) {
+                    if (zoomBeforeMove && !zoomConfirmationArmed) {
+                        zoomConfirmationArmed = true
+                        zoomToCell = cell
+                    } else if (matchingMoves.size == 1) {
                         val move = matchingMoves.single()
                         controller.submitMove(
                             MoveIntent(
@@ -652,10 +665,15 @@ private fun OnlineGame(
                             )
                         )
                         selectedPieceId = null
+                        zoomConfirmationArmed = false
+                        zoomToCell = null
                     } else {
                         pendingPromotionMoves = matchingMoves
                     }
                 } else {
+                    zoomConfirmationArmed = false
+                    zoomToCell = null
+                    zoomOutRequest += 1
                     val piece =
                         session.state.position.pieces.values.firstOrNull { it.coordinate == cell }
                     selectedPieceId = piece
@@ -669,6 +687,8 @@ private fun OnlineGame(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             pieceSet = pieceSet,
             onZoomChanged = { boardZoom = it },
+            zoomToCell = zoomToCell,
+            resetViewportKey = session.state to zoomOutRequest,
         )
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -727,8 +747,14 @@ private fun OnlineGame(
                 )
                 pendingPromotionMoves = emptyList()
                 selectedPieceId = null
+                zoomConfirmationArmed = false
+                zoomToCell = null
             },
-            onDismiss = { pendingPromotionMoves = emptyList() },
+            onDismiss = {
+                pendingPromotionMoves = emptyList()
+                zoomConfirmationArmed = false
+                zoomToCell = null
+            },
         )
     }
 }

@@ -27,6 +27,8 @@
     <string name="move_hint_description">Show hints for the selected piece during your turn</string>
     <string name="show_paths">Show paths</string>
     <string name="show_paths_description">Show the paths any selected piece can take from its current position</string>
+    <string name="zoom_before_move">Zoom before moving</string>
+    <string name="zoom_before_move_description">Zoom the board to the target cell to confirm the move</string>
     <string name="back">Back</string>
     <string name="back_with_chevron">‹ Back</string>
     <string name="restart">Restart</string>

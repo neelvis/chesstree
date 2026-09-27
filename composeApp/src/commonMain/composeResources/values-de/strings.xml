@@ -27,6 +27,8 @@
     <string name="move_hint_description">Hinweise für die ausgewählte Figur während deines Zuges anzeigen</string>
     <string name="show_paths">Wege anzeigen</string>
     <string name="show_paths_description">Mögliche Wege einer ausgewählten Figur von ihrer aktuellen Position anzeigen</string>
+    <string name="zoom_before_move">Vor dem Zug vergrößern</string>
+    <string name="zoom_before_move_description">Das Brett zur Bestätigung des Zuges auf das Zielfeld vergrößern</string>
     <string name="back">Zurück</string>
     <string name="back_with_chevron">‹ Zurück</string>
     <string name="restart">Neustart</string>

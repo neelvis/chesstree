@@ -27,6 +27,8 @@
     <string name="move_hint_description">Подсказка для выбранной фигуры во время вашего хода</string>
     <string name="show_paths">Показывать пути</string>
     <string name="show_paths_description">Отображать линии, по которым может идти любая выбранная фигура на доске из своей текущей позиции</string>
+    <string name="zoom_before_move">Приближать перед ходом</string>
+    <string name="zoom_before_move_description">Приближать доску к целевой клетке для подтверждения хода</string>
     <string name="back">Назад</string>
     <string name="back_with_chevron">‹ Назад</string>
     <string name="restart">Рестарт</string>

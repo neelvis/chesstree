@@ -105,6 +105,19 @@ class BoardViewportTest {
     }
 
     @Test
+    fun focusingOnPointUsesMaximumZoomAndCentersTheTarget() {
+        val width = 420f
+        val height = 420f
+        val target = BoardPoint(0.72f, -0.46f)
+        val focused = focusBoardViewportOnPoint(target, width, height)
+
+        assertEquals(MAX_BOARD_ZOOM, focused.zoom)
+        val centered = boardPointToViewport(target, width, height, focused)
+        assertClose(width / 2f, centered.x)
+        assertClose(height / 2f, centered.y)
+    }
+
+    @Test
     fun zoomAndPanAreClampedToSafeBounds() {
         val viewport = transformBoardViewport(
             viewport = BoardViewport(),

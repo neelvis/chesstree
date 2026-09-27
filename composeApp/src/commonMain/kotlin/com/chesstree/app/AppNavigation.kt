@@ -338,6 +338,17 @@ internal fun SettingsScreen(
                     },
                 )
             }
+            SettingRow(
+                localized("zoom_before_move"),
+                localized("zoom_before_move_description"),
+            ) {
+                Switch(
+                    checked = settings.zoomBeforeMove,
+                    onCheckedChange = { enabled ->
+                        onSettingsChanged(settings.copy(zoomBeforeMove = enabled))
+                    },
+                )
+            }
         }
     }
 }

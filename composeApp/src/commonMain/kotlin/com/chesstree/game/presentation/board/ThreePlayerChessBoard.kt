@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -251,6 +252,8 @@ fun ThreePlayerChessBoard(
     modifier: Modifier = Modifier,
     palette: BoardPalette = BoardPalette(),
     onZoomChanged: (Float) -> Unit = {},
+    zoomToCell: BoardCellId? = null,
+    resetViewportKey: Any? = null,
 ) {
     val cells = ThreePlayerBoardGeometry.cells
     val labels = ThreePlayerBoardGeometry.labels
@@ -277,6 +280,23 @@ fun ThreePlayerChessBoard(
     val currentOnCellSelected by rememberUpdatedState(onCellSelected)
     val currentOnZoomChanged by rememberUpdatedState(onZoomChanged)
     var viewport by remember { mutableStateOf(BoardViewport()) }
+    var viewportSize by remember { mutableStateOf(IntSize.Zero) }
+    LaunchedEffect(zoomToCell, viewportSize, contentWidth, contentHeight) {
+        val target = zoomToCell?.let { cellId -> cells.firstOrNull { it.id == cellId } }
+            ?: return@LaunchedEffect
+        viewport = focusBoardViewportOnPoint(
+            point = target.center,
+            viewportWidth = viewportSize.width.toFloat(),
+            viewportHeight = viewportSize.height.toFloat(),
+            contentWidth = contentWidth,
+            contentHeight = contentHeight,
+        )
+        currentOnZoomChanged(MAX_BOARD_ZOOM)
+    }
+    LaunchedEffect(resetViewportKey) {
+        viewport = BoardViewport()
+        currentOnZoomChanged(MIN_BOARD_ZOOM)
+    }
     val boardDescription = localized(
         "checkers_board_description",
         localized(if (pieceSet == PieceSet.FAIRY) "premium_pieces" else "standard_pieces"),
@@ -295,6 +315,7 @@ fun ThreePlayerChessBoard(
             .fillMaxSize()
             .clip(RoundedCornerShape(10.dp))
             .onSizeChanged { size ->
+                viewportSize = size
                 val coerced = coerceBoardViewport(
                     viewport = viewport,
                     viewportWidth = size.width.toFloat(),

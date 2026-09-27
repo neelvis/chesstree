@@ -22,6 +22,7 @@ class GameSettingsTest {
             showCurrentPossibleMoves = false,
             showMoveLines = true,
             showGameHistory = true,
+            zoomBeforeMove = true,
             pieceSet = PieceSet.FAIRY,
         )
 
@@ -38,6 +39,19 @@ class GameSettingsTest {
                 pieceSet = PieceSet.FAIRY,
             ),
             restoreGameSettings("1|false|true|FAIRY"),
+        )
+    }
+
+    @Test
+    fun previousSettingsRestoreWithZoomBeforeMoveDisabled() {
+        assertEquals(
+            GameSettings(
+                showCurrentPossibleMoves = false,
+                showMoveLines = true,
+                showGameHistory = true,
+                pieceSet = PieceSet.FAIRY,
+            ),
+            restoreGameSettings("2|false|true|true|FAIRY"),
         )
     }
 }

@@ -88,6 +88,28 @@ internal fun transformBoardViewport(
     )
 }
 
+internal fun focusBoardViewportOnPoint(
+    point: BoardPoint,
+    viewportWidth: Float,
+    viewportHeight: Float,
+    contentWidth: Float = STANDARD_BOARD_CONTENT_WIDTH,
+    contentHeight: Float = STANDARD_BOARD_CONTENT_HEIGHT,
+): BoardViewport {
+    if (viewportWidth <= 0f || viewportHeight <= 0f) return BoardViewport()
+    val scale = boardScale(
+        viewportWidth = viewportWidth,
+        viewportHeight = viewportHeight,
+        zoom = MAX_BOARD_ZOOM,
+        contentWidth = contentWidth,
+        contentHeight = contentHeight,
+    )
+    return BoardViewport(
+        zoom = MAX_BOARD_ZOOM,
+        panX = -point.x * scale,
+        panY = -point.y * scale,
+    )
+}
+
 internal fun coerceBoardViewport(
     viewport: BoardViewport,
     viewportWidth: Float,
