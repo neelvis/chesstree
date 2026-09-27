@@ -1,5 +1,7 @@
 package com.chesstree.game.presentation.board
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -28,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -254,8 +257,11 @@ fun ThreePlayerChessBoard(
     onZoomChanged: (Float) -> Unit = {},
     zoomToCell: BoardCellId? = null,
     resetViewportKey: Any? = null,
+    moveAnimationKey: BoardMoveAnimationKey? = null,
+    animatePieceMovement: Boolean = true,
 ) {
     val cells = ThreePlayerBoardGeometry.cells
+    val cellsById = remember(cells) { cells.associateBy { it.id } }
     val labels = ThreePlayerBoardGeometry.labels
     val textMeasurer = rememberTextMeasurer(cacheSize = BOARD_TEXT_LAYOUT_CACHE_SIZE)
     val standardPieceFontResource =
@@ -281,10 +287,58 @@ fun ThreePlayerChessBoard(
     val currentOnZoomChanged by rememberUpdatedState(onZoomChanged)
     var viewport by remember { mutableStateOf(BoardViewport()) }
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
+    val currentBoardSnapshot = BoardAnimationSnapshot(moveAnimationKey, pieces, trophies)
+    val previousBoardSnapshot = remember {
+        BoardAnimationSnapshotHolder(currentBoardSnapshot)
+    }
+    val detectedMoveAnimation = remember(
+        animatePieceMovement,
+        moveAnimationKey,
+        pieces,
+        trophies,
+    ) {
+        if (animatePieceMovement) {
+            createBoardMoveAnimation(previousBoardSnapshot.snapshot, currentBoardSnapshot)
+        } else {
+            null
+        }
+    }
+    SideEffect {
+        previousBoardSnapshot.snapshot = currentBoardSnapshot
+    }
+    var completedMoveAnimationKey by remember { mutableStateOf<BoardMoveAnimationKey?>(null) }
+    var runningMoveAnimationKey by remember { mutableStateOf<BoardMoveAnimationKey?>(null) }
+    var moveAnimationProgress by remember { mutableStateOf(1f) }
+    LaunchedEffect(animatePieceMovement, moveAnimationKey, pieces, trophies) {
+        if (!animatePieceMovement || detectedMoveAnimation == null) {
+            runningMoveAnimationKey = null
+            moveAnimationProgress = 1f
+            if (!animatePieceMovement) completedMoveAnimationKey = moveAnimationKey
+            return@LaunchedEffect
+        }
+        runningMoveAnimationKey = moveAnimationKey
+        moveAnimationProgress = 0f
+        Animatable(0f).animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = BOARD_MOVE_ANIMATION_MILLIS),
+        ) {
+            moveAnimationProgress = value
+        }
+        completedMoveAnimationKey = moveAnimationKey
+        runningMoveAnimationKey = null
+    }
+    val activeMoveAnimation = detectedMoveAnimation
+        .takeIf { animatePieceMovement && completedMoveAnimationKey != moveAnimationKey }
+    val activeMoveAnimationProgress = when {
+        activeMoveAnimation == null -> 1f
+        runningMoveAnimationKey == moveAnimationKey -> moveAnimationProgress
+        else -> 0f
+    }
     LaunchedEffect(zoomToCell, viewportSize, contentWidth, contentHeight) {
         val target = zoomToCell?.let { cellId -> cells.firstOrNull { it.id == cellId } }
             ?: return@LaunchedEffect
-        viewport = focusBoardViewportOnPoint(
+        val start = viewport
+        val targetViewport = focusBoardViewportOnPoint(
             point = target.center,
             viewportWidth = viewportSize.width.toFloat(),
             viewportHeight = viewportSize.height.toFloat(),
@@ -292,10 +346,23 @@ fun ThreePlayerChessBoard(
             contentHeight = contentHeight,
         )
         currentOnZoomChanged(MAX_BOARD_ZOOM)
+        Animatable(0f).animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = BOARD_ZOOM_ANIMATION_MILLIS),
+        ) {
+            viewport = interpolateBoardViewport(start, targetViewport, value)
+        }
     }
     LaunchedEffect(resetViewportKey) {
-        viewport = BoardViewport()
+        val start = viewport
+        val target = BoardViewport()
         currentOnZoomChanged(MIN_BOARD_ZOOM)
+        Animatable(0f).animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = BOARD_ZOOM_ANIMATION_MILLIS),
+        ) {
+            viewport = interpolateBoardViewport(start, target, value)
+        }
     }
     val boardDescription = localized(
         "checkers_board_description",
@@ -443,6 +510,9 @@ fun ThreePlayerChessBoard(
             .mapNotNull { cell -> piecesByCell[cell.id]?.let { piece -> cell to piece } }
             .sortedBy { (cell, _) -> cell.center.y }
             .forEach { (cell, piece) ->
+                if (activeMoveAnimation?.movingPieces?.any { it.piece.id == piece.id } == true) {
+                    return@forEach
+                }
                 val center = cell.center.offset()
                 drawPiece(
                     piece = piece,
@@ -468,6 +538,47 @@ fun ThreePlayerChessBoard(
                         style = Stroke(3.dp.toPx()),
                     )
                 }
+            }
+        }
+
+        activeMoveAnimation?.let { animation ->
+            val progress = activeMoveAnimationProgress.coerceIn(0f, 1f)
+            animation.capturedPieces.forEach { captured ->
+                val from = cellsById[captured.from]?.center?.offset() ?: return@forEach
+                val armyTrophies = trophies.filter { it.capturedByArmy == captured.capturedByArmy }
+                val trophyIndex = armyTrophies.indexOfFirst { it.id == captured.piece.id }
+                if (trophyIndex < 0) return@forEach
+                val to = ThreePlayerBoardGeometry.trophyPosition(
+                    army = captured.capturedByArmy,
+                    index = trophyIndex,
+                    count = armyTrophies.size,
+                ).offset()
+                drawPiece(
+                    piece = captured.piece,
+                    center = interpolateOffset(from, to, progress),
+                    radius = boardPieceRadius(scale, isSelected = false) *
+                            (1f - (1f - BOARD_CAPTURE_MIN_SCALE) * progress),
+                    textMeasurer = textMeasurer,
+                    pieceSet = pieceSet,
+                    standardPieceFont = standardPieceFont,
+                    fairyPieceImages = fairyPieceImages,
+                )
+            }
+            animation.movingPieces.forEach { moving ->
+                val from = cellsById[moving.from]?.center?.offset() ?: return@forEach
+                val to = cellsById[moving.to]?.center?.offset() ?: return@forEach
+                drawPiece(
+                    piece = moving.piece,
+                    center = interpolateOffset(from, to, progress),
+                    radius = boardPieceRadius(
+                        boardScale = scale,
+                        isSelected = moving.piece.id == selectedPieceId,
+                    ),
+                    textMeasurer = textMeasurer,
+                    pieceSet = pieceSet,
+                    standardPieceFont = standardPieceFont,
+                    fairyPieceImages = fairyPieceImages,
+                )
             }
         }
 
@@ -514,11 +625,19 @@ fun ThreePlayerChessBoard(
             val armyTrophies = trophies.filter { it.capturedByArmy == capturingArmy }
             armyTrophies
                 .forEachIndexed { index, trophy ->
+                    if (activeMoveAnimation?.capturedPieces?.any { it.piece.id == trophy.id } == true) {
+                        return@forEachIndexed
+                    }
                     val point = ThreePlayerBoardGeometry.trophyPosition(
                         army = capturingArmy,
                         index = index,
                         count = armyTrophies.size,
-                    ).offset()
+                    )
+                    val motion = activeMoveAnimation?.trophyMotions
+                        ?.firstOrNull { it.id == trophy.id }
+                    val displayedPoint = motion?.let {
+                        interpolateBoardPoint(it.from, it.to, activeMoveAnimationProgress)
+                    } ?: point
                     drawPiece(
                         piece = BoardPiece(
                             id = trophy.id,
@@ -527,7 +646,7 @@ fun ThreePlayerChessBoard(
                             bodyArmy = trophy.bodyArmy,
                             cellId = BoardCellId(0, 0, 0),
                         ),
-                        center = point,
+                        center = displayedPoint.offset(),
                         radius = scale * 0.063f,
                         textMeasurer = textMeasurer,
                         pieceSet = pieceSet,
@@ -776,6 +895,105 @@ private fun pieceColor(army: ArmyColor): Color = when (army) {
 
 internal const val BOARD_TEXT_LAYOUT_CACHE_SIZE: Int = 48
 internal const val MOVE_DIRECTION_LINE_WIDTH_FACTOR: Float = 0.00625f
+private const val BOARD_ZOOM_ANIMATION_MILLIS: Int = 320
+private const val BOARD_MOVE_ANIMATION_MILLIS: Int = 420
+private const val BOARD_CAPTURE_MIN_SCALE: Float = 0.65f
+
+private data class BoardAnimationSnapshot(
+    val key: BoardMoveAnimationKey?,
+    val pieces: List<BoardPiece>,
+    val trophies: List<BoardTrophy>,
+)
+
+private class BoardAnimationSnapshotHolder(var snapshot: BoardAnimationSnapshot)
+
+private data class BoardPieceMotion(
+    val piece: BoardPiece,
+    val from: BoardCellId,
+    val to: BoardCellId,
+)
+
+private data class CapturedPieceMotion(
+    val piece: BoardPiece,
+    val from: BoardCellId,
+    val capturedByArmy: ArmyColor,
+)
+
+private data class TrophyMotion(
+    val id: String,
+    val from: BoardPoint,
+    val to: BoardPoint,
+)
+
+private data class BoardMoveAnimation(
+    val movingPieces: List<BoardPieceMotion>,
+    val capturedPieces: List<CapturedPieceMotion>,
+    val trophyMotions: List<TrophyMotion>,
+)
+
+private fun createBoardMoveAnimation(
+    previous: BoardAnimationSnapshot,
+    next: BoardAnimationSnapshot,
+): BoardMoveAnimation? {
+    val previousKey = previous.key ?: return null
+    val nextKey = next.key ?: return null
+    if (previousKey.gameId != nextKey.gameId || nextKey.moveCount != previousKey.moveCount + 1) {
+        return null
+    }
+
+    val previousPieces = previous.pieces.associateBy(BoardPiece::id)
+    val nextPieces = next.pieces.associateBy(BoardPiece::id)
+    val movingPieces = previousPieces.values.mapNotNull { oldPiece ->
+        val updatedPiece = nextPieces[oldPiece.id] ?: return@mapNotNull null
+        if (oldPiece.cellId == updatedPiece.cellId) return@mapNotNull null
+        BoardPieceMotion(updatedPiece, oldPiece.cellId, updatedPiece.cellId)
+    }
+    if (movingPieces.isEmpty()) return null
+
+    val previousTrophyIds = previous.trophies.mapTo(mutableSetOf(), BoardTrophy::id)
+    val capturedPieces = next.trophies
+        .filter { it.id !in previousTrophyIds }
+        .mapNotNull { trophy ->
+            previousPieces[trophy.id]
+                ?.takeIf { it.id !in nextPieces }
+                ?.let { CapturedPieceMotion(it, it.cellId, trophy.capturedByArmy) }
+        }
+    val previousTrophyPositions = trophyPositions(previous.trophies)
+    val trophyMotions = trophyPositions(next.trophies).mapNotNull { (id, to) ->
+        val from = previousTrophyPositions[id] ?: return@mapNotNull null
+        if (from == to) null else TrophyMotion(id, from, to)
+    }
+    return BoardMoveAnimation(movingPieces, capturedPieces, trophyMotions)
+}
+
+private fun trophyPositions(trophies: List<BoardTrophy>): Map<String, BoardPoint> =
+    ArmyColor.entries.flatMap { army ->
+        val armyTrophies = trophies.filter { it.capturedByArmy == army }
+        armyTrophies.mapIndexed { index, trophy ->
+            trophy.id to ThreePlayerBoardGeometry.trophyPosition(army, index, armyTrophies.size)
+        }
+    }.toMap()
+
+private fun interpolateBoardPoint(from: BoardPoint, to: BoardPoint, fraction: Float): BoardPoint =
+    BoardPoint(
+        x = from.x + (to.x - from.x) * fraction,
+        y = from.y + (to.y - from.y) * fraction,
+    )
+
+private fun interpolateOffset(from: Offset, to: Offset, fraction: Float): Offset = Offset(
+    x = from.x + (to.x - from.x) * fraction,
+    y = from.y + (to.y - from.y) * fraction,
+)
+
+private fun interpolateBoardViewport(
+    start: BoardViewport,
+    target: BoardViewport,
+    fraction: Float,
+): BoardViewport = BoardViewport(
+    zoom = start.zoom + (target.zoom - start.zoom) * fraction,
+    panX = start.panX + (target.panX - start.panX) * fraction,
+    panY = start.panY + (target.panY - start.panY) * fraction,
+)
 
 private data class FairyPieceImages(
     val pieces: Map<Pair<PieceType, ArmyColor>, ImageBitmap>,

@@ -349,6 +349,17 @@ internal fun SettingsScreen(
                     },
                 )
             }
+            SettingRow(
+                localized("animate_piece_movement"),
+                localized("animate_piece_movement_description"),
+            ) {
+                Switch(
+                    checked = settings.animatePieceMovement,
+                    onCheckedChange = { enabled ->
+                        onSettingsChanged(settings.copy(animatePieceMovement = enabled))
+                    },
+                )
+            }
         }
     }
 }

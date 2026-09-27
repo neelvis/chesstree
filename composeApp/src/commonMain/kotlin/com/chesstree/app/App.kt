@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -60,11 +57,11 @@ import com.chesstree.game.domain.session.GameLogCodec
 import com.chesstree.game.domain.session.GameSession
 import com.chesstree.game.domain.session.SessionMoveResult
 import com.chesstree.game.presentation.board.BoardTrophy
+import com.chesstree.game.presentation.board.BoardMoveAnimationKey
 import com.chesstree.game.presentation.board.BoardCellId
 import com.chesstree.game.presentation.board.PieceSet
 import com.chesstree.game.presentation.board.PromotionPiecePickerDialog
 import com.chesstree.game.presentation.board.ThreePlayerChessBoard
-import com.chesstree.game.presentation.board.threePlayerBoardAspectRatio
 import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.game.presentation.history.GameHistoryDialog
 import com.chesstree.game.presentation.history.GameHistoryNavigation
@@ -247,6 +244,7 @@ fun App(
                 showCurrentPossibleMoves = settings.showCurrentPossibleMoves,
                 showMoveLines = settings.showMoveLines,
                 zoomBeforeMove = settings.zoomBeforeMove,
+                animatePieceMovement = settings.animatePieceMovement,
                 onAuthenticationSuccess = { authentication ->
                     authenticatedUser = authentication
                     if (returnToSettingsAfterAuthentication) {
@@ -304,7 +302,6 @@ fun App(
         var zoomToCell by remember { mutableStateOf<BoardCellId?>(null) }
         var zoomOutRequest by remember { mutableStateOf(0L) }
         var scenarioMenuExpanded by remember { mutableStateOf(false) }
-        var boardZoom by remember { mutableStateOf(1f) }
         var storageMessage by remember { mutableStateOf<String?>(null) }
         var historyNavigation by remember { mutableStateOf(GameHistoryNavigation.latest()) }
         val displayedSession = remember(session, historyNavigation) {
@@ -409,7 +406,6 @@ fun App(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(if (compactLayout) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                             .padding(horizontal = horizontalPadding, vertical = 8.dp)
                             .widthIn(max = 920.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -528,81 +524,76 @@ fun App(
                             }
                         }
                         Spacer(Modifier.height(8.dp))
-                        ThreePlayerChessBoard(
-                            pieces = pieces,
-                            selectedPieceId = selectedPieceId,
-                            moveHints = selectedMoveHints.currentPossibleMoves,
-                            moveLineHints = selectedMoveHints.moveLines,
-                            trophies = trophies,
-                            pieceSet = settings.pieceSet,
-                            showDecorativeBirds = gameState.turn == null,
-                            onCellSelected = { cell ->
-                                if (!isViewingLatest) return@ThreePlayerChessBoard
-                                if (cell == null) {
-                                    selectedPieceId = null
-                                    zoomConfirmationArmed = false
-                                    zoomToCell = null
-                                    zoomOutRequest += 1
-                                    return@ThreePlayerChessBoard
-                                }
-
-                                val selectedPiece = selectedPieceId
-                                    ?.let(::PieceId)
-                                    ?.let(gameState.position.pieces::get)
-                                val matchingMoves = selectedPiece?.let { piece ->
-                                    LegalMoveGenerator.legalMoves(gameState, piece.id)
-                                        .filter { move -> move.to == cell }
-                                }.orEmpty()
-                                if (selectedPiece != null && matchingMoves.isNotEmpty()) {
-                                    if (settings.zoomBeforeMove && !zoomConfirmationArmed) {
-                                        zoomConfirmationArmed = true
-                                        zoomToCell = cell
-                                    } else if (matchingMoves.size == 1) {
-                                        applyMove(matchingMoves.single())
-                                    } else {
-                                        pendingPromotionMoves = matchingMoves
-                                    }
-                                } else {
-                                    zoomConfirmationArmed = false
-                                    zoomToCell = null
-                                    zoomOutRequest += 1
-                                    val tappedPiece = gameState.position.pieces.values
-                                        .firstOrNull { piece -> piece.coordinate == cell }
-                                    val canMovePiece = tappedPiece?.let { piece ->
-                                        gameState.turn?.player ==
-                                                gameState.armies.getValue(piece.army).controller
-                                    } == true
-                                    selectedPieceId = tappedPiece
-                                        ?.takeIf { settings.showMoveLines || canMovePiece }
-                                        ?.id?.value
-                                }
-                            },
-                            zoomToCell = zoomToCell,
-                            resetViewportKey = gameState to zoomOutRequest,
-                            modifier = if (compactLayout) {
-                                Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(
-                                        threePlayerBoardAspectRatio(
-                                            settings.pieceSet,
-                                            gameState.turn == null,
-                                            boardZoom,
-                                        ),
-                                    )
-                            } else {
-                                Modifier.weight(1f).fillMaxWidth()
-                            },
-                            onZoomChanged = { boardZoom = it },
-                        )
                         Box(
-                            modifier = Modifier.fillMaxWidth().height(24.dp),
-                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
                         ) {
+                            ThreePlayerChessBoard(
+                                pieces = pieces,
+                                selectedPieceId = selectedPieceId,
+                                moveHints = selectedMoveHints.currentPossibleMoves,
+                                moveLineHints = selectedMoveHints.moveLines,
+                                trophies = trophies,
+                                moveAnimationKey = BoardMoveAnimationKey(
+                                    gameId = "solo:${session.scenario.id}",
+                                    moveCount = session.moves.size,
+                                ),
+                                animatePieceMovement = settings.animatePieceMovement,
+                                pieceSet = settings.pieceSet,
+                                showDecorativeBirds = gameState.turn == null,
+                                onCellSelected = { cell ->
+                                    if (!isViewingLatest) return@ThreePlayerChessBoard
+                                    if (cell == null) {
+                                        selectedPieceId = null
+                                        zoomConfirmationArmed = false
+                                        zoomToCell = null
+                                        zoomOutRequest += 1
+                                        return@ThreePlayerChessBoard
+                                    }
+
+                                    val selectedPiece = selectedPieceId
+                                        ?.let(::PieceId)
+                                        ?.let(gameState.position.pieces::get)
+                                    val matchingMoves = selectedPiece?.let { piece ->
+                                        LegalMoveGenerator.legalMoves(gameState, piece.id)
+                                            .filter { move -> move.to == cell }
+                                    }.orEmpty()
+                                    if (selectedPiece != null && matchingMoves.isNotEmpty()) {
+                                        if (settings.zoomBeforeMove && !zoomConfirmationArmed) {
+                                            zoomConfirmationArmed = true
+                                            zoomToCell = cell
+                                        } else if (matchingMoves.size == 1) {
+                                            applyMove(matchingMoves.single())
+                                        } else {
+                                            pendingPromotionMoves = matchingMoves
+                                        }
+                                    } else {
+                                        zoomConfirmationArmed = false
+                                        zoomToCell = null
+                                        val tappedPiece = gameState.position.pieces.values
+                                            .firstOrNull { piece -> piece.coordinate == cell }
+                                        val canMovePiece = tappedPiece?.let { piece ->
+                                            gameState.turn?.player ==
+                                                    gameState.armies.getValue(piece.army).controller
+                                        } == true
+                                        selectedPieceId = tappedPiece
+                                            ?.takeIf { settings.showMoveLines || canMovePiece }
+                                            ?.id?.value
+                                    }
+                                },
+                                zoomToCell = zoomToCell,
+                                resetViewportKey = gameState to zoomOutRequest,
+                                modifier = Modifier.fillMaxSize(),
+                            )
                             storageMessage?.let { message ->
-                                Text(
-                                    localizedMessage(message),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
+                                Box(
+                                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        localizedMessage(message),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
                             }
                         }
                     }

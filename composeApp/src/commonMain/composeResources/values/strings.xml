@@ -29,6 +29,8 @@
     <string name="show_paths_description">Отображать линии, по которым может идти любая выбранная фигура на доске из своей текущей позиции</string>
     <string name="zoom_before_move">Приближать перед ходом</string>
     <string name="zoom_before_move_description">Приближать доску к целевой клетке для подтверждения хода</string>
+    <string name="animate_piece_movement">Анимация движения фигур</string>
+    <string name="animate_piece_movement_description">Плавно перемещать фигуры и перестраивать трофеи после хода</string>
     <string name="back">Назад</string>
     <string name="back_with_chevron">‹ Назад</string>
     <string name="restart">Рестарт</string>

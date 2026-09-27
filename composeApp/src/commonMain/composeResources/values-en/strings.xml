@@ -29,6 +29,8 @@
     <string name="show_paths_description">Show the paths any selected piece can take from its current position</string>
     <string name="zoom_before_move">Zoom before moving</string>
     <string name="zoom_before_move_description">Zoom the board to the target cell to confirm the move</string>
+    <string name="animate_piece_movement">Animate piece movement</string>
+    <string name="animate_piece_movement_description">Animate piece moves and trophy rearrangement after each move</string>
     <string name="back">Back</string>
     <string name="back_with_chevron">‹ Back</string>
     <string name="restart">Restart</string>

@@ -44,6 +44,11 @@ data class BoardTrophy(
     val capturedByArmy: ArmyColor,
 )
 
+data class BoardMoveAnimationKey(
+    val gameId: String,
+    val moveCount: Int,
+)
+
 fun initialBoardPieces(): List<BoardPiece> = StandardGame.pieces.map { piece ->
     BoardPiece(piece.id, piece.type, piece.army, piece.coordinate)
 }

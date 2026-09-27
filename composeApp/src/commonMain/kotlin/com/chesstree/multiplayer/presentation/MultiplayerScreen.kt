@@ -62,6 +62,7 @@ import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.PieceId
 import com.chesstree.game.presentation.board.BoardTrophy
+import com.chesstree.game.presentation.board.BoardMoveAnimationKey
 import com.chesstree.game.presentation.board.BoardCellId
 import com.chesstree.game.presentation.board.MoveHint
 import com.chesstree.game.presentation.board.PieceSet
@@ -94,6 +95,7 @@ fun MultiplayerScreen(
     showCurrentPossibleMoves: Boolean = true,
     showMoveLines: Boolean = false,
     zoomBeforeMove: Boolean = false,
+    animatePieceMovement: Boolean = true,
     onAuthenticationSuccess: (AuthResponse) -> Unit = {},
     onSelectTab: (AppTab) -> Unit = {},
     onClose: () -> Unit,
@@ -153,6 +155,7 @@ fun MultiplayerScreen(
                             showCurrentPossibleMoves = showCurrentPossibleMoves,
                             showMoveLines = showMoveLines,
                             zoomBeforeMove = zoomBeforeMove,
+                            animatePieceMovement = animatePieceMovement,
                             gameTitle = gameTitle,
                             showBackButton = !hasSystemBackNavigation,
                             onBack = ::handleBack,
@@ -544,6 +547,7 @@ private fun OnlineGame(
     showCurrentPossibleMoves: Boolean,
     showMoveLines: Boolean,
     zoomBeforeMove: Boolean,
+    animatePieceMovement: Boolean,
     gameTitle: String,
     showBackButton: Boolean,
     onBack: () -> Unit,
@@ -621,6 +625,11 @@ private fun OnlineGame(
         }
         ThreePlayerChessBoard(
             pieces = session.state.toBoardPieces(),
+            moveAnimationKey = BoardMoveAnimationKey(
+                gameId = "online:${game.code}",
+                moveCount = session.moves.size,
+            ),
+            animatePieceMovement = animatePieceMovement,
             selectedPieceId = selectedPieceId,
             moveHints = hints,
             moveLineHints = moveLines,
@@ -673,7 +682,6 @@ private fun OnlineGame(
                 } else {
                     zoomConfirmationArmed = false
                     zoomToCell = null
-                    zoomOutRequest += 1
                     val piece =
                         session.state.position.pieces.values.firstOrNull { it.coordinate == cell }
                     selectedPieceId = piece
