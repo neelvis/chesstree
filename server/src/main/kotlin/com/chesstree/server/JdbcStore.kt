@@ -5,6 +5,8 @@ import kotlinx.coroutines.withContext
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import com.chesstree.game.domain.GameState
+import com.chesstree.game.domain.scenario.StandardGame
+import com.chesstree.game.domain.session.GameSession
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Timestamp
@@ -529,18 +531,51 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
     }
 
     override suspend fun findGameState(code: String, afterMoveCount: Int): GameStateRecord? = io {
-        readTransaction { connection -> loadGameState(connection, code, afterMoveCount) }
+        val readState = readTransaction { connection -> loadGameState(connection, code, afterMoveCount) }
+            ?: return@io null
+        if (readState.moveOffset != 0 || readState.game.status == GameStatus.WAITING || readState.capturedPieces != null) {
+            return@io readState
+        }
+        transaction { connection ->
+            val state = loadGameState(connection, code, afterMoveCount) ?: return@transaction null
+            upgradeLegacySessionSnapshot(connection, state)
+        }
     }
 
     override suspend fun findGameState(id: UUID): GameStateRecord? = io {
-        readTransaction { connection ->
+        val readState = readTransaction { connection ->
             val code = connection.prepareStatement("SELECT public_code FROM games WHERE id = ?")
                 .use { statement ->
                     statement.setObject(1, id)
                     statement.executeQuery().use { rows -> if (rows.next()) rows.getString(1).trim() else null }
                 } ?: return@readTransaction null
             loadGameState(connection, code)
+        } ?: return@io null
+        if (readState.game.status == GameStatus.WAITING || readState.capturedPieces != null) return@io readState
+        transaction { connection ->
+            val code = connection.prepareStatement("SELECT public_code FROM games WHERE id = ?")
+                .use { statement ->
+                    statement.setObject(1, id)
+                    statement.executeQuery().use { rows -> if (rows.next()) rows.getString(1).trim() else null }
+                } ?: return@transaction null
+            val state = loadGameState(connection, code) ?: return@transaction null
+            upgradeLegacySessionSnapshot(connection, state)
         }
+    }
+
+    private fun upgradeLegacySessionSnapshot(
+        connection: Connection,
+        state: GameStateRecord,
+    ): GameStateRecord {
+        if (state.moveOffset != 0 || state.game.status == GameStatus.WAITING || state.capturedPieces != null) {
+            return state
+        }
+        val session = GameSession.replay(
+            StandardGame.scenario,
+            state.moves.map(GameMoveRecord::intent),
+        ) ?: return state
+        saveStateSnapshot(connection, state.game.id, state.moves.size, session.state, session.capturedPieces)
+        return state.copy(domainState = session.state, capturedPieces = session.capturedPieces)
     }
 
     override suspend fun submitMove(
@@ -560,16 +595,16 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
             val state = checkNotNull(loadGameState(connection, code, includeHistory = false))
             val moveCount = state.moveOffset
             val existingCommand = findCommand(connection, state.game.id, command.commandId)
-            val cachedState = recentGameStates.get(state.game.id, state.revision)
-                ?: loadStateSnapshot(connection, state.game.id, moveCount)
-            val evaluationState = if (cachedState == null) {
+            val cachedState = recentGameStates.get(state.game.id, state.revision) ?: state.domainState
+            val canReuseSnapshot = cachedState != null && state.capturedPieces != null
+            val evaluationState = if (!canReuseSnapshot) {
                 state.copy(moves = loadMoves(connection, state.game.id), moveOffset = 0)
             } else state
             when (val evaluation = evaluateMove(
                 evaluationState,
                 userId,
                 command,
-                cachedState,
+                cachedState.takeIf { canReuseSnapshot },
                 existingCommand,
             )) {
                 is MoveEvaluation.Accepted -> {
@@ -609,11 +644,17 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                             statement.setObject(1, state.game.id)
                             statement.executeUpdate()
                         }
-                    saveStateSnapshot(connection, state.game.id, moveCount + 1, evaluation.state)
+                    saveStateSnapshot(
+                        connection,
+                        state.game.id,
+                        moveCount + 1,
+                        evaluation.state,
+                        evaluation.capturedPieces,
+                    )
                     cacheUpdate = state.game.id to ((state.revision + 1) to evaluation.state)
                     SubmitMoveResult.Applied(
                         checkNotNull(loadGameState(connection, code, command.expectedMoveCount ?: 0))
-                            .copy(domainState = evaluation.state),
+                            .copy(domainState = evaluation.state, capturedPieces = evaluation.capturedPieces),
                     )
                 }
 
@@ -704,7 +745,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
             } else {
                 incrementRevision(connection, state.game.id)
             }
-            UndoResult.Updated(checkNotNull(loadGameState(connection, code)))
+            val updated = checkNotNull(loadGameState(connection, code))
+            UndoResult.Updated(upgradeLegacySessionSnapshot(connection, updated))
         }
     }
 
@@ -726,16 +768,23 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                 statement.executeQuery().use { rows -> check(rows.next()); rows.getInt(1) }
             }
         val moveOffset = if (!includeHistory) moveCount else afterMoveCount.takeIf { it in 0..moveCount } ?: 0
+        val snapshot = loadStateSnapshot(connection, game.id, moveCount)
         return GameStateRecord(
             game = game,
             moves = if (includeHistory) loadMoves(connection, game.id, moveOffset) else emptyList(),
             revision = revision,
             moveOffset = moveOffset,
+            domainState = snapshot?.state,
+            capturedPieces = snapshot?.capturedPieces,
             undoRequest = loadUndoRequest(connection, game.id),
         )
     }
 
-    private fun loadStateSnapshot(connection: Connection, gameId: UUID, moveCount: Int): GameState? =
+    private fun loadStateSnapshot(
+        connection: Connection,
+        gameId: UUID,
+        moveCount: Int,
+    ): GameStateSnapshotCodec.DecodedGameStateSnapshot? =
         connection.prepareStatement(
             "SELECT state_snapshot FROM games WHERE id = ? AND state_snapshot_move_count = ?",
         ).use { statement ->
@@ -747,11 +796,17 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
             }
         }
 
-    private fun saveStateSnapshot(connection: Connection, gameId: UUID, moveCount: Int, state: GameState) {
+    private fun saveStateSnapshot(
+        connection: Connection,
+        gameId: UUID,
+        moveCount: Int,
+        state: GameState,
+        capturedPieces: List<com.chesstree.game.domain.session.CapturedPiece>,
+    ) {
         connection.prepareStatement(
             "UPDATE games SET state_snapshot = ?, state_snapshot_move_count = ? WHERE id = ?",
         ).use { statement ->
-            statement.setString(1, GameStateSnapshotCodec.encode(state))
+            statement.setString(1, GameStateSnapshotCodec.encode(state, capturedPieces))
             statement.setInt(2, moveCount)
             statement.setObject(3, gameId)
             statement.executeUpdate()

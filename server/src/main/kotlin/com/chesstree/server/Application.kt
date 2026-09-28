@@ -2,6 +2,8 @@ package com.chesstree.server
 
 import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.PromotionChoice
+import com.chesstree.game.domain.scenario.StandardGame
+import com.chesstree.game.domain.session.GameSession
 import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.AuthResponse
@@ -317,11 +319,12 @@ fun Application.chessTreeModule(
                             ErrorResponse("game_not_found", "Игра не найдена")
                         )
                     } else {
+                        val clientApiVersion = call.request.headers[API_VERSION_HEADER]?.toIntOrNull() ?: 0
                         call.respond(
                             state.response(
                                 services.publicBaseUrl,
-                                includeUndoRequest = call.request.headers[API_VERSION_HEADER] ==
-                                        API_VERSION.toString(),
+                                includeUndoRequest = clientApiVersion >= 3,
+                                includePosition = clientApiVersion >= 4,
                             ),
                         )
                     }
@@ -329,6 +332,7 @@ fun Application.chessTreeModule(
                 post("/games/{code}/moves") {
                     val user = call.authenticatedUser()
                     val code = call.gameCode()
+                    val clientApiVersion = call.request.headers[API_VERSION_HEADER]?.toIntOrNull() ?: 0
                     val command = call.receive<MoveCommandRequest>().toDomainCommand()
                     when (val result = services.store.submitMove(code, user.id, command)) {
                         is SubmitMoveResult.Applied -> {
@@ -336,7 +340,12 @@ fun Application.chessTreeModule(
                                 services.pushNotifications.gameStateChanged(result.state)
                             }
                             services.updates.publish(code)
-                            call.respond(result.state.response(services.publicBaseUrl))
+                            call.respond(
+                                result.state.response(
+                                    services.publicBaseUrl,
+                                    includePosition = clientApiVersion >= 4,
+                                ),
+                            )
                         }
 
                         is SubmitMoveResult.Stale -> call.respond(
@@ -469,7 +478,11 @@ fun Application.chessTreeModule(
                         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Access revoked"))
                         throw CancellationException("WebSocket access revoked")
                     }
-                    sendSerialized(GameStatePush(state = state.response(services.publicBaseUrl)))
+                    sendSerialized(
+                        GameStatePush(
+                            state = state.response(services.publicBaseUrl, includePosition = true),
+                        ),
+                    )
                     afterMoveCount = state.moveOffset + state.moves.size
                 }
             }
@@ -615,38 +628,63 @@ private fun GameRecord.historyResponse() = GameHistoryResponse(
 private fun GameStateRecord.response(
     publicBaseUrl: String,
     includeUndoRequest: Boolean = true,
-) = GameStateResponse(
-    game = game.response(publicBaseUrl),
-    revision = if (includeUndoRequest) revision else moveOffset + moves.size,
-    moves = moves.mapIndexed { index, move ->
-        MoveEventResponse(
-            revision = moveOffset + index + 1,
-            actor = move.intent.actor.name,
-            from = move.intent.from.response(),
-            to = move.intent.to.response(),
-            promotion = move.intent.promotion?.name,
-        )
-    },
-    moveOffset = moveOffset,
-    undoRequest = undoRequest?.takeIf { includeUndoRequest }?.let { request ->
-        UndoRequestResponse(
-            id = request.id.toString(),
-            requestedByUserId = request.requestedByUserId.toString(),
-            targetMoveCount = request.targetMoveCount,
-            approvedByUserIds = request.approvedByUserIds.map(UUID::toString).sorted(),
-        )
-    },
-)
+    includePosition: Boolean = false,
+): GameStateResponse {
+    val position = if (includePosition && moveOffset == 0 && game.status != GameStatus.WAITING) {
+        runCatching {
+            val state = domainState
+            val captures = capturedPieces
+            if (state != null && captures != null) {
+                GameStateSnapshotCodec.toResponse(state, moves.size, captures)
+            } else {
+                GameSession.replay(StandardGame.scenario, moves.map(GameMoveRecord::intent))
+                    ?.let { GameStateSnapshotCodec.toResponse(it.state, moves.size, it.capturedPieces) }
+            }
+        }.getOrNull()
+    } else {
+        null
+    }
+    return GameStateResponse(
+        game = game.response(publicBaseUrl),
+        revision = if (includeUndoRequest) revision else moveOffset + moves.size,
+        moves = moves.mapIndexed { index, move ->
+            MoveEventResponse(
+                revision = moveOffset + index + 1,
+                actor = move.intent.actor.name,
+                from = move.intent.from.response(),
+                to = move.intent.to.response(),
+                promotion = move.intent.promotion?.name,
+            )
+        },
+        moveOffset = moveOffset,
+        undoRequest = undoRequest?.takeIf { includeUndoRequest }?.let { request ->
+            UndoRequestResponse(
+                id = request.id.toString(),
+                requestedByUserId = request.requestedByUserId.toString(),
+                targetMoveCount = request.targetMoveCount,
+                approvedByUserIds = request.approvedByUserIds.map(UUID::toString).sorted(),
+            )
+        },
+        position = position,
+    )
+}
 
 private suspend fun ApplicationCall.respondUndoResult(
     services: ServerServices,
     code: String,
     result: UndoResult,
 ) {
+    val clientApiVersion = request.headers[API_VERSION_HEADER]?.toIntOrNull() ?: 0
     when (result) {
         is UndoResult.Updated -> {
             services.updates.publish(code)
-            respond(result.state.response(services.publicBaseUrl))
+            respond(
+                result.state.response(
+                    services.publicBaseUrl,
+                    includeUndoRequest = true,
+                    includePosition = clientApiVersion >= 4,
+                ),
+            )
         }
 
         is UndoResult.Stale -> respond(

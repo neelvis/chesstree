@@ -37,3 +37,8 @@ if grep -F 'readlink -f "$current_link"' deploy/remote/chesstree-activate-releas
     printf 'The activation helper must not treat a missing current link as a previous release.\n' >&2
     exit 1
 fi
+grep -F 'staged_nginx_config="$staging/infra/nginx/chesstree.conf"' \
+    deploy/remote/chesstree-activate-release >/dev/null
+grep -F 'install -o root -g root -m 644 "$staged_nginx_config" "$nginx_config"' \
+    deploy/remote/chesstree-activate-release >/dev/null
+grep -F 'restore_nginx_config' deploy/remote/chesstree-activate-release >/dev/null

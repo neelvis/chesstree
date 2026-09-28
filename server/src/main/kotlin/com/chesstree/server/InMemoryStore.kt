@@ -130,7 +130,7 @@ class InMemoryStore : ChessTreeStore {
                 if (evaluation.finished) game.status = GameStatus.FINISHED
                 SubmitMoveResult.Applied(
                     stateAfterMoveCount(code, game, command.expectedMoveCount)
-                        .copy(domainState = evaluation.state),
+                        .copy(domainState = evaluation.state, capturedPieces = evaluation.capturedPieces),
                 )
             }
 

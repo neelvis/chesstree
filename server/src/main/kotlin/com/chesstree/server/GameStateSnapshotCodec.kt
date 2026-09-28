@@ -18,6 +18,18 @@ import com.chesstree.game.domain.PieceType
 import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.Position
 import com.chesstree.game.domain.Turn
+import com.chesstree.game.domain.session.CapturedPiece
+import com.chesstree.multiplayer.contract.GamePositionSnapshotResponse
+import com.chesstree.multiplayer.contract.SnapshotArmyResponse
+import com.chesstree.multiplayer.contract.SnapshotCapturedPieceResponse
+import com.chesstree.multiplayer.contract.SnapshotCastlingRightResponse
+import com.chesstree.multiplayer.contract.SnapshotCoordinateResponse
+import com.chesstree.multiplayer.contract.SnapshotEnPassantTargetResponse
+import com.chesstree.multiplayer.contract.SnapshotOutcomeResponse
+import com.chesstree.multiplayer.contract.SnapshotParticipantResponse
+import com.chesstree.multiplayer.contract.SnapshotParticipantStatusResponse
+import com.chesstree.multiplayer.contract.SnapshotPieceResponse
+import com.chesstree.multiplayer.contract.SnapshotTurnResponse
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -25,17 +37,68 @@ import kotlinx.serialization.json.Json
 
 /** Versioned database representation of the current rules state; the move log remains authoritative. */
 internal object GameStateSnapshotCodec {
-    private val json = Json { ignoreUnknownKeys = false }
+    private val json = Json { ignoreUnknownKeys = false; encodeDefaults = true }
 
-    fun encode(state: GameState): String = json.encodeToString(state.toSnapshot())
+    fun encode(state: GameState, capturedPieces: List<CapturedPiece>): String =
+        json.encodeToString(state.toSnapshot(capturedPieces))
 
-    fun decode(contents: String): GameState? = runCatching {
-        json.decodeFromString<PersistedGameState>(contents)
-            .takeIf { it.version == SNAPSHOT_VERSION }
-            ?.toDomain()
+    fun decode(contents: String): DecodedGameStateSnapshot? = runCatching {
+        json.decodeFromString<PersistedGameState>(contents).takeIf { it.version in 1..SNAPSHOT_VERSION }
+            ?.let { snapshot ->
+                DecodedGameStateSnapshot(
+                    state = snapshot.toDomain(),
+                    capturedPieces = snapshot.capturedPieces?.map {
+                        CapturedPiece(it.id, PieceType.valueOf(it.type), ArmyColor.valueOf(it.army), ArmyColor.valueOf(it.bodyArmy), ArmyColor.valueOf(it.capturedByArmy))
+                    },
+                )
+            }
     }.getOrNull()
 
-    private fun GameState.toSnapshot() = PersistedGameState(
+    fun toResponse(
+        state: GameState,
+        moveCount: Int,
+        capturedPieces: List<CapturedPiece>,
+    ) = GamePositionSnapshotResponse(
+        moveCount = moveCount,
+        pieces = state.position.pieces.values.map { piece ->
+            SnapshotPieceResponse(piece.id.value, piece.type.name, piece.army.name, piece.coordinate.toResponse(), piece.hasMoved)
+        },
+        castlingRights = state.position.castlingRights.map { SnapshotCastlingRightResponse(it.army.name, it.side.name, it.rookId?.value) },
+        enPassantTargets = state.position.enPassantTargets.values.map { target ->
+            SnapshotEnPassantTargetResponse(target.pawnId.value, target.captureCoordinate.toResponse(), target.eligiblePlayers.map(PlayerId::name))
+        },
+        participants = state.participants.values.map { participant ->
+            SnapshotParticipantResponse(
+                participant.id.name,
+                when (val status = participant.status) {
+                    ParticipantStatus.Active -> SnapshotParticipantStatusResponse("ACTIVE")
+                    is ParticipantStatus.Checkmated -> SnapshotParticipantStatusResponse("CHECKMATED", status.by.name, status.atPly)
+                    is ParticipantStatus.Stalemated -> SnapshotParticipantStatusResponse("STALEMATED", atPly = status.atPly)
+                },
+            )
+        },
+        armies = state.armies.values.map { SnapshotArmyResponse(it.army.name, it.controller.name) },
+        turn = state.turn?.let { SnapshotTurnResponse(it.player.name, it.ply) },
+        outcome = (state.phase as? GamePhase.Finished)?.outcome?.let { outcome ->
+            when (outcome) {
+                is GameOutcome.Ranked -> SnapshotOutcomeResponse("RANKED", outcome.first.name, outcome.second.name, outcome.third.name)
+                is GameOutcome.ThreeWayDraw -> SnapshotOutcomeResponse("THREE_WAY_DRAW", reason = outcome.reason.name)
+                is GameOutcome.TwoWayDraw -> SnapshotOutcomeResponse("TWO_WAY_DRAW", outcome.first.name, outcome.second.name, outcome.third.name, outcome.reason.name)
+            }
+        },
+        capturedPieces = capturedPieces.map {
+            SnapshotCapturedPieceResponse(it.id, it.type.name, it.army.name, it.bodyArmy.name, it.capturedByArmy.name)
+        },
+    )
+
+    data class DecodedGameStateSnapshot(
+        val state: GameState,
+        val capturedPieces: List<CapturedPiece>?,
+    )
+
+    private fun BoardCoordinate.toResponse() = SnapshotCoordinateResponse(vertex, column, row)
+
+    private fun GameState.toSnapshot(capturedPieces: List<CapturedPiece>) = PersistedGameState(
         pieces = position.pieces.values.map { piece ->
             PersistedPiece(piece.id.value, piece.type.name, piece.army.name, piece.coordinate.toDto(), piece.hasMoved)
         },
@@ -60,6 +123,9 @@ internal object GameStateSnapshotCodec {
         armies = armies.values.map { PersistedArmyControl(it.army.name, it.controller.name) },
         turn = turn?.let { PersistedTurn(it.player.name, it.ply) },
         outcome = (phase as? GamePhase.Finished)?.outcome?.toDto(),
+        capturedPieces = capturedPieces.map {
+            PersistedCapturedPiece(it.id, it.type.name, it.army.name, it.bodyArmy.name, it.capturedByArmy.name)
+        },
     )
 
     private fun PersistedGameState.toDomain(): GameState {
@@ -130,7 +196,7 @@ internal object GameStateSnapshotCodec {
     private fun BoardCoordinate.toDto() = PersistedCoordinate(vertex, column, row)
     private fun PersistedCoordinate.toDomain() = BoardCoordinate(vertex, column, row)
 
-    private const val SNAPSHOT_VERSION = 1
+    private const val SNAPSHOT_VERSION = 2
 
     @Serializable
     private data class PersistedGameState(
@@ -142,6 +208,7 @@ internal object GameStateSnapshotCodec {
         val armies: List<PersistedArmyControl>,
         val turn: PersistedTurn?,
         val outcome: PersistedOutcome?,
+        val capturedPieces: List<PersistedCapturedPiece>? = null,
     )
 
     @Serializable private data class PersistedCoordinate(val vertex: Int, val column: Int, val row: Int)
@@ -153,4 +220,5 @@ internal object GameStateSnapshotCodec {
     @Serializable private data class PersistedArmyControl(val army: String, val controller: String)
     @Serializable private data class PersistedTurn(val player: String, val ply: Int)
     @Serializable private data class PersistedOutcome(val type: String, val first: String? = null, val second: String? = null, val third: String? = null, val reason: String? = null)
+    @Serializable private data class PersistedCapturedPiece(val id: String, val type: String, val army: String, val bodyArmy: String, val capturedByArmy: String)
 }

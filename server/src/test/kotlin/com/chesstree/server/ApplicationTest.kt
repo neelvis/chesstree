@@ -36,6 +36,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -529,16 +530,23 @@ class ApplicationTest {
         assertEquals(HttpStatusCode.OK, legacyState.status)
         val legacyBody = legacyState.bodyAsText()
         assertTrue("undoRequest" !in legacyBody)
+        assertTrue("position" !in legacyBody)
         val legacySnapshot = json.decodeFromString<GameStateResponse>(legacyBody)
         assertEquals(legacySnapshot.moves.size, legacySnapshot.revision)
+        val previousProtocolState = client.get("/api/v1/games/${game.code}/state") {
+            bearerAuth(requester.accessToken)
+            header(API_VERSION_HEADER, "3")
+        }
+        val previousProtocolBody = previousProtocolState.bodyAsText()
+        assertTrue("position" !in previousProtocolBody)
+        assertNotNull(json.decodeFromString<GameStateResponse>(previousProtocolBody).undoRequest)
         val currentState = client.get("/api/v1/games/${game.code}/state") {
             bearerAuth(requester.accessToken)
             header(API_VERSION_HEADER, API_VERSION.toString())
         }
-        assertEquals(
-            request.id,
-            json.decodeFromString<GameStateResponse>(currentState.bodyAsText()).undoRequest?.id
-        )
+        val currentSnapshot = json.decodeFromString<GameStateResponse>(currentState.bodyAsText())
+        assertEquals(request.id, currentSnapshot.undoRequest?.id)
+        assertEquals(currentSnapshot.moves.size, currentSnapshot.position?.moveCount)
         val requesterVote = client.post(
             "/api/v1/games/${game.code}/undo-requests/${request.id}/votes",
         ) {

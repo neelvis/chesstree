@@ -23,22 +23,45 @@ staging="/home/$deploy_user/chesstree-upload/$release_id"
 release_dir="$remote_root/releases/$release_id"
 current_link="$remote_root/current"
 staged_firebase_key="$staging/secrets/firebase-service-account.json"
+staged_nginx_config="$staging/infra/nginx/chesstree.conf"
+nginx_config=/etc/nginx/sites-available/chesstree
+nginx_config_backup=""
+nginx_config_had_previous=false
+nginx_config_updated=false
 firebase_key=/etc/chesstree/secrets/firebase-service-account.json
 firebase_secrets_dir=/etc/chesstree/secrets
 server_env=/etc/chesstree/server.env
 server_env_tmp=""
 
 cleanup_staged_firebase_key() {
+    restore_nginx_config
     rm -f "$staged_firebase_key"
     rmdir "$staging/secrets" 2>/dev/null || true
+    if [[ -n "$nginx_config_backup" ]]; then
+        rm -f "$nginx_config_backup"
+    fi
     if [[ -n "$server_env_tmp" ]]; then
         rm -f "$server_env_tmp"
     fi
+}
+
+restore_nginx_config() {
+    if [[ "$nginx_config_updated" != true ]]; then
+        return
+    fi
+    if [[ "$nginx_config_had_previous" == true ]]; then
+        mv -f "$nginx_config_backup" "$nginx_config"
+        nginx_config_backup=""
+    else
+        rm -f "$nginx_config"
+    fi
+    nginx_config_updated=false
 }
 trap cleanup_staged_firebase_key EXIT
 
 test -d "$staging/web"
 test -x "$staging/server/bin/server"
+test -f "$staged_nginx_config"
 if [[ -s "$staged_firebase_key" || -f "$firebase_key" ]]; then
     install -d -o root -g chesstree -m 750 "$firebase_secrets_dir"
     chown root:chesstree "$firebase_secrets_dir"
@@ -80,10 +103,16 @@ if [[ -L "$current_link" ]]; then
         "$remote_root"/releases/*) previous_release="$resolved_release" ;;
     esac
 fi
+if [[ -f "$nginx_config" ]]; then
+    nginx_config_backup="$(mktemp /etc/nginx/sites-available/.chesstree.XXXXXX)"
+    cp -a "$nginx_config" "$nginx_config_backup"
+    nginx_config_had_previous=true
+fi
 ln -sfn "$release_dir" "$remote_root/current.next"
 mv -Tf "$remote_root/current.next" "$current_link"
 
 rollback() {
+    restore_nginx_config
     if [[ -n "$previous_release" && -d "$previous_release" ]]; then
         ln -sfn "$previous_release" "$remote_root/current.rollback"
         mv -Tf "$remote_root/current.rollback" "$current_link"
@@ -95,6 +124,12 @@ rollback() {
         fi
     fi
 }
+
+nginx_config_updated=true
+if ! install -o root -g root -m 644 "$staged_nginx_config" "$nginx_config"; then
+    rollback
+    exit 1
+fi
 
 if ! nginx -t; then
     rollback
@@ -120,5 +155,14 @@ if [[ "$healthy" != true ]]; then
     exit 1
 fi
 
-systemctl reload nginx
+if ! systemctl reload nginx; then
+    rollback
+    nginx -t && systemctl reload nginx || true
+    exit 1
+fi
+nginx_config_updated=false
+if [[ -n "$nginx_config_backup" ]]; then
+    rm -f "$nginx_config_backup"
+    nginx_config_backup=""
+fi
 printf 'Activated release %s.\n' "$release_id"

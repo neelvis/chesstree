@@ -22,6 +22,7 @@ data class GameSession(
     val state: GameState = scenario.initialState,
     val moves: List<MoveIntent> = emptyList(),
     val capturedPieces: List<CapturedPiece> = emptyList(),
+    private val history: List<GameSessionPosition> = listOf(GameSessionPosition(state, capturedPieces)),
 ) {
     fun apply(intent: MoveIntent): SessionMoveResult {
         val reduction = GameReducer.reduce(state, intent)
@@ -42,14 +43,32 @@ data class GameSession(
                 state = reduction.state,
                 moves = moves + appliedIntent,
                 capturedPieces = capturedPieces + listOfNotNull(captured),
+                history = history + GameSessionPosition(
+                    reduction.state,
+                    capturedPieces + listOfNotNull(captured),
+                ),
             ),
+        )
+    }
+
+    fun atMoveCount(moveCount: Int): GameSession? {
+        if (moveCount !in 0..moves.size) return null
+        if (history.size != moves.size + 1) {
+            return replayPosition(scenario, moves.take(moveCount))
+        }
+        val position = history[moveCount]
+        return GameSession(
+            scenario = scenario,
+            state = position.state,
+            moves = moves.take(moveCount),
+            capturedPieces = position.capturedPieces,
+            history = history.take(moveCount + 1),
         )
     }
 
     fun undoLastMove(): GameSession? = moves
         .takeIf(List<MoveIntent>::isNotEmpty)
-        ?.dropLast(1)
-        ?.let { remainingMoves -> replay(scenario, remainingMoves) }
+        ?.let { atMoveCount(it.size - 1) }
 
     companion object {
         fun replay(scenario: GameScenario, moves: List<MoveIntent>): GameSession? =
@@ -65,6 +84,7 @@ data class GameSession(
         ): GameSession? {
             var state = scenario.initialState
             val capturedPieces = mutableListOf<CapturedPiece>()
+            val history = mutableListOf(GameSessionPosition(state, emptyList()))
             var insufficientMaterialFirstReachedAt: Int? = null
             moves.forEachIndexed { index, intent ->
                 val reduction = GameReducer.reduce(
@@ -75,6 +95,7 @@ data class GameSession(
                 if (reduction !is MoveReduction.Applied) return null
                 capturedPiece(state, reduction.move)?.let(capturedPieces::add)
                 state = reduction.state
+                history += GameSessionPosition(state, capturedPieces.toList())
                 if (
                     insufficientMaterialFirstReachedAt == null &&
                     GameReducer.hasInsufficientMaterial(state)
@@ -87,16 +108,23 @@ data class GameSession(
                 insufficientMaterialFirstReachedAt == moves.lastIndex
             ) {
                 state = checkNotNull(GameReducer.finishIfInsufficientMaterial(state))
+                history[history.lastIndex] = GameSessionPosition(state, capturedPieces.toList())
             }
             return GameSession(
                 scenario = scenario,
                 state = state,
                 moves = moves.toList(),
                 capturedPieces = capturedPieces,
+                history = history,
             )
         }
     }
 }
+
+data class GameSessionPosition(
+    val state: GameState,
+    val capturedPieces: List<CapturedPiece>,
+)
 
 private fun capturedPiece(state: GameState, move: com.chesstree.game.domain.Move): CapturedPiece? {
     val movingPiece = state.position.pieces.getValue(move.pieceId)

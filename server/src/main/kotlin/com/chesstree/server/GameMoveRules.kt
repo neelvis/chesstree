@@ -10,7 +10,12 @@ import com.chesstree.game.domain.session.SessionMoveResult
 import java.util.UUID
 
 sealed interface MoveEvaluation {
-    data class Accepted(val move: GameMoveRecord, val state: GameState, val finished: Boolean) : MoveEvaluation
+    data class Accepted(
+        val move: GameMoveRecord,
+        val state: GameState,
+        val capturedPieces: List<com.chesstree.game.domain.session.CapturedPiece>,
+        val finished: Boolean,
+    ) : MoveEvaluation
     data object Duplicate : MoveEvaluation
     data object Stale : MoveEvaluation
     data object NotActive : MoveEvaluation
@@ -49,19 +54,18 @@ fun evaluateMove(
     if (command.expectedMoveCount != null && command.expectedMoveCount != state.moveOffset + state.moves.size) {
         return MoveEvaluation.Stale
     }
-    val gameState = cachedState ?: checkNotNull(
-        GameSession.replay(
-            StandardGame.scenario,
-            state.moves.map(GameMoveRecord::intent)
-        )?.state
-    ) {
-        "Stored move history is invalid"
+    val session = if (cachedState != null && state.capturedPieces != null) {
+        GameSession(StandardGame.scenario, state = cachedState, capturedPieces = state.capturedPieces)
+    } else {
+        checkNotNull(GameSession.replay(StandardGame.scenario, state.moves.map(GameMoveRecord::intent))) {
+            "Stored move history is invalid"
+        }
     }
+    val gameState = session.state
     if (gameState.phase is GamePhase.Finished) return MoveEvaluation.NotActive
     val actor = PlayerId.valueOf(player.color.name)
     if (gameState.turn?.player != actor) return MoveEvaluation.NotTurn
     val intent = MoveIntent(actor, command.from, command.to, command.promotion)
-    val session = GameSession(StandardGame.scenario, state = gameState)
     return when (val result = session.apply(intent)) {
         SessionMoveResult.Rejected -> MoveEvaluation.IllegalMove
         is SessionMoveResult.Applied -> MoveEvaluation.Accepted(
@@ -72,6 +76,7 @@ fun evaluateMove(
                 intent = result.session.moves.last(),
             ),
             state = result.session.state,
+            capturedPieces = result.session.capturedPieces,
             finished = result.session.state.phase is GamePhase.Finished,
         )
     }

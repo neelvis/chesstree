@@ -2,7 +2,7 @@ package com.chesstree.multiplayer.contract
 
 import kotlinx.serialization.Serializable
 
-const val API_VERSION: Int = 3
+const val API_VERSION: Int = 4
 const val API_VERSION_HEADER: String = "X-ChessTree-Protocol-Version"
 
 @Serializable
@@ -70,6 +70,72 @@ data class MoveEventResponse(
 )
 
 @Serializable
+data class GamePositionSnapshotResponse(
+    val version: Int = 1,
+    val moveCount: Int,
+    val pieces: List<SnapshotPieceResponse>,
+    val castlingRights: List<SnapshotCastlingRightResponse>,
+    val enPassantTargets: List<SnapshotEnPassantTargetResponse>,
+    val participants: List<SnapshotParticipantResponse>,
+    val armies: List<SnapshotArmyResponse>,
+    val turn: SnapshotTurnResponse? = null,
+    val outcome: SnapshotOutcomeResponse? = null,
+    val capturedPieces: List<SnapshotCapturedPieceResponse>,
+)
+
+@Serializable
+data class SnapshotCoordinateResponse(val vertex: Int, val column: Int, val row: Int)
+
+@Serializable
+data class SnapshotPieceResponse(
+    val id: String,
+    val type: String,
+    val army: String,
+    val coordinate: SnapshotCoordinateResponse,
+    val hasMoved: Boolean,
+)
+
+@Serializable
+data class SnapshotCastlingRightResponse(val army: String, val side: String, val rookId: String? = null)
+
+@Serializable
+data class SnapshotEnPassantTargetResponse(
+    val pawnId: String,
+    val captureCoordinate: SnapshotCoordinateResponse,
+    val eligiblePlayers: List<String>,
+)
+
+@Serializable
+data class SnapshotParticipantResponse(val id: String, val status: SnapshotParticipantStatusResponse)
+
+@Serializable
+data class SnapshotParticipantStatusResponse(val kind: String, val by: String? = null, val atPly: Int? = null)
+
+@Serializable
+data class SnapshotArmyResponse(val army: String, val controller: String)
+
+@Serializable
+data class SnapshotTurnResponse(val player: String, val ply: Int)
+
+@Serializable
+data class SnapshotOutcomeResponse(
+    val type: String,
+    val first: String? = null,
+    val second: String? = null,
+    val third: String? = null,
+    val reason: String? = null,
+)
+
+@Serializable
+data class SnapshotCapturedPieceResponse(
+    val id: String,
+    val type: String,
+    val army: String,
+    val bodyArmy: String,
+    val capturedByArmy: String,
+)
+
+@Serializable
 data class UndoRequestCommand(val expectedRevision: Int)
 
 @Serializable
@@ -94,6 +160,7 @@ data class GameStateResponse(
     val moves: List<MoveEventResponse>,
     val moveOffset: Int = 0,
     val undoRequest: UndoRequestResponse? = null,
+    val position: GamePositionSnapshotResponse? = null,
 )
 
 @Serializable

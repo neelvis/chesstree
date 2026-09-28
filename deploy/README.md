@@ -549,11 +549,12 @@ exit
 ```
 
 The helper accepts only release IDs in a specified format, uses fixed paths
-`/home/elvis/chesstree-upload` and `/opt/chesstree`, checks Nginx and `/health`,
-and restores the previous symlink on failure. Only root can modify the helper.
-The helper is installed outside release directories and ordinary deployments do
-not replace it. When its source changes, copy the updated helper to the server
-and repeat the root-owned installation step before relying on the change.
+`/home/elvis/chesstree-upload` and `/opt/chesstree`, installs the staged Nginx
+configuration, checks Nginx and `/health`, and restores the previous release and
+Nginx configuration on failure. Only root can modify the helper. The helper is
+installed outside release directories and ordinary deployments do not replace it.
+When its source changes, copy the updated helper to the server and repeat the
+root-owned installation step before relying on the change.
 
 Full deployment:
 
@@ -562,9 +563,9 @@ Full deployment:
 ```
 
 The script builds Web and Ktor, runs server checks, uploads the release,
-atomically switches `/opt/chesstree/current`, restarts the backend, checks
-`/health`, and restores the symlink if anything fails. Individual stages are
-also available:
+atomically switches `/opt/chesstree/current`, installs the staged Nginx config,
+restarts the backend, checks `/health`, reloads Nginx, and restores the symlink
+and Nginx config if anything fails. Individual stages are also available:
 
 ```shell
 ./deploy/build.sh

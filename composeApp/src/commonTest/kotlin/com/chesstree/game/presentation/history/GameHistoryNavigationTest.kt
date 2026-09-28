@@ -33,6 +33,18 @@ class GameHistoryNavigationTest {
     }
 
     @Test
+    fun browsingPreviouslyAppliedPositionsUsesTheSessionTimeline() {
+        val initial = GameSession(ManualGameScenarios.capturePractice)
+        val first = initial.applyFirstLegalMove()
+        val second = first.applyFirstLegalMove()
+
+        assertEquals(initial.state, second.atMoveCount(0)?.state)
+        assertEquals(first.state, second.atMoveCount(1)?.state)
+        assertEquals(second.state, second.atMoveCount(2)?.state)
+        assertEquals(first.capturedPieces, second.atMoveCount(1)?.capturedPieces)
+    }
+
+    @Test
     fun navigationStopsAtBothEndsOfHistory() {
         val committed = GameSession(ManualGameScenarios.capturePractice).applyFirstLegalMove()
         val start = GameHistoryNavigation.latest().back(committed).back(committed)

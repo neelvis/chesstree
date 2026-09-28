@@ -82,6 +82,15 @@ negative cursor is rejected with `400 Bad Request`. Revisions include undo votin
 changes; move offsets count actual moves and therefore are not interchangeable
 with game revisions.
 
+Full state responses may also contain a versioned `position` snapshot with the
+current board state and captured-piece presentation data. Clients use it only when
+its `moveCount` matches the included full move history; older responses without a
+snapshot continue to restore by replaying the move journal. The server stores this
+snapshot alongside the journal and refreshes it when history changes, including an
+approved undo. The move journal remains the recovery source for legacy snapshots.
+This field is part of protocol version 4; REST responses omit it for clients using
+older protocol versions.
+
 The WebSocket first sends a full state. Later pushes include only appended moves.
 Clients append a suffix only when its offset matches their current move count.
 After an undo truncates history, the server sends a full state. On reconnect, the

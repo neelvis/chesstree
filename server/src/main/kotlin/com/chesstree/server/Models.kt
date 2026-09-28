@@ -4,6 +4,7 @@ import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.GameState
 import com.chesstree.game.domain.PromotionChoice
+import com.chesstree.game.domain.session.CapturedPiece
 import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.util.UUID
@@ -73,6 +74,7 @@ data class GameStateRecord(
     val revision: Int = moves.size,
     val moveOffset: Int = 0,
     val domainState: GameState? = null,
+    val capturedPieces: List<CapturedPiece>? = null,
     val undoRequest: UndoRequestRecord? = null,
 )
 

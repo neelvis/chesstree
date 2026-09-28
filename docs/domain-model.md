@@ -177,9 +177,11 @@ from the network API format.
 
 For online games, the server validates each move again with the same shared
 engine. The database stores participants, game revisions, and immutable move
-commands; API DTOs and SQL models are not domain types. On reconnect, the client
-rebuilds state from the move journal, while WebSocket messages report new
-revisions. See [`api.md`](api.md) for the contract and
+commands; API DTOs and SQL models are not domain types. Full state responses include
+a server-generated position snapshot so clients can restore the current board without
+replaying the journal. The move journal remains the recovery source for legacy or
+invalid snapshots, while WebSocket messages report new revisions. See
+[`api.md`](api.md) for the contract and
 [`architecture.md`](architecture.md) for module boundaries.
 
 ## Open rules

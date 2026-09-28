@@ -28,9 +28,7 @@ internal data class GameHistoryNavigation(
     fun displayedSession(session: GameSession): GameSession {
         val moveCount = displayedMoveCount(session)
         if (moveCount == session.moves.size) return session
-        return checkNotNull(
-            GameSession.replayPosition(session.scenario, session.moves.take(moveCount)),
-        )
+        return checkNotNull(session.atMoveCount(moveCount))
     }
 
     companion object {

@@ -21,6 +21,7 @@ import com.chesstree.multiplayer.data.NoOpOnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStore
 import com.chesstree.multiplayer.data.OnlineSessionStoreException
 import com.chesstree.multiplayer.data.isValidGameCode
+import com.chesstree.multiplayer.data.toSession
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -556,6 +557,12 @@ private suspend fun GameStateResponse.toSession(
                 }
                 return@runCatching advanced
             }
+        }
+        if (moveOffset == 0) {
+            position
+                ?.takeIf { it.moveCount == intents.size }
+                ?.toSession(StandardGame.scenario, intents)
+                ?.let { return@runCatching it }
         }
         GameSession.replay(StandardGame.scenario, intents)
     }
