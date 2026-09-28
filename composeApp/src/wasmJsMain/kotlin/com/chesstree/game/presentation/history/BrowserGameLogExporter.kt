@@ -38,6 +38,7 @@ class BrowserGameLogExporter : GameLogExporter {
 }
 
 @OptIn(ExperimentalWasmJsInterop::class)
+@Suppress("UNUSED_PARAMETER")
 private fun createTextBlob(contents: String): Blob =
     js("new Blob([contents], { type: 'text/plain;charset=utf-8' })")
 

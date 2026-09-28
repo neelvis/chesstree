@@ -41,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
@@ -722,8 +721,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPiece(
             center = center,
             maxWidth = radius * 2f,
             maxHeight = radius * 2f,
-//            outlineColor = premiumPieceOutlineColor(piece.bodyArmy),
-//            outlineWidth = PREMiUM_PIECE_OUTLINE_WIDTH.dp.toPx(),
         )
     }
 }
@@ -734,8 +731,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawImageCentered(
     maxWidth: Float,
     maxHeight: Float,
     flipHorizontally: Boolean = false,
-    outlineColor: Color? = null,
-    outlineWidth: Float = 0f,
 ) {
     if (image.width <= 0 || image.height <= 0) return
     val imageSize = scaledImageSize(image.width, image.height, maxWidth, maxHeight)
@@ -746,37 +741,21 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawImageCentered(
         y = (center.y - height / 1.5f).roundToInt(),
     )
 
-    fun drawAt(offset: Offset = Offset.Zero, colorFilter: ColorFilter? = null) {
+    fun drawAt() {
         drawImage(
             image = image,
             srcOffset = IntOffset.Zero,
             srcSize = IntSize(image.width, image.height),
-            dstOffset = IntOffset(
-                x = destination.x + offset.x.roundToInt(),
-                y = destination.y + offset.y.roundToInt(),
-            ),
+            dstOffset = destination,
             dstSize = imageSize,
             filterQuality = FilterQuality.High,
-            colorFilter = colorFilter,
         )
     }
 
-    val draw = {
-        if (outlineColor != null && outlineWidth > 0f) {
-            val outlineFilter = ColorFilter.tint(outlineColor)
-            PREMIUM_PIECE_OUTLINE_DIRECTIONS.forEach { direction ->
-                drawAt(
-                    offset = Offset(direction.x * outlineWidth, direction.y * outlineWidth),
-                    colorFilter = outlineFilter,
-                )
-            }
-        }
-        drawAt()
-    }
     if (flipHorizontally) {
-        scale(scaleX = -1f, scaleY = 1f, pivot = center) { draw() }
+        scale(scaleX = -1f, scaleY = 1f, pivot = center) { drawAt() }
     } else {
-        draw()
+        drawAt()
     }
 }
 
@@ -794,12 +773,6 @@ internal fun scaledImageSize(
     )
 }
 
-internal fun premiumPieceOutlineColor(army: ArmyColor): Color = when (army) {
-    ArmyColor.WHITE -> Color.White
-    ArmyColor.RED -> Color.Red
-    ArmyColor.BLACK -> Color.Black
-}
-
 internal fun boardPieceRadius(boardScale: Float, isSelected: Boolean): Float =
     boardScale * BOARD_PIECE_RADIUS_FACTOR * if (isSelected) SELECTED_PIECE_SCALE else 1f
 
@@ -808,18 +781,6 @@ internal fun isRepeatedPieceTap(selectedPieceId: String?, tappedPieceId: String?
 
 private const val BOARD_PIECE_RADIUS_FACTOR = 0.084f * 1.15f
 private const val SELECTED_PIECE_SCALE = 1.3f
-private const val PREMIUM_PIECE_OUTLINE_WIDTH = 1
-private const val DIAGONAL_OUTLINE_COMPONENT = 0.70710677f
-private val PREMIUM_PIECE_OUTLINE_DIRECTIONS = listOf(
-    Offset(-1f, 0f),
-    Offset(1f, 0f),
-    Offset(0f, -1f),
-    Offset(0f, 1f),
-    Offset(-DIAGONAL_OUTLINE_COMPONENT, -DIAGONAL_OUTLINE_COMPONENT),
-    Offset(DIAGONAL_OUTLINE_COMPONENT, -DIAGONAL_OUTLINE_COMPONENT),
-    Offset(-DIAGONAL_OUTLINE_COMPONENT, DIAGONAL_OUTLINE_COMPONENT),
-    Offset(DIAGONAL_OUTLINE_COMPONENT, DIAGONAL_OUTLINE_COMPONENT),
-)
 
 private fun BoardCell.path(transform: (BoardPoint) -> Offset): Path = Path().apply {
     val first = transform(corners.first())

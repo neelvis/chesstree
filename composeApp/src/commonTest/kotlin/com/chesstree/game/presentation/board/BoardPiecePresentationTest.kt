@@ -1,7 +1,5 @@
 package com.chesstree.game.presentation.board
 
-import androidx.compose.ui.graphics.Color
-import com.chesstree.game.domain.ArmyColor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -36,13 +34,6 @@ class BoardPiecePresentationTest {
 
         assertEquals(150, size.width)
         assertEquals(200, size.height)
-    }
-
-    @Test
-    fun premiumPieceOutlineMatchesArmyColor() {
-        assertEquals(Color.White, premiumPieceOutlineColor(ArmyColor.WHITE))
-        assertEquals(Color.Red, premiumPieceOutlineColor(ArmyColor.RED))
-        assertEquals(Color.Black, premiumPieceOutlineColor(ArmyColor.BLACK))
     }
 
     @Test

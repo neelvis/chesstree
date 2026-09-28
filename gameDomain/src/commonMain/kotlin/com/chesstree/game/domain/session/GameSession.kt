@@ -32,6 +32,7 @@ data class GameSession(
         reduction as MoveReduction.Applied
 
         val captured = capturedPiece(state, reduction.move)
+        val updatedCapturedPieces = capturedPieces + listOfNotNull(captured)
         val appliedIntent = MoveIntent(
             actor = reduction.move.actor,
             from = reduction.move.from,
@@ -42,10 +43,10 @@ data class GameSession(
             copy(
                 state = reduction.state,
                 moves = moves + appliedIntent,
-                capturedPieces = capturedPieces + listOfNotNull(captured),
+                capturedPieces = updatedCapturedPieces,
                 history = history + GameSessionPosition(
                     reduction.state,
-                    capturedPieces + listOfNotNull(captured),
+                    updatedCapturedPieces,
                 ),
             ),
         )

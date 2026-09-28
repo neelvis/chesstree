@@ -214,7 +214,7 @@ fun MultiplayerScreen(
                                 style = MaterialTheme.typography.headlineMedium,
                                 textAlign = TextAlign.Center,
                             )
-                            GameLobby(checkNotNull(state.game), controller, gameLinkSharer)
+                            GameLobby(checkNotNull(state.game), gameLinkSharer)
                             state.error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
                             if (state.loading && !state.submittingMove && state.openingGameCode == null) {
                                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -245,7 +245,7 @@ fun MultiplayerScreen(
                                 controller,
                                 onAuthenticationSuccess
                             )
-                            else LobbyContent(state, controller, gameLinkSharer)
+                            else LobbyContent(state, controller)
                             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                             if (state.loading && !state.submittingMove && state.openingGameCode == null) {
                                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -311,7 +311,6 @@ private fun AuthenticationMenu(
 private fun LobbyContent(
     state: MultiplayerUiState,
     controller: MultiplayerController,
-    gameLinkSharer: GameLinkSharer?,
 ) {
     LobbyMenu(
         state = state,
@@ -822,7 +821,6 @@ private fun ArmyColor.displayColor(): Color = when (this) {
 @Composable
 private fun GameLobby(
     game: GameResponse,
-    controller: MultiplayerController,
     gameLinkSharer: GameLinkSharer?,
 ) {
     val scope = rememberCoroutineScope()

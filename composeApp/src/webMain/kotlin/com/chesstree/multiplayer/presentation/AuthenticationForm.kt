@@ -7,15 +7,15 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.chesstree.app.localized
 import androidx.compose.ui.viewinterop.HtmlElementView
+import com.chesstree.app.localized
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLFormElement
 import org.w3c.dom.HTMLInputElement
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalWasmJsInterop::class)
 @Composable
 internal actual fun AuthenticationForm(
     mode: AuthMode,

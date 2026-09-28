@@ -26,7 +26,7 @@ data class DatabaseConfig(
     val maximumPoolSize: Int = 10,
 )
 
-class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoCloseable {
+class JdbcStore(config: DatabaseConfig) : ChessTreeStore, AutoCloseable {
     private val dataSource = HikariDataSource(HikariConfig().apply {
         jdbcUrl = config.url
         username = config.user
@@ -1078,33 +1078,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
             statement.executeQuery().use { rows ->
                 buildList {
                     while (rows.next()) {
-                        add(
-                            GameMoveRecord(
-                                commandId = rows.getObject("command_id", UUID::class.java),
-                                userId = rows.getObject("user_id", UUID::class.java),
-                                expectedRevision = rows.getInt("expected_revision"),
-                                intent = com.chesstree.game.domain.MoveIntent(
-                                    actor = com.chesstree.game.domain.PlayerId.valueOf(
-                                        rows.getString(
-                                            "actor"
-                                        )
-                                    ),
-                                    from = com.chesstree.game.domain.BoardCoordinate(
-                                        rows.getInt("from_vertex"),
-                                        rows.getInt("from_column"),
-                                        rows.getInt("from_row"),
-                                    ),
-                                    to = com.chesstree.game.domain.BoardCoordinate(
-                                        rows.getInt("to_vertex"),
-                                        rows.getInt("to_column"),
-                                        rows.getInt("to_row"),
-                                    ),
-                                    promotion = rows.getString("promotion")
-                                        ?.let(com.chesstree.game.domain.PromotionChoice::valueOf),
-                                ),
-                                trainingSample = BotTrainingSampleCodec.decode(rows.getString("bot_training_sample")),
-                            ),
-                        )
+                        add(rows.gameMove())
                     }
                 }
             }
@@ -1179,12 +1153,10 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
 
     override fun close() = dataSource.close()
 
-    private class RecentGameStateCache(
-        private val maximumEntries: Int = 256,
-    ) {
+    private class RecentGameStateCache {
         private val states = object : LinkedHashMap<UUID, Pair<Int, GameState>>(16, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<UUID, Pair<Int, GameState>>?): Boolean =
-                size > maximumEntries
+                size > MAX_CACHED_GAME_STATES
         }
 
         @Synchronized
@@ -1312,3 +1284,5 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
         const val SCHEMA_LOCK_KEY = 0x4348455353545245L
     }
 }
+
+private const val MAX_CACHED_GAME_STATES = 256
