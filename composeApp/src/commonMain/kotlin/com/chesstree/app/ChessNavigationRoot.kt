@@ -62,6 +62,7 @@ import com.chesstree.game.presentation.board.BoardTrophy
 import com.chesstree.game.presentation.board.PieceSet
 import com.chesstree.game.presentation.board.PromotionPiecePickerDialog
 import com.chesstree.game.presentation.board.ThreePlayerChessBoard
+import com.chesstree.game.presentation.board.displayedTurnPlayer
 import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.game.presentation.history.GameHistoryDialog
 import com.chesstree.game.presentation.history.GameHistoryNavigation
@@ -98,6 +99,7 @@ internal fun ChessNavigationRoot(
     var zoomOutRequest by remember { mutableStateOf(0L) }
     var scenarioMenuExpanded by remember { mutableStateOf(false) }
     var botGameEnabled by rememberSaveable { mutableStateOf(false) }
+    var moveAnimationInProgress by remember { mutableStateOf(false) }
     var localGameId by rememberSaveable { mutableStateOf(Random.nextLong().toString()) }
     var learnedGameId by rememberSaveable { mutableStateOf<String?>(null) }
     var storageMessage by remember { mutableStateOf<String?>(null) }
@@ -325,7 +327,11 @@ internal fun ChessNavigationRoot(
                         }
                     }
                     TurnPieceIndicator(
-                        player = gameState.turn?.player,
+                        player = displayedTurnPlayer(
+                            gameTurn = gameState.turn?.player,
+                            lastMoveActor = session.moves.lastOrNull()?.actor,
+                            moveAnimationInProgress = moveAnimationInProgress,
+                        ),
                         finishedText = gameState.statusText(),
                     )
                     if (gameState.turn != null) {
@@ -402,6 +408,9 @@ internal fun ChessNavigationRoot(
                                 moveCount = session.moves.size,
                             ),
                             animatePieceMovement = settings.animatePieceMovement,
+                            onMoveAnimationInProgressChanged = { inProgress ->
+                                moveAnimationInProgress = inProgress
+                            },
                             pieceSet = settings.pieceSet,
                             showDecorativeBirds = gameState.turn == null,
                             onCellSelected = { cell ->

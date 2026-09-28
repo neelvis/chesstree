@@ -1,11 +1,32 @@
 package com.chesstree.game.presentation.board
 
+import com.chesstree.game.domain.PlayerId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BoardPiecePresentationTest {
+    @Test
+    fun turnIndicatorWaitsForTheMoveAnimationBeforeShowingTheNextPlayer() {
+        assertEquals(
+            PlayerId.WHITE,
+            displayedTurnPlayer(
+                gameTurn = PlayerId.RED,
+                lastMoveActor = PlayerId.WHITE,
+                moveAnimationInProgress = true,
+            ),
+        )
+        assertEquals(
+            PlayerId.RED,
+            displayedTurnPlayer(
+                gameTurn = PlayerId.RED,
+                lastMoveActor = PlayerId.WHITE,
+                moveAnimationInProgress = false,
+            ),
+        )
+    }
+
     @Test
     fun boardPiecesAreFifteenPercentLarger() {
         assertEquals(

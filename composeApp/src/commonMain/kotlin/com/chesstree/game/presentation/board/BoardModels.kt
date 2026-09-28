@@ -8,6 +8,7 @@ import com.chesstree.game.domain.MoveType
 import com.chesstree.game.domain.MovementDirections
 import com.chesstree.game.domain.PieceId
 import com.chesstree.game.domain.PieceType
+import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.scenario.StandardGame
 
 data class BoardPiece(
@@ -48,6 +49,12 @@ data class BoardMoveAnimationKey(
     val gameId: String,
     val moveCount: Int,
 )
+
+internal fun displayedTurnPlayer(
+    gameTurn: PlayerId?,
+    lastMoveActor: PlayerId?,
+    moveAnimationInProgress: Boolean,
+): PlayerId? = if (moveAnimationInProgress) lastMoveActor ?: gameTurn else gameTurn
 
 fun initialBoardPieces(): List<BoardPiece> = StandardGame.pieces.map { piece ->
     BoardPiece(piece.id, piece.type, piece.army, piece.coordinate)

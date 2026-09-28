@@ -258,6 +258,7 @@ fun ThreePlayerChessBoard(
     resetViewportKey: Any? = null,
     moveAnimationKey: BoardMoveAnimationKey? = null,
     animatePieceMovement: Boolean = true,
+    onMoveAnimationInProgressChanged: (Boolean) -> Unit = {},
 ) {
     val cells = ThreePlayerBoardGeometry.cells
     val cellsById = remember(cells) { cells.associateBy { it.id } }
@@ -284,6 +285,9 @@ fun ThreePlayerChessBoard(
     }
     val currentOnCellSelected by rememberUpdatedState(onCellSelected)
     val currentOnZoomChanged by rememberUpdatedState(onZoomChanged)
+    val currentOnMoveAnimationInProgressChanged by rememberUpdatedState(
+        onMoveAnimationInProgressChanged,
+    )
     var viewport by remember { mutableStateOf(BoardViewport()) }
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
     var previousSelectedPieceId by remember { mutableStateOf(selectedPieceId) }
@@ -315,10 +319,12 @@ fun ThreePlayerChessBoard(
             runningMoveAnimationKey = null
             moveAnimationProgress = 1f
             if (!animatePieceMovement) completedMoveAnimationKey = moveAnimationKey
+            currentOnMoveAnimationInProgressChanged(false)
             return@LaunchedEffect
         }
         runningMoveAnimationKey = moveAnimationKey
         moveAnimationProgress = 0f
+        currentOnMoveAnimationInProgressChanged(true)
         Animatable(0f).animateTo(
             targetValue = 1f,
             animationSpec = tween(durationMillis = BOARD_MOVE_ANIMATION_MILLIS),
@@ -327,6 +333,7 @@ fun ThreePlayerChessBoard(
         }
         completedMoveAnimationKey = moveAnimationKey
         runningMoveAnimationKey = null
+        currentOnMoveAnimationInProgressChanged(false)
     }
     val activeMoveAnimation = detectedMoveAnimation
         .takeIf { animatePieceMovement && completedMoveAnimationKey != moveAnimationKey }
