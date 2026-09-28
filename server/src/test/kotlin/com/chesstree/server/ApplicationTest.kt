@@ -59,6 +59,11 @@ class ApplicationTest {
         assertTrue(setCookie.contains("HttpOnly"))
         assertTrue(setCookie.contains("Secure"))
         assertTrue(setCookie.contains("SameSite=Strict"))
+        assertTrue(setCookie.contains("Path=/"))
+        assertTrue(
+            registration.headers.getAll(HttpHeaders.SetCookie).orEmpty()
+                .any { it.contains("Path=/api/v1") && it.contains("Max-Age=0") },
+        )
         val cookie = setCookie.substringBefore(';')
 
         val restored = client.get("/api/v1/auth/browser/session") {
@@ -75,7 +80,14 @@ class ApplicationTest {
         assertEquals(HttpStatusCode.Created, game.status)
         assertEquals("no-store", game.headers[HttpHeaders.CacheControl])
         assertTrue(checkNotNull(game.headers[HttpHeaders.SetCookie]).contains("Max-Age="))
-        val gameCode = json.decodeFromString<GameResponse>(game.bodyAsText()).code
+        assertTrue(checkNotNull(game.headers[HttpHeaders.SetCookie]).contains("Path=/"))
+        val gameResponse = json.decodeFromString<GameResponse>(game.bodyAsText())
+        val gameCode = gameResponse.code
+        val downloadableHistory = client.get("/get-history?id=${gameResponse.id}") {
+            header(HttpHeaders.Origin, "https://play.test")
+            header(HttpHeaders.Cookie, cookie)
+        }
+        assertEquals(HttpStatusCode.OK, downloadableHistory.status)
         val privateState = client.get("/api/v1/games/$gameCode/state") {
             header(HttpHeaders.Origin, "https://play.test")
             header(HttpHeaders.Cookie, cookie)
@@ -188,6 +200,58 @@ class ApplicationTest {
         assertEquals("https://play.test/g/${game.code}", game.shareUrl)
         assertEquals("WAITING", game.status)
         assertEquals(listOf("owner"), game.players.map { it.user.username })
+    }
+
+    @Test
+    fun anyAuthenticatedUserCanDownloadHistoryByGameId() = testApplication {
+        application { chessTreeModule(testServices()) }
+        val owner = register("owner", "correct-horse")
+        val outsider = register("outsider", "correct-horse")
+        val game = createGame(owner.accessToken)
+        val gameId = game.id
+        val second = register("second", "correct-horse")
+        val third = register("third", "correct-horse")
+        join(game.code, second.accessToken)
+        val activeGame = join(game.code, third.accessToken)
+        val white = listOf(owner, second, third).single { user ->
+            activeGame.players.single { it.color == "WHITE" }.user.id == user.user.id
+        }
+        val move = LegalMoveGenerator.legalMoves(StandardGame.scenario.initialState).first()
+        submitMove(
+            game.code,
+            white.accessToken,
+            MoveCommandRequest(
+                UUID.randomUUID().toString(),
+                0,
+                move.from.response(),
+                move.to.response(),
+                move.promotion?.name,
+            ),
+        )
+
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/get-history?id=$gameId").status)
+        val response = client.get("/get-history?id=$gameId") { bearerAuth(outsider.accessToken) }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+        assertTrue(checkNotNull(response.headers[HttpHeaders.ContentDisposition]).contains("attachment"))
+        val history = json.decodeFromString<GameStateResponse>(response.bodyAsText())
+        assertEquals(gameId, history.game.id)
+        assertEquals(1, history.moves.size)
+        val historyByVisibleCode = client.get("/get-history?id=${game.code}") {
+            bearerAuth(outsider.accessToken)
+        }
+        assertEquals(HttpStatusCode.OK, historyByVisibleCode.status)
+        assertEquals(history, json.decodeFromString<GameStateResponse>(historyByVisibleCode.bodyAsText()))
+
+        assertEquals(HttpStatusCode.BadRequest, client.get("/get-history?id=invalid") {
+            bearerAuth(outsider.accessToken)
+        }.status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/get-history?id=1-1-1-1-1") {
+            bearerAuth(outsider.accessToken)
+        }.status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/get-history?id=${UUID.randomUUID()}") {
+            bearerAuth(outsider.accessToken)
+        }.status)
     }
 
     @Test

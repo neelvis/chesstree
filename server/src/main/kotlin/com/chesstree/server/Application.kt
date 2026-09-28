@@ -154,6 +154,32 @@ fun Application.chessTreeModule(
 
     routing {
         get("/health") { call.respond(mapOf("status" to "ok")) }
+        authenticate(AUTH_PROVIDER) {
+            get("/get-history") {
+                val id = call.request.queryParameters["id"]
+                    ?: throw BadRequestException("Missing game ID")
+                val uuid = runCatching { UUID.fromString(id) }
+                    .getOrNull()
+                    ?.takeIf { it.toString().equals(id, ignoreCase = true) }
+                val gameCode = id.uppercase().takeIf(GAME_CODE::matches)
+                if (uuid == null && gameCode == null) throw BadRequestException("Invalid game ID")
+                val state = if (uuid != null) {
+                    services.store.findGameState(uuid)
+                } else {
+                    services.store.findGameState(checkNotNull(gameCode))
+                }
+                if (state == null) {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("game_not_found", "Игра не найдена"))
+                } else {
+                    call.response.headers.append(HttpHeaders.CacheControl, "no-store")
+                    call.response.headers.append(
+                        HttpHeaders.ContentDisposition,
+                        "attachment; filename=\"${state.game.code}.json\"",
+                    )
+                    call.respond(state.response(services.publicBaseUrl))
+                }
+            }
+        }
         route("/api/v1") {
             rateLimit(AUTH_RATE_LIMIT) {
                 post("/auth/register") { call.respondAuth(services.auth.register(call.receive())) }
@@ -508,14 +534,28 @@ private fun ApplicationCall.setBrowserSessionCookie(token: String, services: Ser
         name = WEB_SESSION_COOKIE,
         value = token,
         maxAge = WEB_SESSION_MAX_AGE_SECONDS,
-        path = "/api/v1",
+        path = "/",
         secure = services.browserCookieSecure,
         httpOnly = true,
         extensions = mapOf("SameSite" to "Strict"),
     )
+    clearLegacyBrowserSessionCookie(services)
 }
 
 private fun ApplicationCall.clearBrowserSessionCookie(services: ServerServices) {
+    response.cookies.append(
+        name = WEB_SESSION_COOKIE,
+        value = "",
+        maxAge = 0,
+        path = "/",
+        secure = services.browserCookieSecure,
+        httpOnly = true,
+        extensions = mapOf("SameSite" to "Strict"),
+    )
+    clearLegacyBrowserSessionCookie(services)
+}
+
+private fun ApplicationCall.clearLegacyBrowserSessionCookie(services: ServerServices) {
     response.cookies.append(
         name = WEB_SESSION_COOKIE,
         value = "",

@@ -97,6 +97,10 @@ class InMemoryStore : ChessTreeStore {
     override suspend fun findGame(code: String): GameRecord? =
         synchronized(this) { games[code]?.snapshot() }
 
+    override suspend fun findGameState(id: UUID): GameStateRecord? = synchronized(this) {
+        games.values.firstOrNull { it.id == id }?.let { game -> state(game.code, game) }
+    }
+
     override suspend fun findGamesForUser(userId: UUID): List<GameRecord> = synchronized(this) {
         games.values.filter { game -> game.players.any { it.user.id == userId } }
             .map { it.snapshot() }

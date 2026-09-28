@@ -17,7 +17,8 @@ Authenticated REST requests use `Authorization: Bearer <token>`.
 
 The Web client uses the `/api/v1/auth/browser/*` routes instead. Register and
 login set a `Secure` (on HTTPS), `HttpOnly`, `SameSite=Strict` cookie scoped to
-`/api/v1`; their JSON response contains the user but never the bearer token.
+the site root so it can authenticate both `/api/v1` and `/get-history`; their
+JSON response contains the user but never the bearer token.
 `GET /api/v1/auth/browser/session` restores the signed-in user after a page
 reload, and `POST /api/v1/auth/browser/logout` revokes the session and expires
 the cookie. Browser login, registration, and cookie-authenticated state changes
@@ -30,6 +31,11 @@ authentication.
 All game routes require an authenticated session. A game is visible only to its
 participants; non-participants receive the same not-found response as an unknown
 game code. A game becomes active when its third distinct participant joins.
+The standalone `GET /get-history?id=<game code or UUID>` endpoint also requires
+an authenticated session and returns a downloadable full `GameStateResponse` for
+any known game, regardless of whether the requester participated. The game code
+is the short ID shown in the game screen. Unknown IDs return `404`; malformed IDs
+return `400`.
 
 ## Routes
 
@@ -54,6 +60,7 @@ game code. A game becomes active when its third distinct participant joins.
 | `POST /api/v1/games/{code}/undo-requests/{requestId}/votes` | Vote on an undo request. |
 | `WS /api/v1/games/{code}/events` | Receive authenticated state updates. |
 | `GET /health` | Process health check. |
+| `GET /get-history?id=<game code or UUID>` | Download a game's full move history by its short code or UUID. |
 
 ## Move and sync semantics
 

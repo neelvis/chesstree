@@ -532,6 +532,17 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
         readTransaction { connection -> loadGameState(connection, code, afterMoveCount) }
     }
 
+    override suspend fun findGameState(id: UUID): GameStateRecord? = io {
+        readTransaction { connection ->
+            val code = connection.prepareStatement("SELECT public_code FROM games WHERE id = ?")
+                .use { statement ->
+                    statement.setObject(1, id)
+                    statement.executeQuery().use { rows -> if (rows.next()) rows.getString(1).trim() else null }
+                } ?: return@readTransaction null
+            loadGameState(connection, code)
+        }
+    }
+
     override suspend fun submitMove(
         code: String,
         userId: UUID,

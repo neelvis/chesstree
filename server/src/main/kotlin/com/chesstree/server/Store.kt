@@ -25,6 +25,7 @@ interface ChessTreeStore {
     ): JoinGameResult
 
     suspend fun findGame(code: String): GameRecord?
+    suspend fun findGameState(id: UUID): GameStateRecord?
     suspend fun findGamesForUser(userId: UUID): List<GameRecord>
     suspend fun findGameState(code: String, afterMoveCount: Int = 0): GameStateRecord?
     suspend fun submitMove(code: String, userId: UUID, command: GameMoveCommand): SubmitMoveResult
