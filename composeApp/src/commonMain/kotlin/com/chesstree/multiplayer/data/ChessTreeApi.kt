@@ -4,6 +4,7 @@ import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.BrowserAuthResponse
+import com.chesstree.multiplayer.contract.CreateBotGameRequest
 import com.chesstree.multiplayer.contract.ErrorResponse
 import com.chesstree.multiplayer.contract.GameHistoryResponse
 import com.chesstree.multiplayer.contract.GameResponse
@@ -56,6 +57,8 @@ interface ChessTreeApi {
     suspend fun unregisterPushDevice(token: String, deviceToken: String): ApiResult<Unit> =
         ApiResult.Failure("unsupported", "i18n:push_unavailable")
     suspend fun createGame(token: String): ApiResult<GameResponse>
+    suspend fun createBotGame(token: String, botCount: Int): ApiResult<GameResponse> =
+        ApiResult.Failure("unsupported", "i18n:online_bot_unavailable")
     suspend fun getMyGames(token: String): ApiResult<List<GameHistoryResponse>> =
         ApiResult.Failure("unsupported", "i18n:history_unavailable")
 
@@ -158,6 +161,14 @@ class KtorChessTreeApi(
 
     override suspend fun createGame(token: String): ApiResult<GameResponse> = request {
         client.post("$apiBaseUrl/games") { authorize(token) }.decode()
+    }
+
+    override suspend fun createBotGame(token: String, botCount: Int): ApiResult<GameResponse> = request {
+        client.post("$apiBaseUrl/games/bots") {
+            authorize(token)
+            contentType(ContentType.Application.Json)
+            setBody(CreateBotGameRequest(botCount))
+        }.decode()
     }
 
     override suspend fun getMyGames(token: String): ApiResult<List<GameHistoryResponse>> = request {

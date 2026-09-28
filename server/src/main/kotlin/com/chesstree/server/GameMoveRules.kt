@@ -7,6 +7,7 @@ import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.game.domain.session.GameSession
 import com.chesstree.game.domain.session.SessionMoveResult
+import com.chesstree.game.domain.bot.BotTrainingSample
 import java.util.UUID
 
 sealed interface MoveEvaluation {
@@ -32,9 +33,13 @@ fun evaluateMove(
     command: GameMoveCommand,
     cachedState: GameState? = null,
     existingCommand: GameMoveRecord? = null,
+    isBotCommand: Boolean = false,
 ): MoveEvaluation {
-    val player = state.game.players.firstOrNull { it.user.id == userId }
-        ?: return MoveEvaluation.NotParticipant
+    val belongsToGame = state.game.players.any { player ->
+        if (isBotCommand) player.isBot && player.user.id == userId
+        else !player.isBot && player.user.id == userId
+    }
+    if (!belongsToGame) return MoveEvaluation.NotParticipant
     (existingCommand ?: state.moves.firstOrNull { it.commandId == command.commandId })?.let { existing ->
         return if (
             existing.userId == userId &&
@@ -49,7 +54,7 @@ fun evaluateMove(
         }
     }
     if (state.undoRequest != null) return MoveEvaluation.UndoPending
-    if (state.game.status != GameStatus.ACTIVE || player.color == null) return MoveEvaluation.NotActive
+    if (state.game.status != GameStatus.ACTIVE) return MoveEvaluation.NotActive
     if (command.expectedRevision != state.revision) return MoveEvaluation.Stale
     if (command.expectedMoveCount != null && command.expectedMoveCount != state.moveOffset + state.moves.size) {
         return MoveEvaluation.Stale
@@ -63,17 +68,22 @@ fun evaluateMove(
     }
     val gameState = session.state
     if (gameState.phase is GamePhase.Finished) return MoveEvaluation.NotActive
-    val actor = PlayerId.valueOf(player.color.name)
-    if (gameState.turn?.player != actor) return MoveEvaluation.NotTurn
+    val actor = gameState.turn?.player ?: return MoveEvaluation.NotActive
+    val turnSlot = state.game.players.firstOrNull { it.color?.name == actor.name }
+        ?: return MoveEvaluation.NotActive
+    if (turnSlot.isBot != isBotCommand || turnSlot.user.id != userId) return MoveEvaluation.NotTurn
+    if (isBotCommand && command.trainingSample?.player != actor) return MoveEvaluation.IllegalMove
+    if (!isBotCommand && command.trainingSample != null) return MoveEvaluation.IllegalMove
     val intent = MoveIntent(actor, command.from, command.to, command.promotion)
     return when (val result = session.apply(intent)) {
         SessionMoveResult.Rejected -> MoveEvaluation.IllegalMove
         is SessionMoveResult.Applied -> MoveEvaluation.Accepted(
             move = GameMoveRecord(
                 commandId = command.commandId,
-                userId = userId,
+                userId = turnSlot.user.id,
                 expectedRevision = command.expectedRevision,
                 intent = result.session.moves.last(),
+                trainingSample = command.trainingSample?.takeIf { isBotCommand },
             ),
             state = result.session.state,
             capturedPieces = result.session.capturedPieces,

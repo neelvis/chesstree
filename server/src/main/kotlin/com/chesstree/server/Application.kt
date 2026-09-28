@@ -4,6 +4,8 @@ import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.game.domain.session.GameSession
+import com.chesstree.game.domain.bot.MaxNBot
+import com.chesstree.multiplayer.contract.CreateBotGameRequest
 import com.chesstree.multiplayer.contract.API_VERSION
 import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.AuthResponse
@@ -60,6 +62,8 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.close
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -265,6 +269,16 @@ fun Application.chessTreeModule(
                     services.updates.publish(game.code)
                     call.respond(HttpStatusCode.Created, game.response(services.publicBaseUrl))
                 }
+                post("/games/bots") {
+                    val user = call.authenticatedUser()
+                    val botCount = call.receive<CreateBotGameRequest>().botCount
+                    if (botCount !in 1..2) throw BadRequestException("Invalid bot count")
+                    val game = createUniqueBotGame(services, user, botCount)
+                    advanceBotTurns(services, game.code)
+                    services.updates.publish(game.code)
+                    val updated = services.store.findGame(game.code) ?: game
+                    call.respond(HttpStatusCode.Created, updated.response(services.publicBaseUrl))
+                }
                 get("/games") {
                     val user = call.authenticatedUser()
                     call.respond(
@@ -276,6 +290,7 @@ fun Application.chessTreeModule(
                     when (val result =
                         services.store.joinGame(code, user.id, services.tokens.shuffledColors())) {
                         is JoinGameResult.Joined -> {
+                            if (result.game.status == GameStatus.ACTIVE) advanceBotTurns(services, code)
                             if (result.newlyJoined && result.game.status == GameStatus.ACTIVE) {
                                 services.pushNotifications.gameStarted(result.game)
                             }
@@ -312,7 +327,14 @@ fun Application.chessTreeModule(
                         value.toIntOrNull()?.takeIf { it >= 0 }
                             ?: throw BadRequestException("Invalid move cursor")
                     } ?: 0
-                    val state = services.store.findGameState(call.gameCode(), afterMoveCount)
+                    val code = call.gameCode()
+                    val access = services.store.findGameState(code)
+                    if (access == null || access.game.players.none { it.user.id == user.id }) {
+                        call.respond(HttpStatusCode.NotFound, ErrorResponse("game_not_found", "Игра не найдена"))
+                        return@get
+                    }
+                    advanceBotTurns(services, code)
+                    val state = services.store.findGameState(code, afterMoveCount)
                     if (state == null || state.game.players.none { it.user.id == user.id }) {
                         call.respond(
                             HttpStatusCode.NotFound,
@@ -336,12 +358,15 @@ fun Application.chessTreeModule(
                     val command = call.receive<MoveCommandRequest>().toDomainCommand()
                     when (val result = services.store.submitMove(code, user.id, command)) {
                         is SubmitMoveResult.Applied -> {
+                            if (!result.wasDuplicate) advanceBotTurns(services, code)
+                            val finalState = if (result.wasDuplicate) result.state
+                                else services.store.findGameState(code) ?: result.state
                             if (!result.wasDuplicate) {
-                                services.pushNotifications.gameStateChanged(result.state)
+                                services.pushNotifications.gameStateChanged(finalState)
                             }
                             services.updates.publish(code)
                             call.respond(
-                                result.state.response(
+                                finalState.response(
                                     services.publicBaseUrl,
                                     includePosition = clientApiVersion >= 4,
                                 ),
@@ -454,11 +479,13 @@ fun Application.chessTreeModule(
                     close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Authentication failed"))
                     return@webSocket
                 }
+                advanceBotTurns(services, code)
+                val recoveredState = services.store.findGameState(code) ?: initialState
                 if (authRequest?.protocolVersion != API_VERSION) {
                     sendSerialized(
                         GameStatePush(
                             protocolVersion = API_VERSION,
-                            state = initialState.response(
+                            state = recoveredState.response(
                                 services.publicBaseUrl,
                                 includeUndoRequest = false,
                             ),
@@ -473,6 +500,7 @@ fun Application.chessTreeModule(
                         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Session expired"))
                         throw CancellationException("WebSocket session expired")
                     }
+                    advanceBotTurns(services, code)
                     val state = services.store.findGameState(code, afterMoveCount) ?: return@collect
                     if (state.game.players.none { it.user.id == user.id }) {
                         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Access revoked"))
@@ -601,6 +629,59 @@ private suspend fun createUniqueGame(services: ServerServices, owner: UserRecord
     error("Unable to generate a unique game code")
 }
 
+private suspend fun createUniqueBotGame(
+    services: ServerServices,
+    owner: UserRecord,
+    botCount: Int,
+): GameRecord {
+    repeat(10) {
+        services.store.createGameWithBots(
+            UUID.randomUUID(),
+            services.tokens.gameCode(),
+            owner.id,
+            botCount,
+            services.tokens.shuffledColors(),
+        )?.let { return it }
+    }
+    error("Unable to generate a unique bot game code")
+}
+
+/** Runs authoritative bot turns and also repairs a game left between moves by a server restart. */
+private suspend fun advanceBotTurns(services: ServerServices, code: String) {
+    repeat(3) {
+        val stateRecord = services.store.findGameState(code) ?: return
+        if (stateRecord.game.status != GameStatus.ACTIVE) return
+        val state = stateRecord.domainState ?: GameSession.replay(
+            StandardGame.scenario,
+            stateRecord.moves.map(GameMoveRecord::intent),
+        )?.state ?: return
+        val actor = state.turn?.player ?: return
+        val botSeat = stateRecord.game.players.firstOrNull {
+            it.isBot && it.color?.name == actor.name
+        } ?: return
+        val policy = services.store.loadBotPolicy()
+        val decision = withContext(Dispatchers.Default) {
+            MaxNBot(maxDepth = 2, maxNodes = 128).chooseDecision(state, policy)
+        } ?: return
+        val command = GameMoveCommand(
+            commandId = UUID.randomUUID(),
+            expectedRevision = stateRecord.revision,
+            from = decision.intent.from,
+            to = decision.intent.to,
+            promotion = decision.intent.promotion,
+            expectedMoveCount = stateRecord.moveOffset + stateRecord.moves.size,
+            trainingSample = decision.trainingSample,
+        )
+        when (val result = services.store.submitBotMove(code, botSeat.user.id, command)) {
+            is SubmitMoveResult.Applied -> {
+                services.pushNotifications.gameStateChanged(result.state)
+                services.updates.publish(code)
+            }
+            else -> return
+        }
+    }
+}
+
 private fun ApplicationCall.gameCode(): String {
     val code = parameters["code"]?.uppercase() ?: throw BadRequestException("Missing game code")
     if (!GAME_CODE.matches(code)) throw BadRequestException("Invalid game code")
@@ -614,14 +695,14 @@ private fun GameRecord.response(publicBaseUrl: String) = GameResponse(
     code = code,
     shareUrl = "${publicBaseUrl.trimEnd('/')}/g/$code",
     status = status.name,
-    players = players.map { GamePlayerResponse(it.user.response(), it.color?.name) },
+    players = players.map { GamePlayerResponse(it.user.response(), it.color?.name, it.isBot) },
 )
 
 private fun GameRecord.historyResponse() = GameHistoryResponse(
     id = id.toString(),
     code = code,
     status = status.name,
-    players = players.map { GamePlayerResponse(it.user.response(), it.color?.name) },
+    players = players.map { GamePlayerResponse(it.user.response(), it.color?.name, it.isBot) },
     startedAt = startedAt.toString(),
 )
 

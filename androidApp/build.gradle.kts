@@ -29,6 +29,7 @@ android {
 
 dependencies {
     implementation(projects.composeApp)
+    implementation(projects.gameDomain)
     implementation(projects.onlineContract)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.firebase.bom))

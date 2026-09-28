@@ -4,6 +4,8 @@ import android.content.Context
 import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.LoadGameResult
 import com.chesstree.game.data.SaveGameResult
+import com.chesstree.game.domain.bot.BotPolicy
+import com.chesstree.game.domain.bot.BotPolicyCodec
 
 class AndroidGameSaveStore(context: Context) : GameSaveStore {
     private val preferences = context.getSharedPreferences(STORE_NAME, Context.MODE_PRIVATE)
@@ -23,8 +25,20 @@ class AndroidGameSaveStore(context: Context) : GameSaveStore {
         LoadGameResult.Failed(error.message ?: "i18n:unknown_error")
     }
 
+    override fun loadBotPolicy(): BotPolicy = runCatching {
+        BotPolicyCodec.decode(preferences.getString(POLICY_KEY, null)) ?: BotPolicy.DEFAULT
+    }.getOrDefault(BotPolicy.DEFAULT)
+
+    override fun saveBotPolicy(policy: BotPolicy): SaveGameResult = runCatching {
+        preferences.edit().putString(POLICY_KEY, BotPolicyCodec.encode(policy)).apply()
+        SaveGameResult.Saved
+    }.getOrElse { error ->
+        SaveGameResult.Failed(error.message ?: "i18n:unknown_error")
+    }
+
     private companion object {
         const val STORE_NAME = "chess_tree_game"
         const val SAVE_KEY = "last_game_v1"
+        const val POLICY_KEY = "bot_policy_v1"
     }
 }

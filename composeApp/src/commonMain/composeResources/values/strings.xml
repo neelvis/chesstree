@@ -34,6 +34,8 @@
     <string name="back">Назад</string>
     <string name="back_with_chevron">‹ Назад</string>
     <string name="restart">Рестарт</string>
+    <string name="watch_three_bots">Партия трёх ботов</string>
+    <string name="stop_three_bots">Остановить ботов</string>
     <string name="scenario">Сценарий</string>
     <string name="current_turn">Сейчас ход</string>
     <string name="total_moves">Всего ходов: %1$s</string>
@@ -45,6 +47,8 @@
     <string name="save_failed">Не удалось сохранить: %1$s</string>
     <string name="game_saved">Партия сохранена</string>
     <string name="game_restarted">Партия перезапущена; последнее сохранение не изменено</string>
+    <string name="bot_policy_learned">Бот обновил стратегию по результатам партии</string>
+    <string name="bot_policy_save_failed">Не удалось сохранить стратегию бота: %1$s</string>
     <string name="promotion_title">Превращение пешки</string>
     <string name="promotion_prompt">Выберите новую фигуру</string>
     <string name="promotion_confirm_again">Нажмите ещё раз для подтверждения</string>
@@ -98,6 +102,9 @@
     <string name="registration">Регистрация</string>
     <string name="online_game">Онлайн-игра</string>
     <string name="create_game">Создать игру</string>
+    <string name="create_game_one_bot">Игра с одним ботом</string>
+    <string name="create_game_two_bots">Игра с двумя ботами</string>
+    <string name="bot_player">Бот ChessTree</string>
     <string name="join_game">Присоединиться к игре</string>
     <string name="game_code">Код игры</string>
     <string name="join">Присоединиться</string>

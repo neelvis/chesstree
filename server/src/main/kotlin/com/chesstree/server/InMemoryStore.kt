@@ -1,5 +1,10 @@
 package com.chesstree.server
 
+import com.chesstree.game.domain.GameOutcome
+import com.chesstree.game.domain.GamePhase
+import com.chesstree.game.domain.bot.BotPolicy
+import com.chesstree.game.domain.bot.BotPolicyLearner
+import com.chesstree.game.domain.bot.BotTrainingSample
 import java.time.Instant
 import java.util.UUID
 
@@ -7,12 +12,15 @@ class InMemoryStore : ChessTreeStore {
     private val users = linkedMapOf<UUID, UserRecord>()
     private val passwordHashes = mutableMapOf<UUID, String>()
     private val usernames = mutableMapOf<String, UUID>()
+    private val botUserIds = mutableSetOf<UUID>()
     private val sessions = mutableMapOf<String, Pair<UUID, Instant>>()
     private val games = linkedMapOf<String, MutableGame>()
     private val moves = mutableMapOf<String, MutableList<GameMoveRecord>>()
     private val revisions = mutableMapOf<String, Int>()
     private val undoRequests = mutableMapOf<String, UndoRequestRecord>()
     private val pushDevices = linkedMapOf<String, PushDevice>()
+    private var botPolicy = BotPolicy.DEFAULT
+    private val trainedGameIds = mutableSetOf<UUID>()
 
     override suspend fun createUser(
         username: String,
@@ -29,6 +37,7 @@ class InMemoryStore : ChessTreeStore {
 
     override suspend fun findUser(normalizedUsername: String): UserCredentials? = synchronized(this) {
         val userId = usernames[normalizedUsername] ?: return@synchronized null
+        if (userId in botUserIds) return@synchronized null
         val user = users[userId] ?: return@synchronized null
         UserCredentials(user, passwordHashes.getValue(userId))
     }
@@ -77,6 +86,42 @@ class InMemoryStore : ChessTreeStore {
             game.snapshot()
         }
 
+    override suspend fun createGameWithBots(
+        id: UUID,
+        code: String,
+        ownerId: UUID,
+        botCount: Int,
+        shuffledColors: List<PlayerColor>,
+    ): GameRecord? = synchronized(this) {
+        require(botCount in 1..2)
+        require(shuffledColors.toSet() == PlayerColor.entries.toSet())
+        if (code in games) return@synchronized null
+        val owner = users.getValue(ownerId)
+        val players = mutableListOf(GamePlayer(owner, joinedOrder = 0, color = null))
+        repeat(botCount) { index ->
+            val botId = UUID.randomUUID()
+            val suffix = UUID.randomUUID().toString().replace("-", "").take(20)
+            val bot = UserRecord(botId, "ChessTree Bot ${index + 1}")
+            users[botId] = bot
+            passwordHashes[botId] = "disabled-bot-login"
+            usernames["bot_$suffix"] = botId
+            botUserIds += botId
+            players += GamePlayer(bot, joinedOrder = index + 1, color = null, isBot = true)
+        }
+        if (players.size == PLAYER_COUNT) {
+            players.replaceAll { player -> player.copy(color = shuffledColors[player.joinedOrder]) }
+        }
+        val game = MutableGame(id, code, players, status = if (players.size == PLAYER_COUNT) {
+            GameStatus.ACTIVE
+        } else {
+            GameStatus.WAITING
+        })
+        games[code] = game
+        moves[code] = mutableListOf()
+        revisions[code] = 0
+        game.snapshot()
+    }
+
     override suspend fun joinGame(
         code: String,
         userId: UUID,
@@ -119,15 +164,31 @@ class InMemoryStore : ChessTreeStore {
         code: String,
         userId: UUID,
         command: GameMoveCommand,
+    ): SubmitMoveResult = submitMoveInternal(code, userId, command, isBotCommand = false)
+
+    override suspend fun submitBotMove(
+        code: String,
+        botUserId: UUID,
+        command: GameMoveCommand,
+    ): SubmitMoveResult = submitMoveInternal(code, botUserId, command, isBotCommand = true)
+
+    private suspend fun submitMoveInternal(
+        code: String,
+        userId: UUID,
+        command: GameMoveCommand,
+        isBotCommand: Boolean,
     ): SubmitMoveResult = synchronized(this) {
         val game = games[code] ?: return@synchronized SubmitMoveResult.Missing
         val gameMoves = moves.getValue(code)
         val state = state(code, game)
-        when (val evaluation = evaluateMove(state, userId, command)) {
+        when (val evaluation = evaluateMove(state, userId, command, isBotCommand = isBotCommand)) {
             is MoveEvaluation.Accepted -> {
                 gameMoves += evaluation.move
                 revisions[code] = revisions.getValue(code) + 1
-                if (evaluation.finished) game.status = GameStatus.FINISHED
+                if (evaluation.finished) {
+                    game.status = GameStatus.FINISHED
+                    trainFromFinishedGame(game, evaluation.state, gameMoves)
+                }
                 SubmitMoveResult.Applied(
                     stateAfterMoveCount(code, game, command.expectedMoveCount)
                         .copy(domainState = evaluation.state, capturedPieces = evaluation.capturedPieces),
@@ -148,6 +209,8 @@ class InMemoryStore : ChessTreeStore {
         }
     }
 
+    override suspend fun loadBotPolicy(): BotPolicy = synchronized(this) { botPolicy }
+
     private fun stateAfterMoveCount(
         code: String,
         game: MutableGame,
@@ -164,12 +227,21 @@ class InMemoryStore : ChessTreeStore {
         expectedRevision: Int,
     ): UndoResult = synchronized(this) {
         val game = games[code] ?: return@synchronized UndoResult.Missing
-        if (game.players.none { it.user.id == userId }) return@synchronized UndoResult.NotParticipant
+        if (game.players.none { !it.isBot && it.user.id == userId }) return@synchronized UndoResult.NotParticipant
         val current = state(code, game)
         if (expectedRevision != current.revision) return@synchronized UndoResult.Stale(current)
+        if (current.game.status != GameStatus.ACTIVE) return@synchronized UndoResult.NotAvailable
         if (current.moves.isEmpty()) return@synchronized UndoResult.NotAvailable
         if (current.undoRequest != null) return@synchronized UndoResult.AlreadyPending
-        undoRequests[code] = UndoRequestRecord(UUID.randomUUID(), userId, current.moves.size)
+        val botApprovals = game.players.filter(GamePlayer::isBot).mapTo(linkedSetOf()) { it.user.id }
+        val request = UndoRequestRecord(UUID.randomUUID(), userId, current.moves.size, botApprovals)
+        if (botApprovals.size == game.players.size - 1) {
+            moves.getValue(code).removeLast()
+            game.status = GameStatus.ACTIVE
+            undoRequests.remove(code)
+        } else {
+            undoRequests[code] = request
+        }
         revisions[code] = current.revision + 1
         UndoResult.Updated(state(code, game))
     }
@@ -182,7 +254,7 @@ class InMemoryStore : ChessTreeStore {
         approve: Boolean,
     ): UndoResult = synchronized(this) {
         val game = games[code] ?: return@synchronized UndoResult.Missing
-        if (game.players.none { it.user.id == userId }) return@synchronized UndoResult.NotParticipant
+        if (game.players.none { !it.isBot && it.user.id == userId }) return@synchronized UndoResult.NotParticipant
         val current = state(code, game)
         if (expectedRevision != current.revision) return@synchronized UndoResult.Stale(current)
         val request = current.undoRequest
@@ -234,6 +306,18 @@ class InMemoryStore : ChessTreeStore {
         revision = revisions.getValue(code),
         undoRequest = undoRequests[code],
     )
+
+    private fun trainFromFinishedGame(
+        game: MutableGame,
+        state: com.chesstree.game.domain.GameState,
+        gameMoves: List<GameMoveRecord>,
+    ) {
+        if (game.id in trainedGameIds || game.players.none(GamePlayer::isBot)) return
+        val outcome = (state.phase as? GamePhase.Finished)?.outcome ?: return
+        val samples = gameMoves.mapNotNull(GameMoveRecord::trainingSample)
+        botPolicy = BotPolicyLearner.learn(botPolicy, outcome, samples)
+        trainedGameIds += game.id
+    }
 
     private data class MutableGame(
         val id: UUID,

@@ -165,6 +165,13 @@ class MultiplayerController(
         }
     }
 
+    fun createBotGame(botCount: Int) = withToken(observeAfterSuccess = true) { token ->
+        when (val result = api.createBotGame(token, botCount)) {
+            is ApiResult.Success -> withRemoteGame(token, result.value)
+            is ApiResult.Failure -> copy(error = result.toUiMessage())
+        }
+    }
+
     fun loadGames() {
         val token = mutableState.value.authentication?.accessToken ?: return
         scope.launch { loadGames(token) }

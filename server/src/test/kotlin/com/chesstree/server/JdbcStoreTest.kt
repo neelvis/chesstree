@@ -1,6 +1,7 @@
 package com.chesstree.server
 
 import com.chesstree.game.domain.LegalMoveGenerator
+import com.chesstree.game.domain.bot.BotPolicy
 import com.chesstree.game.domain.scenario.StandardGame
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -11,11 +12,39 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class JdbcStoreTest {
+    @Test
+    fun createsAuthoritativeBotSeatsAndLoadsDefaultPolicy() = runBlocking {
+        val databaseUrl =
+            "jdbc:h2:mem:${UUID.randomUUID()};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+        val store = JdbcStore(DatabaseConfig(databaseUrl, "sa", ""))
+        store.initialize()
+        val owner = store.user("Owner")
+
+        val game = assertNotNull(
+            store.createGameWithBots(UUID.randomUUID(), "BOT1234", owner.id, 2, PlayerColor.entries),
+        )
+        assertEquals(GameStatus.ACTIVE, game.status)
+        assertEquals(2, game.players.count(GamePlayer::isBot))
+        assertEquals(PlayerColor.entries.toSet(), game.players.mapNotNull(GamePlayer::color).toSet())
+        assertEquals(BotPolicy.DEFAULT, store.loadBotPolicy())
+
+        val botUsername = DriverManager.getConnection(databaseUrl, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT normalized_username FROM users WHERE is_bot = TRUE LIMIT 1")
+                    .use { rows -> rows.next(); rows.getString(1) }
+            }
+        }
+        assertEquals(null, store.findUser(botUsername))
+        assertFalse(store.findGamesForUser(UUID.randomUUID()).any { it.id == game.id })
+        store.close()
+    }
+
     @Test
     fun migratesVersionTwoDatabaseToCurrentSchema() = runBlocking {
         val databaseUrl =
@@ -36,7 +65,7 @@ class JdbcStoreTest {
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
                     .use { rows ->
                         rows.next()
-                        assertEquals(6, rows.getInt("version"))
+                        assertEquals(7, rows.getInt("version"))
                     }
             }
         }
@@ -62,7 +91,7 @@ class JdbcStoreTest {
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
                     .use { rows ->
                         rows.next()
-                        assertEquals(6, rows.getInt("version"))
+                        assertEquals(7, rows.getInt("version"))
                     }
                 statement.executeQuery("SELECT COUNT(*) FROM game_moves").use { rows ->
                     rows.next()
@@ -89,7 +118,7 @@ class JdbcStoreTest {
                 statement.executeQuery("SELECT version FROM schema_metadata WHERE singleton = TRUE")
                     .use { rows ->
                         rows.next()
-                        assertEquals(6, rows.getInt("version"))
+                        assertEquals(7, rows.getInt("version"))
                     }
             }
         }

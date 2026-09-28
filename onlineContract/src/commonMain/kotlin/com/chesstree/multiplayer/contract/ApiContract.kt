@@ -2,7 +2,7 @@ package com.chesstree.multiplayer.contract
 
 import kotlinx.serialization.Serializable
 
-const val API_VERSION: Int = 4
+const val API_VERSION: Int = 5
 const val API_VERSION_HEADER: String = "X-ChessTree-Protocol-Version"
 
 @Serializable
@@ -27,7 +27,14 @@ data class AuthResponse(val accessToken: String, val user: UserResponse)
 data class BrowserAuthResponse(val user: UserResponse)
 
 @Serializable
-data class GamePlayerResponse(val user: UserResponse, val color: String? = null)
+data class GamePlayerResponse(
+    val user: UserResponse,
+    val color: String? = null,
+    val isBot: Boolean = false,
+)
+
+@Serializable
+data class CreateBotGameRequest(val botCount: Int)
 
 @Serializable
 data class GameResponse(

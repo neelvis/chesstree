@@ -7,6 +7,7 @@ import com.chesstree.multiplayer.contract.API_VERSION_HEADER
 import com.chesstree.multiplayer.contract.AuthResponse
 import com.chesstree.multiplayer.contract.BrowserAuthResponse
 import com.chesstree.multiplayer.contract.CoordinateResponse
+import com.chesstree.multiplayer.contract.CreateBotGameRequest
 import com.chesstree.multiplayer.contract.GameResponse
 import com.chesstree.multiplayer.contract.GameSocketAuthRequest
 import com.chesstree.multiplayer.contract.GameStatePush
@@ -201,6 +202,45 @@ class ApplicationTest {
         assertEquals("https://play.test/g/${game.code}", game.shareUrl)
         assertEquals("WAITING", game.status)
         assertEquals(listOf("owner"), game.players.map { it.user.username })
+    }
+
+    @Test
+    fun createsAStartedOnlineGameWithTwoServerControlledBots() = testApplication {
+        application { chessTreeModule(testServices()) }
+        val owner = register("botowner", "correct-horse")
+        val response = client.post("/api/v1/games/bots") {
+            bearerAuth(owner.accessToken)
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(CreateBotGameRequest(2)))
+        }
+
+        assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+        val game = json.decodeFromString<GameResponse>(response.bodyAsText())
+        assertEquals("ACTIVE", game.status)
+        assertEquals(2, game.players.count { it.isBot })
+        assertEquals(3, game.players.size)
+        assertTrue(game.players.filter { it.isBot }.all { it.user.username.contains("Bot") })
+    }
+
+    @Test
+    fun oneBotLeavesASeatOpenForAnotherHuman() = testApplication {
+        application { chessTreeModule(testServices()) }
+        val owner = register("onebotowner", "correct-horse")
+        val response = client.post("/api/v1/games/bots") {
+            bearerAuth(owner.accessToken)
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(CreateBotGameRequest(1)))
+        }
+        assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+        val lobby = json.decodeFromString<GameResponse>(response.bodyAsText())
+        assertEquals("WAITING", lobby.status)
+        assertEquals(1, lobby.players.count { it.isBot })
+
+        val secondHuman = register("secondhuman", "correct-horse")
+        val active = join(lobby.code, secondHuman.accessToken)
+        assertEquals("ACTIVE", active.status)
+        assertEquals(1, active.players.count { it.isBot })
+        assertEquals(2, active.players.count { !it.isBot })
     }
 
     @Test

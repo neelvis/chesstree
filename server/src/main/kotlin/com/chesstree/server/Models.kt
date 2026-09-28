@@ -4,6 +4,7 @@ import com.chesstree.game.domain.BoardCoordinate
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.GameState
 import com.chesstree.game.domain.PromotionChoice
+import com.chesstree.game.domain.bot.BotTrainingSample
 import com.chesstree.game.domain.session.CapturedPiece
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -25,7 +26,12 @@ enum class GameStatus { WAITING, ACTIVE, FINISHED }
 
 enum class PlayerColor { WHITE, RED, BLACK }
 
-data class GamePlayer(val user: UserRecord, val joinedOrder: Int, val color: PlayerColor?)
+data class GamePlayer(
+    val user: UserRecord,
+    val joinedOrder: Int,
+    val color: PlayerColor?,
+    val isBot: Boolean = false,
+)
 
 enum class PushPlatform { ANDROID, IOS }
 
@@ -52,6 +58,7 @@ data class GameMoveCommand(
     val to: BoardCoordinate,
     val promotion: PromotionChoice?,
     val expectedMoveCount: Int? = null,
+    val trainingSample: BotTrainingSample? = null,
 )
 
 data class GameMoveRecord(
@@ -59,6 +66,7 @@ data class GameMoveRecord(
     val userId: UUID,
     val expectedRevision: Int,
     val intent: MoveIntent,
+    val trainingSample: BotTrainingSample? = null,
 )
 
 data class UndoRequestRecord(

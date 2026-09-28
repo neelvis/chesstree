@@ -30,7 +30,9 @@ authentication.
 
 All game routes require an authenticated session. A game is visible only to its
 participants; non-participants receive the same not-found response as an unknown
-game code. A game becomes active when its third distinct participant joins.
+game code. A regular lobby becomes active when its third distinct participant
+joins. Bot games use server-owned bot seats: one bot leaves a seat open for a
+second human, while two bots start immediately.
 The standalone `GET /get-history?id=<game code or UUID>` endpoint also requires
 an authenticated session and returns a downloadable full `GameStateResponse` for
 any known game, regardless of whether the requester participated. The game code
@@ -51,6 +53,7 @@ return `400`.
 | `POST /api/v1/push/devices` | Register an Android/iOS push token. |
 | `POST /api/v1/push/devices/unregister` | Remove the current user's push token. |
 | `POST /api/v1/games` | Create a lobby. |
+| `POST /api/v1/games/bots` | Create a game with one or two server-controlled bots (`{"botCount":1}` or `{"botCount":2}`). |
 | `GET /api/v1/games` | List the user's games. |
 | `POST /api/v1/games/{code}/join` | Join a lobby. |
 | `GET /api/v1/games/{code}` | Read lobby metadata. |
@@ -63,6 +66,15 @@ return `400`.
 | `GET /get-history?id=<game code or UUID>` | Download a game's full move history by its short code or UUID. |
 
 ## Move and sync semantics
+
+The server runs a bounded MaxN search for bot turns and validates the selected
+move through the same game engine as human moves. Bot accounts cannot log in or
+submit through the public move route. The server resumes pending bot turns when
+an active participant reconnects or requests state. Each bot turn reads the
+current persisted policy, so updates from completed games are picked up on the
+next turn. Completed bot games store typed move samples and their outcome; the
+server updates its shared policy once per game. Undo votes from bot seats are
+approved automatically.
 
 A current move command includes `commandId`, `expectedRevision`, `expectedMoveCount`,
 `from`, `to`, and an optional promotion. `expectedMoveCount` is the client's current

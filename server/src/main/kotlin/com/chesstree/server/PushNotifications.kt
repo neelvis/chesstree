@@ -76,7 +76,7 @@ class FcmPushNotifications private constructor(
     override fun gameStateChanged(state: GameStateRecord) {
         if (state.game.status == GameStatus.FINISHED) {
             dispatch(
-                state.game.players.mapTo(linkedSetOf()) { it.user.id },
+            state.game.players.filterNot(GamePlayer::isBot).mapTo(linkedSetOf()) { it.user.id },
                 PushNotification(
                     type = "game_finished",
                     title = "Партия завершена",
@@ -98,7 +98,7 @@ class FcmPushNotifications private constructor(
         }
         if (gameState.phase is GamePhase.Finished) return
         val turn = gameState.turn?.player ?: return
-        val nextPlayer = state.game.players.firstOrNull { it.color?.name == turn.name } ?: return
+        val nextPlayer = state.game.players.firstOrNull { !it.isBot && it.color?.name == turn.name } ?: return
         dispatch(
             setOf(nextPlayer.user.id),
             PushNotification(

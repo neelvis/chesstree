@@ -34,6 +34,8 @@
     <string name="back">Zurück</string>
     <string name="back_with_chevron">‹ Zurück</string>
     <string name="restart">Neustart</string>
+    <string name="watch_three_bots">Drei Bots spielen lassen</string>
+    <string name="stop_three_bots">Bots stoppen</string>
     <string name="scenario">Szenario</string>
     <string name="current_turn">Am Zug</string>
     <string name="total_moves">Züge insgesamt: %1$s</string>
@@ -45,6 +47,8 @@
     <string name="save_failed">Speichern fehlgeschlagen: %1$s</string>
     <string name="game_saved">Partie gespeichert</string>
     <string name="game_restarted">Partie neu gestartet; der letzte Spielstand wurde nicht geändert</string>
+    <string name="bot_policy_learned">Der Bot hat seine Strategie anhand der Partie aktualisiert</string>
+    <string name="bot_policy_save_failed">Bot-Strategie konnte nicht gespeichert werden: %1$s</string>
     <string name="promotion_title">Bauernumwandlung</string>
     <string name="promotion_prompt">Neue Figur auswählen</string>
     <string name="promotion_confirm_again">Zum Bestätigen erneut tippen</string>
@@ -98,6 +102,9 @@
     <string name="registration">Registrieren</string>
     <string name="online_game">Online-Spiel</string>
     <string name="create_game">Partie erstellen</string>
+    <string name="create_game_one_bot">Spiel mit einem Bot</string>
+    <string name="create_game_two_bots">Spiel mit zwei Bots</string>
+    <string name="bot_player">ChessTree Bot</string>
     <string name="join_game">Partie beitreten</string>
     <string name="game_code">Partiecode</string>
     <string name="join">Beitreten</string>

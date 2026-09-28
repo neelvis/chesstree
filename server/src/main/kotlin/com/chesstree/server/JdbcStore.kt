@@ -5,6 +5,12 @@ import kotlinx.coroutines.withContext
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import com.chesstree.game.domain.GameState
+import com.chesstree.game.domain.GameOutcome
+import com.chesstree.game.domain.GamePhase
+import com.chesstree.game.domain.bot.BotPolicy
+import com.chesstree.game.domain.bot.BotPolicyCodec
+import com.chesstree.game.domain.bot.BotPolicyLearner
+import com.chesstree.game.domain.bot.BotTrainingSampleCodec
 import com.chesstree.game.domain.scenario.StandardGame
 import com.chesstree.game.domain.session.GameSession
 import java.sql.Connection
@@ -51,10 +57,12 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                             username VARCHAR(24) NOT NULL,
                             normalized_username VARCHAR(24) NOT NULL UNIQUE,
                             password_hash TEXT NOT NULL,
+                            is_bot BOOLEAN NOT NULL DEFAULT FALSE,
                             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
                         )
                         """.trimIndent(),
                     )
+                    statement.executeUpdate("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_bot BOOLEAN NOT NULL DEFAULT FALSE")
                     statement.executeUpdate(
                         """
                         CREATE TABLE IF NOT EXISTS sessions (
@@ -103,6 +111,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                             user_id UUID NOT NULL REFERENCES users(id),
                             joined_order INTEGER NOT NULL,
                             color VARCHAR(16),
+                            is_bot BOOLEAN NOT NULL DEFAULT FALSE,
                             joined_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             PRIMARY KEY (game_id, user_id),
                             UNIQUE (game_id, joined_order),
@@ -110,6 +119,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                         )
                         """.trimIndent(),
                     )
+                    statement.executeUpdate("ALTER TABLE game_players ADD COLUMN IF NOT EXISTS is_bot BOOLEAN NOT NULL DEFAULT FALSE")
                     statement.executeUpdate(
                         """
                         CREATE TABLE IF NOT EXISTS game_moves (
@@ -126,12 +136,27 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                             to_column INTEGER NOT NULL,
                             to_row INTEGER NOT NULL,
                             promotion VARCHAR(16),
+                            bot_training_sample TEXT,
                             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             PRIMARY KEY (game_id, revision),
                             UNIQUE (game_id, command_id)
                         )
                         """.trimIndent(),
                     )
+                    statement.executeUpdate("ALTER TABLE game_moves ADD COLUMN IF NOT EXISTS bot_training_sample TEXT")
+                    statement.executeUpdate(
+                        "CREATE TABLE IF NOT EXISTS bot_policy_config (singleton BOOLEAN PRIMARY KEY CHECK (singleton), policy TEXT NOT NULL)",
+                    )
+                    statement.executeUpdate(
+                        "CREATE TABLE IF NOT EXISTS bot_training_games (game_id UUID PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE, outcome TEXT NOT NULL, recorded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+                    )
+                    val hasBotPolicy = statement.executeQuery("SELECT singleton FROM bot_policy_config WHERE singleton = TRUE").use { it.next() }
+                    if (!hasBotPolicy) {
+                        connection.prepareStatement("INSERT INTO bot_policy_config (singleton, policy) VALUES (TRUE, ?)").use { policyStatement ->
+                            policyStatement.setString(1, BotPolicyCodec.encode(BotPolicy.DEFAULT))
+                            policyStatement.executeUpdate()
+                        }
+                    }
                     statement.executeUpdate(
                         """
                         CREATE TABLE IF NOT EXISTS game_undo_requests (
@@ -167,7 +192,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                     }
                     when (schemaVersion) {
                         SCHEMA_VERSION -> Unit
-                        4, 5 -> statement.executeUpdate(
+                        4, 5, 6 -> statement.executeUpdate(
                             "UPDATE schema_metadata SET version = $SCHEMA_VERSION WHERE singleton = TRUE",
                         )
                         1, 2, 3 -> {
@@ -223,7 +248,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
     override suspend fun findUser(normalizedUsername: String): UserCredentials? = io {
         connection().use { connection ->
             connection.prepareStatement(
-                "SELECT id, username, normalized_username, password_hash FROM users WHERE normalized_username = ?",
+                "SELECT id, username, normalized_username, password_hash FROM users WHERE normalized_username = ? AND is_bot = FALSE",
             ).use { statement ->
                 statement.setString(1, normalizedUsername)
                 statement.executeQuery().use { rows ->
@@ -426,6 +451,61 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
         }
     }
 
+    override suspend fun createGameWithBots(
+        id: UUID,
+        code: String,
+        ownerId: UUID,
+        botCount: Int,
+        shuffledColors: List<PlayerColor>,
+    ): GameRecord? = io {
+        require(botCount in 1..2)
+        require(shuffledColors.toSet() == PlayerColor.entries.toSet())
+        try {
+            transaction { connection ->
+                connection.prepareStatement(
+                    "INSERT INTO games (id, public_code, status, created_by) VALUES (?, ?, ?, ?)",
+                ).use { statement ->
+                    statement.setObject(1, id)
+                    statement.setString(2, code)
+                    statement.setString(3, if (botCount == 2) "ACTIVE" else "WAITING")
+                    statement.setObject(4, ownerId)
+                    statement.executeUpdate()
+                }
+                val seats = buildList {
+                    add(ownerId to false)
+                    repeat(botCount) { add(UUID.randomUUID() to true) }
+                }
+                seats.forEachIndexed { order, (playerId, isBot) ->
+                    if (isBot) {
+                        val suffix = playerId.toString().replace("-", "").take(20)
+                        connection.prepareStatement(
+                            "INSERT INTO users (id, username, normalized_username, password_hash, is_bot) VALUES (?, ?, ?, ?, TRUE)",
+                        ).use { statement ->
+                            statement.setObject(1, playerId)
+                            statement.setString(2, "ChessTree Bot ${order}")
+                            statement.setString(3, "bot_$suffix")
+                            statement.setString(4, "disabled-bot-login")
+                            statement.executeUpdate()
+                        }
+                    }
+                    connection.prepareStatement(
+                        "INSERT INTO game_players (game_id, user_id, joined_order, color, is_bot) VALUES (?, ?, ?, ?, ?)",
+                    ).use { statement ->
+                        statement.setObject(1, id)
+                        statement.setObject(2, playerId)
+                        statement.setInt(3, order)
+                        statement.setString(4, if (botCount == 2) shuffledColors[order].name else null)
+                        statement.setBoolean(5, isBot)
+                        statement.executeUpdate()
+                    }
+                }
+                checkNotNull(loadGame(connection, code))
+            }
+        } catch (error: java.sql.SQLException) {
+            if (error.sqlState == UNIQUE_VIOLATION) null else throw error
+        }
+    }
+
     override suspend fun joinGame(
         code: String,
         userId: UUID,
@@ -492,7 +572,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
             connection.prepareStatement(
                 """
                 SELECT g.id, g.public_code, g.status, g.created_at,
-                       u.id AS user_id, u.username, p.joined_order, p.color
+                       u.id AS user_id, u.username, p.joined_order, p.color, p.is_bot
                 FROM games g
                 JOIN game_players mine ON mine.game_id = g.id
                 JOIN game_players p ON p.game_id = g.id
@@ -520,6 +600,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                             ),
                             joinedOrder = rows.getInt("joined_order"),
                             color = rows.getString("color")?.let(PlayerColor::valueOf),
+                            isBot = rows.getBoolean("is_bot"),
                         )
                     }
                 }
@@ -582,6 +663,19 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
         code: String,
         userId: UUID,
         command: GameMoveCommand,
+    ): SubmitMoveResult = submitMoveInternal(code, userId, command, isBotCommand = false)
+
+    override suspend fun submitBotMove(
+        code: String,
+        botUserId: UUID,
+        command: GameMoveCommand,
+    ): SubmitMoveResult = submitMoveInternal(code, botUserId, command, isBotCommand = true)
+
+    private suspend fun submitMoveInternal(
+        code: String,
+        userId: UUID,
+        command: GameMoveCommand,
+        isBotCommand: Boolean,
     ): SubmitMoveResult = io {
         var cacheUpdate: Pair<UUID, Pair<Int, GameState>>? = null
         val result = transaction { connection ->
@@ -606,6 +700,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                 command,
                 cachedState.takeIf { canReuseSnapshot },
                 existingCommand,
+                isBotCommand,
             )) {
                 is MoveEvaluation.Accepted -> {
                     connection.prepareStatement(
@@ -613,7 +708,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                         INSERT INTO game_moves (
                             game_id, revision, command_id, user_id, expected_revision, actor,
                             from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            , bot_training_sample
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """.trimIndent(),
                     ).use { statement ->
                         val intent = evaluation.move.intent
@@ -630,6 +726,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                         statement.setInt(11, intent.to.column)
                         statement.setInt(12, intent.to.row)
                         statement.setString(13, intent.promotion?.name)
+                        statement.setString(14, evaluation.move.trainingSample?.let(BotTrainingSampleCodec::encode))
                         statement.executeUpdate()
                     }
                     if (evaluation.finished) {
@@ -637,7 +734,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                             .use { statement ->
                                 statement.setObject(1, state.game.id)
                                 statement.executeUpdate()
-                            }
+                        }
+                        trainBotPolicy(connection, state.game.id, evaluation.state)
                     }
                     connection.prepareStatement("UPDATE games SET revision = revision + 1 WHERE id = ?")
                         .use { statement ->
@@ -682,20 +780,45 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
     ): UndoResult = io {
         transaction { connection ->
             val state = lockAndLoadState(connection, code) ?: return@transaction UndoResult.Missing
-            if (state.game.players.none { it.user.id == userId }) return@transaction UndoResult.NotParticipant
+            if (state.game.players.none { !it.isBot && it.user.id == userId }) return@transaction UndoResult.NotParticipant
             if (expectedRevision != state.revision) return@transaction UndoResult.Stale(state)
+            if (state.game.status != GameStatus.ACTIVE) return@transaction UndoResult.NotAvailable
             if (state.moves.isEmpty()) return@transaction UndoResult.NotAvailable
             if (state.undoRequest != null) return@transaction UndoResult.AlreadyPending
+            val requestId = UUID.randomUUID()
             connection.prepareStatement(
                 "INSERT INTO game_undo_requests (game_id, id, requested_by, target_move_count) VALUES (?, ?, ?, ?)",
             ).use { statement ->
                 statement.setObject(1, state.game.id)
-                statement.setObject(2, UUID.randomUUID())
+                statement.setObject(2, requestId)
                 statement.setObject(3, userId)
                 statement.setInt(4, state.moves.size)
                 statement.executeUpdate()
             }
-            incrementRevision(connection, state.game.id)
+            state.game.players.filter(GamePlayer::isBot).forEach { bot ->
+                connection.prepareStatement("INSERT INTO game_undo_votes (request_id, user_id) VALUES (?, ?)")
+                    .use { statement ->
+                        statement.setObject(1, requestId)
+                        statement.setObject(2, bot.user.id)
+                        statement.executeUpdate()
+                    }
+            }
+            if (state.game.players.count(GamePlayer::isBot) == state.game.players.size - 1) {
+                connection.prepareStatement("DELETE FROM game_moves WHERE game_id = ? AND revision = ?")
+                    .use { statement ->
+                        statement.setObject(1, state.game.id)
+                        statement.setInt(2, state.moves.size)
+                        check(statement.executeUpdate() == 1)
+                    }
+                deleteUndoRequest(connection, requestId)
+                connection.prepareStatement("UPDATE games SET status = 'ACTIVE', revision = revision + 1 WHERE id = ?")
+                    .use { statement ->
+                        statement.setObject(1, state.game.id)
+                        statement.executeUpdate()
+                    }
+            } else {
+                incrementRevision(connection, state.game.id)
+            }
             UndoResult.Updated(checkNotNull(loadGameState(connection, code)))
         }
     }
@@ -709,7 +832,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
     ): UndoResult = io {
         transaction { connection ->
             val state = lockAndLoadState(connection, code) ?: return@transaction UndoResult.Missing
-            if (state.game.players.none { it.user.id == userId }) return@transaction UndoResult.NotParticipant
+            if (state.game.players.none { !it.isBot && it.user.id == userId }) return@transaction UndoResult.NotParticipant
             if (expectedRevision != state.revision) return@transaction UndoResult.Stale(state)
             val request = state.undoRequest?.takeIf { it.id == requestId }
                 ?: return@transaction UndoResult.NotAvailable
@@ -817,7 +940,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
         connection.prepareStatement(
             """
             SELECT command_id, user_id, expected_revision, actor,
-                   from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion
+                   from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion,
+                   bot_training_sample
             FROM game_moves WHERE game_id = ? AND command_id = ?
             """.trimIndent(),
         ).use { statement ->
@@ -866,6 +990,60 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
             }
         }
 
+    override suspend fun loadBotPolicy(): BotPolicy = io {
+        connection().use(::readBotPolicy)
+    }
+
+    private fun readBotPolicy(connection: Connection): BotPolicy =
+        connection.prepareStatement("SELECT policy FROM bot_policy_config WHERE singleton = TRUE").use { statement ->
+            statement.executeQuery().use { rows ->
+                if (rows.next()) BotPolicyCodec.decode(rows.getString("policy")) ?: BotPolicy.DEFAULT
+                else BotPolicy.DEFAULT
+            }
+        }
+
+    private fun trainBotPolicy(connection: Connection, gameId: UUID, state: GameState) {
+        val outcome = (state.phase as? GamePhase.Finished)?.outcome ?: return
+        val isBotGame = connection.prepareStatement(
+            "SELECT 1 FROM game_players WHERE game_id = ? AND is_bot = TRUE LIMIT 1",
+        ).use { statement ->
+            statement.setObject(1, gameId)
+            statement.executeQuery().use { it.next() }
+        }
+        if (!isBotGame) return
+        val alreadyTrained = connection.prepareStatement(
+            "SELECT 1 FROM bot_training_games WHERE game_id = ?",
+        ).use { statement ->
+            statement.setObject(1, gameId)
+            statement.executeQuery().use { it.next() }
+        }
+        if (alreadyTrained) return
+        val samples = loadMoves(connection, gameId).mapNotNull(GameMoveRecord::trainingSample)
+        connection.prepareStatement("SELECT policy FROM bot_policy_config WHERE singleton = TRUE FOR UPDATE")
+            .use { statement ->
+                statement.executeQuery().use { rows ->
+                    check(rows.next()) { "Bot policy row is missing" }
+                    val policy = BotPolicyCodec.decode(rows.getString("policy")) ?: BotPolicy.DEFAULT
+                    val trained = BotPolicyLearner.learn(policy, outcome, samples)
+                    connection.prepareStatement("UPDATE bot_policy_config SET policy = ? WHERE singleton = TRUE")
+                        .use { update ->
+                            update.setString(1, BotPolicyCodec.encode(trained))
+                            update.executeUpdate()
+                        }
+                }
+            }
+        connection.prepareStatement("INSERT INTO bot_training_games (game_id, outcome) VALUES (?, ?)")
+            .use { statement ->
+                statement.setObject(1, gameId)
+                statement.setString(2, when (outcome) {
+                    is GameOutcome.Ranked -> "RANKED:${outcome.first.name}:${outcome.second.name}:${outcome.third.name}"
+                    is GameOutcome.TwoWayDraw -> "TWO_WAY_DRAW:${outcome.first.name}:${outcome.second.name}:${outcome.third.name}"
+                    is GameOutcome.ThreeWayDraw -> "THREE_WAY_DRAW"
+                })
+                statement.executeUpdate()
+            }
+    }
+
     private fun deleteUndoRequest(connection: Connection, requestId: UUID) {
         connection.prepareStatement("DELETE FROM game_undo_requests WHERE id = ?")
             .use { statement ->
@@ -890,7 +1068,8 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
         connection.prepareStatement(
             """
             SELECT command_id, user_id, expected_revision, actor,
-                   from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion
+                   from_vertex, from_column, from_row, to_vertex, to_column, to_row, promotion,
+                   bot_training_sample
             FROM game_moves WHERE game_id = ? AND revision > ? ORDER BY revision
             """.trimIndent(),
         ).use { statement ->
@@ -923,6 +1102,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                                     promotion = rows.getString("promotion")
                                         ?.let(com.chesstree.game.domain.PromotionChoice::valueOf),
                                 ),
+                                trainingSample = BotTrainingSampleCodec.decode(rows.getString("bot_training_sample")),
                             ),
                         )
                     }
@@ -948,7 +1128,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
         }
         val players = connection.prepareStatement(
             """
-            SELECT u.id, u.username, p.joined_order, p.color
+            SELECT u.id, u.username, p.joined_order, p.color, p.is_bot
             FROM game_players p JOIN users u ON u.id = p.user_id
             WHERE p.game_id = ? ORDER BY p.joined_order
             """.trimIndent(),
@@ -962,6 +1142,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
                                 user = rows.user(),
                                 joinedOrder = rows.getInt("joined_order"),
                                 color = rows.getString("color")?.let(PlayerColor::valueOf),
+                                isBot = rows.getBoolean("is_bot"),
                             ),
                         )
                     }
@@ -988,9 +1169,10 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
             to = com.chesstree.game.domain.BoardCoordinate(
                 getInt("to_vertex"), getInt("to_column"), getInt("to_row"),
             ),
-            promotion = getString("promotion")
-                ?.let(com.chesstree.game.domain.PromotionChoice::valueOf),
+        promotion = getString("promotion")
+            ?.let(com.chesstree.game.domain.PromotionChoice::valueOf),
         ),
+        trainingSample = BotTrainingSampleCodec.decode(getString("bot_training_sample")),
     )
 
     private fun connection(): Connection = dataSource.connection
@@ -1126,7 +1308,7 @@ class JdbcStore(private val config: DatabaseConfig) : ChessTreeStore, AutoClosea
     private companion object {
         const val UNIQUE_VIOLATION = "23505"
         const val PLAYER_COUNT = 3
-        const val SCHEMA_VERSION = 6
+        const val SCHEMA_VERSION = 7
         const val SCHEMA_LOCK_KEY = 0x4348455353545245L
     }
 }

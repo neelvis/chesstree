@@ -1,5 +1,6 @@
 package com.chesstree.server
 
+import com.chesstree.game.domain.bot.BotPolicy
 import java.time.Instant
 import java.util.UUID
 
@@ -18,6 +19,13 @@ interface ChessTreeStore {
     suspend fun renewSession(tokenHash: String, now: Instant, expiresAt: Instant): SessionRecord?
     suspend fun deleteSession(tokenHash: String)
     suspend fun createGame(id: UUID, code: String, ownerId: UUID): GameRecord?
+    suspend fun createGameWithBots(
+        id: UUID,
+        code: String,
+        ownerId: UUID,
+        botCount: Int,
+        shuffledColors: List<PlayerColor>,
+    ): GameRecord?
     suspend fun joinGame(
         code: String,
         userId: UUID,
@@ -29,6 +37,8 @@ interface ChessTreeStore {
     suspend fun findGamesForUser(userId: UUID): List<GameRecord>
     suspend fun findGameState(code: String, afterMoveCount: Int = 0): GameStateRecord?
     suspend fun submitMove(code: String, userId: UUID, command: GameMoveCommand): SubmitMoveResult
+    suspend fun submitBotMove(code: String, botUserId: UUID, command: GameMoveCommand): SubmitMoveResult
+    suspend fun loadBotPolicy(): BotPolicy
     suspend fun requestUndo(code: String, userId: UUID, expectedRevision: Int): UndoResult
     suspend fun voteUndo(
         code: String,

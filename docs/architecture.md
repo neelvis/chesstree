@@ -55,6 +55,17 @@ speeds up reads. Schema versions are tracked in `schema_metadata`.
   separate dedicated connection because it must remain open between
   notifications.
 
+## Bot strategy and training
+
+`gameDomain` contains a bounded MaxN player that scores material, king safety,
+check pressure, and mobility using typed policy rules. It selects only from
+legal moves produced by the authoritative rules engine. Local three-bot games
+save the learned policy with the local game data. Online bot games run on the
+server, persist each bot move's feature sample, and update the shared policy
+once when a game finishes. The policy is loaded again before every bot turn, so
+new weights affect the next decision without restarting a game or server.
+Online policy and training records are stored in versioned schema tables.
+
 ## Evolution
 
 When game rules change, update the domain specification and engine tests. When

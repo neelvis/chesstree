@@ -316,6 +316,8 @@ private fun LobbyContent(
     LobbyMenu(
         state = state,
         onCreateGame = controller::createGame,
+        onCreateOneBotGame = { controller.createBotGame(1) },
+        onCreateTwoBotGame = { controller.createBotGame(2) },
         onGameCodeChange = controller::setGameCode,
         onJoinGame = controller::joinGame,
     )
@@ -326,6 +328,8 @@ private fun LobbyContent(
 private fun LobbyMenu(
     state: MultiplayerUiState,
     onCreateGame: () -> Unit,
+    onCreateOneBotGame: () -> Unit,
+    onCreateTwoBotGame: () -> Unit,
     onGameCodeChange: (String) -> Unit,
     onJoinGame: () -> Unit,
 ) {
@@ -339,6 +343,16 @@ private fun LobbyMenu(
             ) {
                 Text(localized("create_game"))
             }
+            OutlinedButton(
+                onClick = onCreateOneBotGame,
+                enabled = !state.loading,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(localized("create_game_one_bot")) }
+            OutlinedButton(
+                onClick = onCreateTwoBotGame,
+                enabled = !state.loading,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(localized("create_game_two_bots")) }
         }
     }
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -397,6 +411,8 @@ private fun MultiplayerMenuPreview() {
                 LobbyMenu(
                     state = MultiplayerUiState(gameCode = "AB12CDE"),
                     onCreateGame = {},
+                    onCreateOneBotGame = {},
+                    onCreateTwoBotGame = {},
                     onGameCodeChange = {},
                     onJoinGame = {},
                 )
@@ -483,6 +499,7 @@ private fun HistoryGameRow(
     opening: Boolean,
     onOpen: (String) -> Unit,
 ) {
+    val botPlayerName = localized("bot_player")
     TextButton(
         onClick = { onOpen(game.code) },
         enabled = !opening,
@@ -496,7 +513,9 @@ private fun HistoryGameRow(
             Column {
                 Text("${game.code} · ${game.startedAt.take(10).ifBlank { localized("unknown_date") }}")
                 Text(
-                    game.players.joinToString(" · ") { it.user.username },
+                    game.players.joinToString(" · ") { player ->
+                        if (player.isBot) botPlayerName else player.user.username
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -848,6 +867,6 @@ private fun GameLobby(
     }
     Text(if (game.status == "ACTIVE") localized("game_ready") else localized("waiting_players", game.players.size))
     game.players.forEach { player ->
-        Text("${player.user.username}${player.color?.let { " — $it" }.orEmpty()}")
+        Text("${if (player.isBot) localized("bot_player") else player.user.username}${player.color?.let { " — $it" }.orEmpty()}")
     }
 }

@@ -1,8 +1,14 @@
 package com.chesstree.game.data
 
+import com.chesstree.game.domain.bot.BotPolicy
+
 interface GameSaveStore {
     fun save(contents: String): SaveGameResult
     fun load(): LoadGameResult
+
+    /** Local bot strategy is stored separately from the last game record. */
+    fun loadBotPolicy(): BotPolicy = BotPolicy.DEFAULT
+    fun saveBotPolicy(policy: BotPolicy): SaveGameResult = SaveGameResult.Saved
 }
 
 sealed interface SaveGameResult {
