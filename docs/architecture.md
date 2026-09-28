@@ -63,7 +63,9 @@ legal moves produced by the authoritative rules engine. Local three-bot games
 save the learned policy with the local game data. Online bot games run on the
 server, persist each bot move's feature sample, and update the shared policy
 once when a game finishes. The policy is loaded again before every bot turn, so
-new weights affect the next decision without restarting a game or server.
+new weights affect the next decision without restarting a game or server. Search
+defaults cap work at 128 expanded nodes and 128 position evaluations, shared
+across the legal root moves.
 Online policy and training records are stored in versioned schema tables.
 
 ## Evolution

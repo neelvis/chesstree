@@ -15,6 +15,13 @@ sealed interface MoveReduction {
     data class Rejected(val reason: MoveRejectionReason) : MoveReduction
 }
 
+/** Transition result for a move already returned by [LegalMoveGenerator]. */
+internal data class GeneratedLegalMoveTransition(
+    val state: GameState,
+    val move: Move,
+    val nextLegalMoves: List<Move>,
+)
+
 /** The single immutable state-transition entry point for player move intents. */
 object GameReducer {
     fun reduce(state: GameState, intent: MoveIntent): MoveReduction =
@@ -50,6 +57,38 @@ object GameReducer {
         val move = candidates.singleOrNull { it.promotion == intent.promotion }
             ?: return MoveReduction.Rejected(MoveRejectionReason.ILLEGAL_MOVE)
 
+        val transition = applyMove(state, piece, move, finishInsufficientMaterial)
+        return MoveReduction.Applied(transition.state, move)
+    }
+
+    /**
+     * Applies a move obtained from [LegalMoveGenerator] without generating the
+     * current player's full legal-move list again. The caller must pass the
+     * exact move instance from that state; public intents still use [reduce].
+     */
+    internal fun reduceGeneratedLegalMove(
+        state: GameState,
+        move: Move,
+        finishInsufficientMaterial: Boolean = true,
+    ): GeneratedLegalMoveTransition? {
+        val turn = state.turn ?: return null
+        if (state.phase != GamePhase.InProgress || move.actor != turn.player || move.ply != turn.ply) {
+            return null
+        }
+        val piece = state.position.pieces[move.pieceId] ?: return null
+        if (piece.coordinate != move.from || state.armies.getValue(piece.army).controller != move.actor) {
+            return null
+        }
+        return applyMove(state, piece, move, finishInsufficientMaterial)
+    }
+
+    private fun applyMove(
+        state: GameState,
+        piece: Piece,
+        move: Move,
+        finishInsufficientMaterial: Boolean,
+    ): GeneratedLegalMoveTransition {
+        val turn = checkNotNull(state.turn)
         val movedPosition = updateSpecialMoveState(state, piece, move)
         val next = nextActivePlayer(state.participants, turn.player)
         val provisional = GameState(
@@ -59,14 +98,16 @@ object GameReducer {
             turn = Turn(next, turn.ply + 1),
             phase = GamePhase.InProgress,
         )
-        return MoveReduction.Applied(
-            resolveForcedOutcomes(
-                initial = provisional,
-                lastMover = move.actor,
-                stateBeforeMove = state,
-                finishInsufficientMaterial = finishInsufficientMaterial,
-            ),
-            move,
+        val resolved = resolveForcedOutcomes(
+            initial = provisional,
+            lastMover = move.actor,
+            stateBeforeMove = state,
+            finishInsufficientMaterial = finishInsufficientMaterial,
+        )
+        return GeneratedLegalMoveTransition(
+            state = resolved.state,
+            move = move,
+            nextLegalMoves = resolved.nextLegalMoves,
         )
     }
 
@@ -115,27 +156,39 @@ object GameReducer {
         )
     }
 
+    private data class ForcedOutcomeResolution(
+        val state: GameState,
+        val nextLegalMoves: List<Move>,
+    )
+
     private fun resolveForcedOutcomes(
         initial: GameState,
         lastMover: PlayerId,
         stateBeforeMove: GameState,
         finishInsufficientMaterial: Boolean,
-    ): GameState {
+    ): ForcedOutcomeResolution {
         var state = initial
         repeat(PlayerId.entries.size) {
-            val turn = state.turn ?: return state
-            if (LegalMoveGenerator.legalMoves(state, turn.player).isNotEmpty()) {
-                if (finishInsufficientMaterial) finishIfInsufficientMaterial(state)?.let { return it }
-                return state
+            val turn = state.turn ?: return ForcedOutcomeResolution(state, emptyList())
+            val legalMoves = LegalMoveGenerator.legalMoves(state, turn.player)
+            if (legalMoves.isNotEmpty()) {
+                if (finishInsufficientMaterial) {
+                    finishIfInsufficientMaterial(state)?.let {
+                        return ForcedOutcomeResolution(it, emptyList())
+                    }
+                }
+                return ForcedOutcomeResolution(state, legalMoves)
             }
             state = if (LegalMoveGenerator.isKingInCheck(state, turn.player)) {
                 applyCheckmate(state, turn.player, lastMover, stateBeforeMove)
             } else {
                 applyStalemate(state, turn.player)
             }
-            if (state.phase is GamePhase.Finished) return state
+            if (state.phase is GamePhase.Finished) {
+                return ForcedOutcomeResolution(state, emptyList())
+            }
         }
-        return state
+        return ForcedOutcomeResolution(state, emptyList())
     }
 
     internal fun finishIfInsufficientMaterial(state: GameState): GameState? {

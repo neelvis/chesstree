@@ -17,16 +17,31 @@ class MaxNBotTest {
     @Test
     fun choosesALegalMoveForThePlayerWhoseTurnItIs() {
         val state = StandardGame.scenario.initialState
-        val intent = MaxNBot(maxDepth = 1).chooseMove(state)
+        val result = MaxNBot().chooseDecisionWithStats(state)
 
-        assertNotNull(intent)
+        assertNotNull(result)
+        val intent = result.decision.intent
         assertEquals(state.turn?.player, intent.actor)
+        assertTrue(result.stats.expandedNodes <= 128)
+        assertTrue(result.stats.leafEvaluations <= 128)
         assertTrue(
             LegalMoveGenerator.legalMoves(state).any { move ->
                 move.from == intent.from && move.to == intent.to && move.promotion == intent.promotion
             },
         )
         assertTrue(GameReducer.reduce(state, intent) is com.chesstree.game.domain.MoveReduction.Applied)
+    }
+
+    @Test
+    fun searchHonorsExpandedNodeAndLeafEvaluationBudgets() {
+        val state = StandardGame.scenario.initialState
+        val result = MaxNBot(maxDepth = 4, maxNodes = 1, maxEvaluations = 3)
+            .chooseDecisionWithStats(state)
+
+        assertNotNull(result)
+        assertEquals(1, result.stats.expandedNodes)
+        assertEquals(3, result.stats.leafEvaluations)
+        assertTrue(GameReducer.reduce(state, result.decision.intent) is com.chesstree.game.domain.MoveReduction.Applied)
     }
 
     @Test

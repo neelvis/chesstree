@@ -1,12 +1,36 @@
 package com.chesstree.game.domain
 
+import com.chesstree.game.domain.scenario.StandardGame
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class GameReducerTest {
+    @Test
+    fun generatedLegalMoveTransitionMatchesValidatedIntentReduction() {
+        val state = StandardGame.scenario.initialState
+
+        LegalMoveGenerator.legalMoves(state).forEach { move ->
+            val expected = assertIs<MoveReduction.Applied>(
+                GameReducer.reduce(
+                    state,
+                    MoveIntent(move.actor, move.from, move.to, move.promotion),
+                ),
+            )
+            val actual = assertNotNull(GameReducer.reduceGeneratedLegalMove(state, move))
+
+            assertEquals(expected.state, actual.state)
+            assertEquals(expected.move, actual.move)
+            val expectedNextMoves = actual.state.turn?.let { turn ->
+                LegalMoveGenerator.legalMoves(actual.state, turn.player)
+            }.orEmpty()
+            assertEquals(expectedNextMoves, actual.nextLegalMoves)
+        }
+    }
+
     @Test
     fun legalMoveProducesANewPositionAndAdvancesTheTurn() {
         val rook = piece("white-rook", PieceType.ROOK, ArmyColor.WHITE, cell(0, 1, 1))

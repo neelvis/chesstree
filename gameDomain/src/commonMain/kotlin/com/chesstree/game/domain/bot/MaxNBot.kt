@@ -5,8 +5,8 @@ import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.GameReducer
 import com.chesstree.game.domain.GameState
 import com.chesstree.game.domain.LegalMoveGenerator
+import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
-import com.chesstree.game.domain.MoveReduction
 import com.chesstree.game.domain.ParticipantStatus
 import com.chesstree.game.domain.PieceType
 import com.chesstree.game.domain.PlayerId
@@ -58,8 +58,16 @@ data class BotTrainingSample(
     val featureDeltas: Map<BotFeature, Int>,
 ) {
     companion object {
-        fun fromTransition(before: GameState, after: GameState, player: PlayerId): BotTrainingSample {
-            val beforeFeatures = featureValues(before, player)
+        fun fromTransition(before: GameState, after: GameState, player: PlayerId): BotTrainingSample =
+            fromTransition(before, after, player, beforeLegalMoves = null)
+
+        internal fun fromTransition(
+            before: GameState,
+            after: GameState,
+            player: PlayerId,
+            beforeLegalMoves: List<Move>?,
+        ): BotTrainingSample {
+            val beforeFeatures = featureValues(before, player, beforeLegalMoves)
             val afterFeatures = featureValues(after, player)
             return BotTrainingSample(
                 player = player,
@@ -77,53 +85,78 @@ data class BotMoveDecision(
     val trainingSample: BotTrainingSample,
 )
 
+internal data class BotSearchStats(
+    val expandedNodes: Int,
+    val leafEvaluations: Int,
+)
+
+internal data class BotDecisionSearchResult(
+    val decision: BotMoveDecision,
+    val stats: BotSearchStats,
+)
+
+private data class RootChoice(
+    val move: Move,
+    val state: GameState,
+    val score: DoubleArray,
+)
+
 /**
  * Selects a move using MaxN: at each node, the player to move maximizes their
  * own component of the three-player evaluation vector.
  *
  * This implementation deliberately reuses the authoritative reducer and move
  * generator. A policy can change the bot's preferences but cannot make an
- * illegal move legal.
+ * illegal move legal. [maxNodes] caps expanded search positions and
+ * [maxEvaluations] caps scored positions; both limits are shared across root
+ * moves so one early candidate cannot consume the whole search budget.
  */
 class MaxNBot(
     private val maxDepth: Int = 2,
     private val maxNodes: Int = 128,
+    private val maxEvaluations: Int = 128,
 ) {
     init {
         require(maxDepth > 0)
         require(maxNodes > 0)
+        require(maxEvaluations > 0)
     }
 
     fun chooseMove(state: GameState, policy: BotPolicy = BotPolicy.DEFAULT): MoveIntent? {
         return chooseDecision(state, policy)?.intent
     }
 
-    fun chooseDecision(state: GameState, policy: BotPolicy = BotPolicy.DEFAULT): BotMoveDecision? {
+    fun chooseDecision(state: GameState, policy: BotPolicy = BotPolicy.DEFAULT): BotMoveDecision? =
+        chooseDecisionWithStats(state, policy)?.decision
+
+    internal fun chooseDecisionWithStats(
+        state: GameState,
+        policy: BotPolicy = BotPolicy.DEFAULT,
+    ): BotDecisionSearchResult? {
         val actor = state.turn?.player ?: return null
         if (state.phase != GamePhase.InProgress) return null
         val moves = LegalMoveGenerator.legalMoves(state, actor)
         if (moves.isEmpty()) return null
 
-        val search = Search(policy = policy, maxDepth = maxDepth, maxNodes = maxNodes)
-        var bestMove = moves.first()
-        var bestState = reduce(state, bestMove.actor, bestMove.from, bestMove.to, bestMove.promotion)
-            ?: return null
-        var bestScore = Double.NEGATIVE_INFINITY
-        moves.forEach { move ->
-            if (search.visitedNodes >= maxNodes) return@forEach
-            val next = reduce(state, move.actor, move.from, move.to, move.promotion)
-                ?: return@forEach
-            val score = search.evaluateAfter(next, maxDepth - 1)[actor.ordinal]
-            if (score > bestScore) {
-                bestScore = score
-                bestMove = move
-                bestState = next
-            }
-        }
-        val intent = MoveIntent(bestMove.actor, bestMove.from, bestMove.to, bestMove.promotion)
-        return BotMoveDecision(
-            intent = intent,
-            trainingSample = BotTrainingSample.fromTransition(state, bestState, actor),
+        val search = Search(
+            policy = policy,
+            maxDepth = maxDepth,
+            maxNodes = maxNodes,
+            maxEvaluations = maxEvaluations,
+        )
+        val choice = search.chooseRoot(state, actor, moves) ?: return null
+        val intent = MoveIntent(choice.move.actor, choice.move.from, choice.move.to, choice.move.promotion)
+        return BotDecisionSearchResult(
+            decision = BotMoveDecision(
+                intent = intent,
+                trainingSample = BotTrainingSample.fromTransition(
+                    state,
+                    choice.state,
+                    actor,
+                    beforeLegalMoves = moves,
+                ),
+            ),
+            stats = search.stats(),
         )
     }
 
@@ -131,28 +164,88 @@ class MaxNBot(
         private val policy: BotPolicy,
         private val maxDepth: Int,
         private val maxNodes: Int,
+        private val maxEvaluations: Int,
     ) {
-        var visitedNodes: Int = 0
-            private set
+        private var expandedNodes = 0
+        private var leafEvaluations = 0
 
-        fun evaluateAfter(state: GameState, depth: Int): DoubleArray {
-            if (state.phase != GamePhase.InProgress || depth <= 0 || visitedNodes >= maxNodes) {
-                return evaluate(state, policy)
-            }
-            visitedNodes++
-            val actor = state.turn?.player ?: return evaluate(state, policy)
-            val moves = LegalMoveGenerator.legalMoves(state, actor)
-            if (moves.isEmpty()) return evaluate(state, policy)
+        fun stats(): BotSearchStats = BotSearchStats(
+            expandedNodes = expandedNodes,
+            leafEvaluations = leafEvaluations,
+        )
 
-            var best = DoubleArray(PlayerId.entries.size) { Double.NEGATIVE_INFINITY }
-            moves.forEach { move ->
-                if (visitedNodes >= maxNodes) return@forEach
-                val next = reduce(state, move.actor, move.from, move.to, move.promotion)
-                    ?: return@forEach
-                val score = evaluateAfter(next, depth - 1)
-                if (score[actor.ordinal] > best[actor.ordinal]) best = score
+        fun chooseRoot(state: GameState, actor: PlayerId, moves: List<Move>): RootChoice? {
+            expandedNodes++
+            var best: RootChoice? = null
+            for ((index, move) in moves.withIndex()) {
+                val remainingMoves = moves.size - index
+                val remainingEvaluations = maxEvaluations - leafEvaluations
+                if (remainingEvaluations <= 0) break
+                val candidateLimit = leafEvaluations +
+                        (remainingEvaluations + remainingMoves - 1) / remainingMoves
+                val remainingNodes = maxNodes - expandedNodes
+                val candidateNodeLimit = expandedNodes +
+                        (remainingNodes + remainingMoves - 1).coerceAtLeast(0) / remainingMoves
+                val transition = GameReducer.reduceGeneratedLegalMove(state, move) ?: continue
+                val score = evaluateAfter(
+                    state = transition.state,
+                    depth = maxDepth - 1,
+                    knownLegalMoves = transition.nextLegalMoves,
+                    evaluationLimit = candidateLimit,
+                    nodeLimit = candidateNodeLimit,
+                ) ?: continue
+                val currentBest = best
+                if (currentBest == null || score[actor.ordinal] > currentBest.score[actor.ordinal]) {
+                    best = RootChoice(move, transition.state, score)
+                }
             }
-            return if (best[actor.ordinal].isFinite()) best else evaluate(state, policy)
+            return best
+        }
+
+        private fun evaluateAfter(
+            state: GameState,
+            depth: Int,
+            knownLegalMoves: List<Move>,
+            evaluationLimit: Int,
+            nodeLimit: Int,
+        ): DoubleArray? {
+            if (state.phase != GamePhase.InProgress || depth <= 0 || expandedNodes >= nodeLimit) {
+                return evaluateLeaf(state, knownLegalMoves, evaluationLimit)
+            }
+            if (leafEvaluations >= evaluationLimit) return null
+            expandedNodes++
+            val actor = state.turn?.player ?: return evaluateLeaf(state, knownLegalMoves, evaluationLimit)
+            val moves = if (knownLegalMoves.isNotEmpty()) {
+                knownLegalMoves
+            } else {
+                LegalMoveGenerator.legalMoves(state, actor)
+            }
+            if (moves.isEmpty()) return evaluateLeaf(state, knownLegalMoves, evaluationLimit)
+
+            var best: DoubleArray? = null
+            for (move in moves) {
+                if (leafEvaluations >= evaluationLimit) break
+                val transition = GameReducer.reduceGeneratedLegalMove(state, move) ?: continue
+                val score = evaluateAfter(
+                    state = transition.state,
+                    depth = depth - 1,
+                    knownLegalMoves = transition.nextLegalMoves,
+                    evaluationLimit = evaluationLimit,
+                    nodeLimit = nodeLimit,
+                ) ?: continue
+                if (best == null || score[actor.ordinal] > best[actor.ordinal]) best = score
+            }
+            return best ?: evaluateLeaf(state, moves, evaluationLimit)
+        }
+
+        private fun evaluateLeaf(
+            state: GameState,
+            knownLegalMoves: List<Move>,
+            evaluationLimit: Int,
+        ): DoubleArray? {
+            if (leafEvaluations >= minOf(maxEvaluations, evaluationLimit)) return null
+            leafEvaluations++
+            return evaluate(state, policy, knownLegalMoves)
         }
     }
 }
@@ -212,19 +305,33 @@ object BotPolicyLearner {
 
 internal const val FEATURE_DELTA_LIMIT = 100
 
-private fun featureValues(state: GameState, player: PlayerId): Map<BotFeature, Int> {
-    val pieceValues = mapOf(
-        PieceType.PAWN to 10,
-        PieceType.KNIGHT to 30,
-        PieceType.BISHOP to 32,
-        PieceType.ROOK to 50,
-        PieceType.QUEEN to 90,
-        PieceType.KING to 0,
-    )
+private val TRAINING_PIECE_VALUES = mapOf(
+    PieceType.PAWN to 10,
+    PieceType.KNIGHT to 30,
+    PieceType.BISHOP to 32,
+    PieceType.ROOK to 50,
+    PieceType.QUEEN to 90,
+    PieceType.KING to 0,
+)
+
+private val EVALUATION_PIECE_VALUES = mapOf(
+    PieceType.PAWN to 1.0,
+    PieceType.KNIGHT to 3.0,
+    PieceType.BISHOP to 3.2,
+    PieceType.ROOK to 5.0,
+    PieceType.QUEEN to 9.0,
+    PieceType.KING to 0.0,
+)
+
+private fun featureValues(
+    state: GameState,
+    player: PlayerId,
+    knownLegalMoves: List<Move>? = null,
+): Map<BotFeature, Int> {
     val material = state.position.pieces.values
         .asSequence()
         .filter { it.type != PieceType.KING && state.armies.getValue(it.army).controller == player }
-        .sumOf { pieceValues.getValue(it.type) }
+        .sumOf { TRAINING_PIECE_VALUES.getValue(it.type) }
     val kingSafety = if (
         state.participants.getValue(player).status == ParticipantStatus.Active &&
         LegalMoveGenerator.isKingInCheck(state, player)
@@ -235,7 +342,7 @@ private fun featureValues(state: GameState, player: PlayerId): Map<BotFeature, I
             if (player in LegalMoveGenerator.attackingPlayers(state, target)) 1 else 0
         }
     val mobility = if (state.participants.getValue(player).status == ParticipantStatus.Active) {
-        LegalMoveGenerator.legalMoves(state, player).size
+        knownLegalMoves?.size ?: LegalMoveGenerator.legalMoves(state, player).size
     } else 0
     return mapOf(
         BotFeature.MATERIAL to material,
@@ -245,20 +352,11 @@ private fun featureValues(state: GameState, player: PlayerId): Map<BotFeature, I
     )
 }
 
-private fun reduce(
+private fun evaluate(
     state: GameState,
-    actor: PlayerId,
-    from: com.chesstree.game.domain.BoardCoordinate,
-    to: com.chesstree.game.domain.BoardCoordinate,
-    promotion: com.chesstree.game.domain.PromotionChoice?,
-): GameState? = when (
-    val result = GameReducer.reduce(state, MoveIntent(actor, from, to, promotion))
-) {
-    is MoveReduction.Applied -> result.state
-    is MoveReduction.Rejected -> null
-}
-
-private fun evaluate(state: GameState, policy: BotPolicy): DoubleArray {
+    policy: BotPolicy,
+    knownLegalMoves: List<Move>? = null,
+): DoubleArray {
     val outcome = (state.phase as? GamePhase.Finished)?.outcome
     if (outcome != null) return terminalScores(outcome)
 
@@ -267,19 +365,10 @@ private fun evaluate(state: GameState, policy: BotPolicy): DoubleArray {
     val kingSafetyWeight = policy.weight(BotFeature.KING_SAFETY).toDouble()
     val checkWeight = policy.weight(BotFeature.CHECK_PRESSURE).toDouble()
     val mobilityWeight = policy.weight(BotFeature.MOBILITY).toDouble()
-    val pieceValues = mapOf(
-        PieceType.PAWN to 1.0,
-        PieceType.KNIGHT to 3.0,
-        PieceType.BISHOP to 3.2,
-        PieceType.ROOK to 5.0,
-        PieceType.QUEEN to 9.0,
-        PieceType.KING to 0.0,
-    )
-
     state.position.pieces.values.forEach { piece ->
         val controller = state.armies.getValue(piece.army).controller
         if (piece.type != PieceType.KING) {
-            scores[controller.ordinal] += pieceValues.getValue(piece.type) * materialWeight
+            scores[controller.ordinal] += EVALUATION_PIECE_VALUES.getValue(piece.type) * materialWeight
         }
     }
     PlayerId.entries.forEach { player ->
@@ -298,8 +387,12 @@ private fun evaluate(state: GameState, policy: BotPolicy): DoubleArray {
     if (mobilityWeight != 0.0) {
         PlayerId.entries.forEach { player ->
             if (state.participants.getValue(player).status == ParticipantStatus.Active) {
-                scores[player.ordinal] +=
-                    LegalMoveGenerator.legalMoves(state, player).size * mobilityWeight
+                val moveCount = if (player == state.turn?.player && knownLegalMoves != null) {
+                    knownLegalMoves.size
+                } else {
+                    LegalMoveGenerator.legalMoves(state, player).size
+                }
+                scores[player.ordinal] += moveCount * mobilityWeight
             }
         }
     }
