@@ -19,7 +19,16 @@ differences, not pixel identity.
 5. Validate with `../../references/validation-matrix.md` and report each target
    separately.
 
+6. Localize every user-visible string through the shared Compose resource
+   catalog. Keep the default locale and every supported translation in sync;
+   do not add UI copy directly in composables, platform entry points, or only
+   one locale. Check localized names, placeholders, accessibility labels, and
+   newly added resources together.
+7. For platform-specific UI, gate device capabilities on actual support and
+   derive layout from the device's available dimensions or safe areas. Do not
+   assume a feature exists on every device in a platform family or use one
+   hard-coded size across materially different device models.
+
 Do not add compatibility shims, duplicate UI, or a second Web target without a
 documented browser/support requirement. Return the matrix, findings, changes if
 requested, and unresolved target-specific checks.
-

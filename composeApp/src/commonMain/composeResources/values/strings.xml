@@ -34,7 +34,7 @@
     <string name="back">Назад</string>
     <string name="back_with_chevron">‹ Назад</string>
     <string name="restart">Рестарт</string>
-    <string name="watch_three_bots">Партия трёх ботов</string>
+    <string name="watch_three_bots">Битва ботов</string>
     <string name="stop_three_bots">Остановить ботов</string>
     <string name="scenario">Сценарий</string>
     <string name="current_turn">Сейчас ход</string>

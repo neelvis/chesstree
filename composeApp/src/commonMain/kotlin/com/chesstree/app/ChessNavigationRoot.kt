@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,6 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -116,6 +119,7 @@ internal fun ChessNavigationRoot(
     }
     val isViewingLatest = historyNavigation.isAtLatest(session)
     val displayedMoveCount = historyNavigation.displayedMoveCount(session)
+    val restartDescription = localized("restart")
     val pieces = remember(gameState) { gameState.toBoardPieces() }
     val selectedMoveHints = remember(gameState, selectedPieceId, settings) {
         movementHintsForSelection(
@@ -270,29 +274,41 @@ internal fun ChessNavigationRoot(
                                     onBack()
                                 },
                             ) {
-                                Text(localized("back_with_chevron"))
+                                Text(
+                                    localized("back_with_chevron"),
+                                    maxLines = 1,
+                                )
                             }
                         }
                         Spacer(Modifier.weight(1f))
-                        TextButton(onClick = {
-                            if (botGameEnabled) {
-                                botGameEnabled = false
-                            } else {
-                                val standardScenario = scenarios.first { it.id == "standard" }
-                                session = GameSession(standardScenario)
-                                localGameId = Random.nextLong().toString()
-                                learnedGameId = null
-                                historyNavigation = GameHistoryNavigation.latest()
-                                clearTransientState()
-                                botGameEnabled = true
-                            }
-                        }) {
-                            Text(localized(if (botGameEnabled) "stop_three_bots" else "watch_three_bots"))
+                        TextButton(
+                            onClick = {
+                                if (botGameEnabled) {
+                                    botGameEnabled = false
+                                } else {
+                                    val standardScenario = scenarios.first { it.id == "standard" }
+                                    session = GameSession(standardScenario)
+                                    localGameId = Random.nextLong().toString()
+                                    learnedGameId = null
+                                    historyNavigation = GameHistoryNavigation.latest()
+                                    clearTransientState()
+                                    botGameEnabled = true
+                                }
+                            },
+                        ) {
+                            Text(
+                                localized(if (botGameEnabled) "stop_three_bots" else "watch_three_bots"),
+                                maxLines = 1,
+                            )
                         }
-                        TextButton(onClick = ::restart) { Text(localized("restart")) }
                         Box {
-                            TextButton(onClick = { scenarioMenuExpanded = true }) {
-                                Text(localized("scenario"))
+                            TextButton(
+                                onClick = { scenarioMenuExpanded = true },
+                            ) {
+                                Text(
+                                    localized("scenario"),
+                                    maxLines = 1,
+                                )
                             }
                             DropdownMenu(
                                 expanded = scenarioMenuExpanded,
@@ -324,6 +340,14 @@ internal fun ChessNavigationRoot(
                                     )
                                 }
                             }
+                        }
+                        IconButton(
+                            onClick = ::restart,
+                            modifier = Modifier.semantics {
+                                contentDescription = restartDescription
+                            },
+                        ) {
+                            Text("↻", fontSize = 24.sp)
                         }
                     }
                     TurnPieceIndicator(

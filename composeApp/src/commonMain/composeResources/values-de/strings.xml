@@ -34,7 +34,7 @@
     <string name="back">Zurück</string>
     <string name="back_with_chevron">‹ Zurück</string>
     <string name="restart">Neustart</string>
-    <string name="watch_three_bots">Drei Bots spielen lassen</string>
+    <string name="watch_three_bots">Bots kämpfen</string>
     <string name="stop_three_bots">Bots stoppen</string>
     <string name="scenario">Szenario</string>
     <string name="current_turn">Am Zug</string>

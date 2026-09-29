@@ -34,6 +34,8 @@
     <string name="back">Back</string>
     <string name="back_with_chevron">‹ Back</string>
     <string name="restart">Restart</string>
+    <string name="watch_three_bots">Bots battle</string>
+    <string name="stop_three_bots">Stop the bots</string>
     <string name="scenario">Scenario</string>
     <string name="current_turn">Current turn</string>
     <string name="total_moves">Total moves: %1$s</string>
