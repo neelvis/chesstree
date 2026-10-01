@@ -1,5 +1,8 @@
 package com.chesstree.app
 
+import com.chesstree.game.presentation.bot.LocalBotActivity
+import com.chesstree.game.presentation.bot.BackgroundLocalBotRunner
+
 import android.content.Intent
 import android.graphics.Color
 import android.Manifest
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
     private val onlineApi = KtorChessTreeApi(PRODUCTION_SERVER_BASE_URL)
+    private val botActivity = LocalBotActivity(false)
     private val linkedGameCode = MutableStateFlow<String?>(null)
     private var notificationPermissionRequest: CompletableDeferred<Boolean>? = null
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -52,6 +56,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val initialGameCode by linkedGameCode.collectAsState()
             App(
+                botRunner = BackgroundLocalBotRunner,
+                botActivity = botActivity,
                 gameSaveStore = saveStore,
                 onlineApi = onlineApi,
                 onlineSessionStore = onlineSessionStore,
@@ -61,6 +67,16 @@ class MainActivity : ComponentActivity() {
                 gameLogExporter = gameLogExporter,
             )
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        botActivity.setActive(true)
+    }
+
+    override fun onPause() {
+        botActivity.setActive(false)
+        super.onPause()
     }
 
     override fun onNewIntent(intent: Intent) {

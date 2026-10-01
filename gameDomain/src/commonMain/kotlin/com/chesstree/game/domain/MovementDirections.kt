@@ -22,7 +22,41 @@ object MovementDirections {
     private val pawnDistances: Map<ArmyColor, Map<BoardCoordinate, Int>> =
         ArmyColor.entries.associateWith(::calculateDistancesFromHome)
 
+    private val sectorSize: Int = BoardCoordinate.SECTOR_INDICES.count()
+
+    // Only pawn geometry depends on the original army. Position and move rights
+    // remain inputs to LegalMoveGenerator, never to this finite topology table.
+    private val cachedRoutes: List<List<List<List<MovementDirection>>>> by lazy {
+        PieceType.entries.map { type ->
+            val armies = if (type == PieceType.PAWN) ArmyColor.entries else listOf(ArmyColor.WHITE)
+            armies.map { army ->
+                List(BoardCoordinate.VERTICES.count() * sectorSize * sectorSize) { index ->
+                    val origin = BoardCoordinate(
+                        vertex = index / (sectorSize * sectorSize),
+                        column = (index / sectorSize) % sectorSize,
+                        row = index % sectorSize,
+                    )
+                    ImmutableGeometryList(
+                        uncachedForPiece(type, origin, army).map { direction ->
+                            direction.copy(route = ImmutableGeometryList(direction.route))
+                        },
+                    )
+                }
+            }
+        }
+    }
+
     fun forPiece(
+        type: PieceType,
+        origin: BoardCoordinate,
+        army: ArmyColor,
+    ): List<MovementDirection> {
+        val armyIndex = if (type == PieceType.PAWN) army.ordinal else 0
+        val originIndex = (origin.vertex * sectorSize + origin.column) * sectorSize + origin.row
+        return cachedRoutes[type.ordinal][armyIndex][originIndex]
+    }
+
+    internal fun uncachedForPiece(
         type: PieceType,
         origin: BoardCoordinate,
         army: ArmyColor,
@@ -172,4 +206,14 @@ object MovementDirections {
             OrthogonalDirection.BOTTOM,
                 -> listOf(OrthogonalDirection.LEFT, OrthogonalDirection.RIGHT)
         }
+}
+
+/** Prevents a caller's mutable-list cast from changing shared cached geometry. */
+private class ImmutableGeometryList<T>(elements: List<T>) : AbstractList<T>() {
+    private val elements: List<T> = elements.toList()
+
+    override val size: Int
+        get() = elements.size
+
+    override fun get(index: Int): T = elements[index]
 }

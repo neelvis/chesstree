@@ -1,5 +1,8 @@
 package com.chesstree.app
 
+import com.chesstree.game.presentation.bot.LocalBotActivity
+import com.chesstree.game.presentation.bot.BrowserLocalBotRunner
+
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
@@ -10,6 +13,7 @@ import com.chesstree.multiplayer.data.gameCodeFromUrl
 import com.chesstree.multiplayer.presentation.BrowserGameLinkSharer
 import com.chesstree.resources.Res
 import com.chesstree.resources.allFontResources
+import org.w3c.dom.events.Event
 import kotlinx.browser.window
 import kotlinx.browser.document
 import org.jetbrains.compose.resources.ExperimentalResourceApi
@@ -18,6 +22,10 @@ import org.jetbrains.compose.resources.preloadFont
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalResourceApi::class)
 fun main() {
     document.documentElement?.setAttribute("lang", supportedDocumentLanguage())
+    val botActivity = LocalBotActivity(pageIsVisible())
+    val visibilityListener: (Event) -> Unit = { botActivity.setActive(pageIsVisible()) }
+    document.addEventListener("visibilitychange", visibilityListener)
+    val botRunner = BrowserLocalBotRunner()
     val saveStore = BrowserGameSaveStore()
     val onlineApi = KtorChessTreeApi(serverBaseUrl(), browserSession = true)
     val onlineSessionStore = BrowserOnlineSessionStore(restoreSession = {
@@ -38,6 +46,8 @@ fun main() {
         )
         if (pieceFont != null) {
             App(
+                botRunner = botRunner,
+                botActivity = botActivity,
                 gameSaveStore = saveStore,
                 onlineApi = onlineApi,
                 onlineSessionStore = onlineSessionStore,
@@ -58,3 +68,5 @@ private fun serverBaseUrl(): String =
     } else {
         window.location.origin
     }
+
+private fun pageIsVisible(): Boolean = js("document.visibilityState !== 'hidden'")

@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.NoOpGameSaveStore
+import com.chesstree.game.presentation.bot.LocalBotActivity
+import com.chesstree.game.presentation.bot.LocalBotRunner
 import com.chesstree.game.presentation.history.GameLogExporter
 import com.chesstree.game.presentation.history.NoOpGameLogExporter
 import com.chesstree.multiplayer.contract.AuthResponse
@@ -38,6 +40,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun App(
+    botRunner: LocalBotRunner,
+    botActivity: LocalBotActivity,
     gameSaveStore: GameSaveStore = NoOpGameSaveStore,
     onlineApi: ChessTreeApi? = null,
     onlineSessionStore: OnlineSessionStore = NoOpOnlineSessionStore,
@@ -250,6 +254,8 @@ fun App(
         }
         saveableStateHolder.SaveableStateProvider("chess") {
             ChessNavigationRoot(
+                botRunner = botRunner,
+                botActivity = botActivity,
                 gameSaveStore = gameSaveStore,
                 settings = settings,
                 onSettingsChanged = { settings = it },

@@ -1,10 +1,14 @@
 package com.chesstree.app
 
+import com.chesstree.game.presentation.bot.LocalBotActivity
+import com.chesstree.game.presentation.bot.BackgroundLocalBotRunner
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,19 +28,46 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.flow.MutableStateFlow
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSProcessInfo
+import platform.UIKit.UIApplication
+import platform.UIKit.UIApplicationState
+import platform.UIKit.UIApplicationDidBecomeActiveNotification
+import platform.UIKit.UIApplicationWillResignActiveNotification
 import platform.UIKit.UIScreen
 import platform.UIKit.UIViewController
 import platform.posix.uname
 import platform.posix.utsname
 
+@OptIn(ExperimentalForeignApi::class)
 fun MainViewController(): UIViewController {
+    val botActivity = LocalBotActivity(
+        UIApplication.sharedApplication.applicationState == UIApplicationState.UIApplicationStateActive,
+    )
     val saveStore = IosGameSaveStore()
     val onlineSessionStore = IosOnlineSessionStore()
     val onlineApi = KtorChessTreeApi(PRODUCTION_SERVER_BASE_URL)
     val notchArtworkSize = dynamicIslandArtworkSize()
     lateinit var rootViewController: UIViewController
     rootViewController = ComposeUIViewController {
+        DisposableEffect(botActivity) {
+            botActivity.setActive(
+                UIApplication.sharedApplication.applicationState == UIApplicationState.UIApplicationStateActive,
+            )
+            val center = NSNotificationCenter.defaultCenter
+            val activeObserver = center.addObserverForName(
+                UIApplicationDidBecomeActiveNotification, null, NSOperationQueue.mainQueue,
+            ) { botActivity.setActive(true) }
+            val inactiveObserver = center.addObserverForName(
+                UIApplicationWillResignActiveNotification, null, NSOperationQueue.mainQueue,
+            ) { botActivity.setActive(false) }
+            onDispose {
+                botActivity.setActive(false)
+                center.removeObserver(activeObserver)
+                center.removeObserver(inactiveObserver)
+            }
+        }
         val initialGameCode by linkedGameCode.collectAsState()
         Box(
             modifier = Modifier
@@ -44,6 +75,8 @@ fun MainViewController(): UIViewController {
                 .background(Color(0xFFF7F4EF)),
         ) {
             App(
+                botRunner = BackgroundLocalBotRunner,
+                botActivity = botActivity,
                 gameSaveStore = saveStore,
                 onlineApi = onlineApi,
                 onlineSessionStore = onlineSessionStore,

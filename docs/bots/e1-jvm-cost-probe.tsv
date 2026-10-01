@@ -1,0 +1,197 @@
+# report_schema	bot-cost-probe-v1
+# scope	ten consecutive reachable opening states; descriptive JVM measurements
+# search	MaxNBot(maxDepth=2,maxNodes=128,maxEvaluations=128)
+# default_policy	chesstree-bot-policy-v1;MATERIAL|100|1;KING_SAFETY|280|1;CHECK_PRESSURE|40|1;MOBILITY|3|1
+# diagnostic_policy	chesstree-bot-policy-v1;MATERIAL|100|1;KING_SAFETY|280|1;CHECK_PRESSURE|40|1;MOBILITY|0|1
+# runtime	java=25.0.3;os=Mac OS X;os_version=27.0;arch=aarch64
+kind	fixture	actor	variant	repetition	elapsed_ns	expanded_nodes	leaf_evaluations	legal_moves	chosen_move
+root-legal	opening-0	WHITE	baseline	0	1682375			20	
+root-legal	opening-0	WHITE	baseline	1	1686625			20	
+root-legal	opening-0	WHITE	baseline	2	1657375			20	
+root-legal	opening-0	WHITE	baseline	3	1673833			20	
+root-legal	opening-0	WHITE	baseline	4	1683458			20	
+transition	opening-0	WHITE	baseline	0	1665375			20	
+transition	opening-0	WHITE	baseline	1	2145167			20	
+transition	opening-0	WHITE	baseline	2	1677375			20	
+transition	opening-0	WHITE	baseline	3	1669833			20	
+transition	opening-0	WHITE	baseline	4	1645500			20	
+training-sample	opening-0	WHITE	baseline	0	2140291			20	
+training-sample	opening-0	WHITE	baseline	1	2104792			20	
+training-sample	opening-0	WHITE	baseline	2	2085791			20	
+training-sample	opening-0	WHITE	baseline	3	2081708			20	
+training-sample	opening-0	WHITE	baseline	4	2085500			20	
+full-search	opening-0	WHITE	default	0	739560458	21	128	20	WHITE:1,2,3>1,1,3:-
+full-search	opening-0	WHITE	mobility-zero	1	277795375	21	128	20	WHITE:1,3,1>1,1,0:-
+full-search	opening-0	WHITE	mobility-zero	2	277619125	21	128	20	WHITE:1,3,1>1,1,0:-
+full-search	opening-0	WHITE	default	3	732923083	21	128	20	WHITE:1,2,3>1,1,3:-
+root-legal	opening-1	RED	baseline	0	1644583			20	
+root-legal	opening-1	RED	baseline	1	1646916			20	
+root-legal	opening-1	RED	baseline	2	1673250			20	
+root-legal	opening-1	RED	baseline	3	1640084			20	
+root-legal	opening-1	RED	baseline	4	1625708			20	
+transition	opening-1	RED	baseline	0	1649958			20	
+transition	opening-1	RED	baseline	1	1631041			20	
+transition	opening-1	RED	baseline	2	1636333			20	
+transition	opening-1	RED	baseline	3	1634166			20	
+transition	opening-1	RED	baseline	4	1616584			20	
+training-sample	opening-1	RED	baseline	0	2102042			20	
+training-sample	opening-1	RED	baseline	1	2107750			20	
+training-sample	opening-1	RED	baseline	2	2099875			20	
+training-sample	opening-1	RED	baseline	3	2086917			20	
+training-sample	opening-1	RED	baseline	4	2539833			20	
+full-search	opening-1	RED	mobility-zero	0	279798416	21	128	20	RED:3,3,1>3,1,0:-
+full-search	opening-1	RED	default	1	731029209	21	128	20	RED:3,2,3>3,1,3:-
+full-search	opening-1	RED	default	2	726998417	21	128	20	RED:3,2,3>3,1,3:-
+full-search	opening-1	RED	mobility-zero	3	279284250	21	128	20	RED:3,3,1>3,1,0:-
+root-legal	opening-2	BLACK	baseline	0	1628709			20	
+root-legal	opening-2	BLACK	baseline	1	1627209			20	
+root-legal	opening-2	BLACK	baseline	2	1622792			20	
+root-legal	opening-2	BLACK	baseline	3	1622500			20	
+root-legal	opening-2	BLACK	baseline	4	1630500			20	
+transition	opening-2	BLACK	baseline	0	2078542			20	
+transition	opening-2	BLACK	baseline	1	1666417			20	
+transition	opening-2	BLACK	baseline	2	1666375			20	
+transition	opening-2	BLACK	baseline	3	1641542			20	
+transition	opening-2	BLACK	baseline	4	1659000			20	
+training-sample	opening-2	BLACK	baseline	0	2084042			20	
+training-sample	opening-2	BLACK	baseline	1	2070000			20	
+training-sample	opening-2	BLACK	baseline	2	2053167			20	
+training-sample	opening-2	BLACK	baseline	3	2077750			20	
+training-sample	opening-2	BLACK	baseline	4	2046417			20	
+full-search	opening-2	BLACK	default	0	738319583	21	128	20	BLACK:0,0,1>0,0,2:-
+full-search	opening-2	BLACK	mobility-zero	1	278331709	21	128	20	BLACK:5,3,1>5,1,0:-
+full-search	opening-2	BLACK	mobility-zero	2	278055208	21	128	20	BLACK:5,3,1>5,1,0:-
+full-search	opening-2	BLACK	default	3	739182000	21	128	20	BLACK:0,0,1>0,0,2:-
+root-legal	opening-3	WHITE	baseline	0	1633958			20	
+root-legal	opening-3	WHITE	baseline	1	1660208			20	
+root-legal	opening-3	WHITE	baseline	2	1626000			20	
+root-legal	opening-3	WHITE	baseline	3	1638958			20	
+root-legal	opening-3	WHITE	baseline	4	1641792			20	
+transition	opening-3	WHITE	baseline	0	1651583			20	
+transition	opening-3	WHITE	baseline	1	1651666			20	
+transition	opening-3	WHITE	baseline	2	1640291			20	
+transition	opening-3	WHITE	baseline	3	1641833			20	
+transition	opening-3	WHITE	baseline	4	1629375			20	
+training-sample	opening-3	WHITE	baseline	0	2057042			20	
+training-sample	opening-3	WHITE	baseline	1	2054834			20	
+training-sample	opening-3	WHITE	baseline	2	2028291			20	
+training-sample	opening-3	WHITE	baseline	3	2012292			20	
+training-sample	opening-3	WHITE	baseline	4	2003334			20	
+full-search	opening-3	WHITE	mobility-zero	0	276622625	21	128	20	WHITE:1,3,0>1,3,1:-
+full-search	opening-3	WHITE	default	1	742949042	21	128	20	WHITE:1,2,3>1,1,3:-
+full-search	opening-3	WHITE	default	2	740187458	21	128	20	WHITE:1,2,3>1,1,3:-
+full-search	opening-3	WHITE	mobility-zero	3	275887292	21	128	20	WHITE:1,3,0>1,3,1:-
+root-legal	opening-4	RED	baseline	0	1654708			20	
+root-legal	opening-4	RED	baseline	1	1651458			20	
+root-legal	opening-4	RED	baseline	2	2053583			20	
+root-legal	opening-4	RED	baseline	3	1647000			20	
+root-legal	opening-4	RED	baseline	4	1641625			20	
+transition	opening-4	RED	baseline	0	1648292			20	
+transition	opening-4	RED	baseline	1	1616083			20	
+transition	opening-4	RED	baseline	2	1659542			20	
+transition	opening-4	RED	baseline	3	1625333			20	
+transition	opening-4	RED	baseline	4	1624209			20	
+training-sample	opening-4	RED	baseline	0	2011959			20	
+training-sample	opening-4	RED	baseline	1	1986792			20	
+training-sample	opening-4	RED	baseline	2	1993458			20	
+training-sample	opening-4	RED	baseline	3	2004125			20	
+training-sample	opening-4	RED	baseline	4	1983792			20	
+full-search	opening-4	RED	default	0	755237583	21	128	20	RED:3,2,3>3,1,3:-
+full-search	opening-4	RED	mobility-zero	1	313407875	21	128	20	RED:3,3,0>3,3,1:-
+full-search	opening-4	RED	mobility-zero	2	291775083	21	128	20	RED:3,3,0>3,3,1:-
+full-search	opening-4	RED	default	3	728116042	21	128	20	RED:3,2,3>3,1,3:-
+root-legal	opening-5	BLACK	baseline	0	1617792			20	
+root-legal	opening-5	BLACK	baseline	1	1620584			20	
+root-legal	opening-5	BLACK	baseline	2	1610791			20	
+root-legal	opening-5	BLACK	baseline	3	2006875			20	
+root-legal	opening-5	BLACK	baseline	4	1633292			20	
+transition	opening-5	BLACK	baseline	0	1604750			20	
+transition	opening-5	BLACK	baseline	1	1563417			20	
+transition	opening-5	BLACK	baseline	2	1561666			20	
+transition	opening-5	BLACK	baseline	3	1586083			20	
+transition	opening-5	BLACK	baseline	4	1576250			20	
+training-sample	opening-5	BLACK	baseline	0	2018084			20	
+training-sample	opening-5	BLACK	baseline	1	1974375			20	
+training-sample	opening-5	BLACK	baseline	2	1986917			20	
+training-sample	opening-5	BLACK	baseline	3	2018875			20	
+training-sample	opening-5	BLACK	baseline	4	1988583			20	
+full-search	opening-5	BLACK	mobility-zero	0	265400750	21	128	20	BLACK:5,3,0>5,3,1:-
+full-search	opening-5	BLACK	default	1	727534208	21	128	20	BLACK:0,0,1>0,0,2:-
+full-search	opening-5	BLACK	default	2	731499042	21	128	20	BLACK:0,0,1>0,0,2:-
+full-search	opening-5	BLACK	mobility-zero	3	265527917	21	128	20	BLACK:5,3,0>5,3,1:-
+root-legal	opening-6	WHITE	baseline	0	1565375			19	
+root-legal	opening-6	WHITE	baseline	1	1565042			19	
+root-legal	opening-6	WHITE	baseline	2	1559416			19	
+root-legal	opening-6	WHITE	baseline	3	1551625			19	
+root-legal	opening-6	WHITE	baseline	4	1551417			19	
+transition	opening-6	WHITE	baseline	0	1551458			19	
+transition	opening-6	WHITE	baseline	1	1562292			19	
+transition	opening-6	WHITE	baseline	2	1561208			19	
+transition	opening-6	WHITE	baseline	3	1574958			19	
+transition	opening-6	WHITE	baseline	4	1550125			19	
+training-sample	opening-6	WHITE	baseline	0	2525166			19	
+training-sample	opening-6	WHITE	baseline	1	2103209			19	
+training-sample	opening-6	WHITE	baseline	2	2072792			19	
+training-sample	opening-6	WHITE	baseline	3	2057375			19	
+training-sample	opening-6	WHITE	baseline	4	2088958			19	
+full-search	opening-6	WHITE	default	0	721032292	20	128	19	WHITE:1,2,3>1,1,3:-
+full-search	opening-6	WHITE	mobility-zero	1	263291500	20	128	19	WHITE:1,3,1>1,3,0:-
+full-search	opening-6	WHITE	mobility-zero	2	263573625	20	128	19	WHITE:1,3,1>1,3,0:-
+full-search	opening-6	WHITE	default	3	720379375	20	128	19	WHITE:1,2,3>1,1,3:-
+root-legal	opening-7	RED	baseline	0	1548916			19	
+root-legal	opening-7	RED	baseline	1	1554542			19	
+root-legal	opening-7	RED	baseline	2	1545375			19	
+root-legal	opening-7	RED	baseline	3	1545959			19	
+root-legal	opening-7	RED	baseline	4	1549500			19	
+transition	opening-7	RED	baseline	0	1547541			19	
+transition	opening-7	RED	baseline	1	1951416			19	
+transition	opening-7	RED	baseline	2	1556334			19	
+transition	opening-7	RED	baseline	3	1541791			19	
+transition	opening-7	RED	baseline	4	1542916			19	
+training-sample	opening-7	RED	baseline	0	2089583			19	
+training-sample	opening-7	RED	baseline	1	2090542			19	
+training-sample	opening-7	RED	baseline	2	2070875			19	
+training-sample	opening-7	RED	baseline	3	2074750			19	
+training-sample	opening-7	RED	baseline	4	2065500			19	
+full-search	opening-7	RED	mobility-zero	0	274790792	20	128	19	RED:3,3,1>3,3,0:-
+full-search	opening-7	RED	default	1	731725583	20	128	19	RED:3,2,3>3,1,3:-
+full-search	opening-7	RED	default	2	733650083	20	128	19	RED:3,2,3>3,1,3:-
+full-search	opening-7	RED	mobility-zero	3	274839000	20	128	19	RED:3,3,1>3,3,0:-
+root-legal	opening-8	BLACK	baseline	0	1958708			19	
+root-legal	opening-8	BLACK	baseline	1	1559583			19	
+root-legal	opening-8	BLACK	baseline	2	1545708			19	
+root-legal	opening-8	BLACK	baseline	3	1535375			19	
+root-legal	opening-8	BLACK	baseline	4	1529209			19	
+transition	opening-8	BLACK	baseline	0	1688709			19	
+transition	opening-8	BLACK	baseline	1	1688042			19	
+transition	opening-8	BLACK	baseline	2	1659583			19	
+transition	opening-8	BLACK	baseline	3	1652250			19	
+transition	opening-8	BLACK	baseline	4	1645208			19	
+training-sample	opening-8	BLACK	baseline	0	2072958			19	
+training-sample	opening-8	BLACK	baseline	1	2088417			19	
+training-sample	opening-8	BLACK	baseline	2	2062292			19	
+training-sample	opening-8	BLACK	baseline	3	2063375			19	
+training-sample	opening-8	BLACK	baseline	4	2076667			19	
+full-search	opening-8	BLACK	default	0	734409000	20	128	19	BLACK:0,0,1>0,0,2:-
+full-search	opening-8	BLACK	mobility-zero	1	276278791	20	128	19	BLACK:5,3,1>5,3,0:-
+full-search	opening-8	BLACK	mobility-zero	2	276560417	20	128	19	BLACK:5,3,1>5,3,0:-
+full-search	opening-8	BLACK	default	3	736349000	20	128	19	BLACK:0,0,1>0,0,2:-
+root-legal	opening-9	WHITE	baseline	0	1632667			20	
+root-legal	opening-9	WHITE	baseline	1	1625917			20	
+root-legal	opening-9	WHITE	baseline	2	1645000			20	
+root-legal	opening-9	WHITE	baseline	3	1638750			20	
+root-legal	opening-9	WHITE	baseline	4	1638667			20	
+transition	opening-9	WHITE	baseline	0	1648958			20	
+transition	opening-9	WHITE	baseline	1	2076916			20	
+transition	opening-9	WHITE	baseline	2	1665791			20	
+transition	opening-9	WHITE	baseline	3	1651625			20	
+transition	opening-9	WHITE	baseline	4	1636208			20	
+training-sample	opening-9	WHITE	baseline	0	2033875			20	
+training-sample	opening-9	WHITE	baseline	1	2024250			20	
+training-sample	opening-9	WHITE	baseline	2	2049959			20	
+training-sample	opening-9	WHITE	baseline	3	2007125			20	
+training-sample	opening-9	WHITE	baseline	4	2009292			20	
+full-search	opening-9	WHITE	mobility-zero	0	276342708	21	128	20	WHITE:1,3,0>1,3,1:-
+full-search	opening-9	WHITE	default	1	745405417	21	128	20	WHITE:1,2,3>1,1,3:-
+full-search	opening-9	WHITE	default	2	740063083	21	128	20	WHITE:1,2,3>1,1,3:-
+full-search	opening-9	WHITE	mobility-zero	3	275596959	21	128	20	WHITE:1,3,0>1,3,1:-

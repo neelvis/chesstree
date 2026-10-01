@@ -175,4 +175,7 @@
     <string name="undo_already_pending">Запрос на отмену уже рассматривается</string>
     <string name="requester_cannot_vote">Инициатор не голосует за свой запрос</string>
     <string name="already_voted">Ваш голос уже учтён</string>
+    <string name="bot_thinking">Бот думает…</string>
+    <string name="bot_search_failed">Не удалось выбрать ход. Попробуйте ещё раз.</string>
+    <string name="bot_retry">Повторить</string>
 </resources>

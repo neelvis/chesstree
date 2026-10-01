@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.Copy
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -8,6 +9,10 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
 }
+
+val botWorkerBundle = project(":botWorker").layout.buildDirectory.file(
+    "kotlin-webpack/js/productionExecutable/botWorker.js",
+)
 
 kotlin {
     android {
@@ -69,6 +74,14 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
 
+        jsMain.dependencies {
+            implementation(projects.botWire)
+        }
+
+        wasmJsMain.dependencies {
+            implementation(projects.botWire)
+        }
+
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp)
@@ -79,6 +92,13 @@ kotlin {
             implementation(libs.ktor.client.darwin)
         }
 
+    }
+}
+
+listOf("js", "wasmJs").forEach { target ->
+    tasks.named<Copy>("${target}ProcessResources") {
+        dependsOn(":botWorker:jsBrowserProductionWebpack")
+        from(botWorkerBundle)
     }
 }
 

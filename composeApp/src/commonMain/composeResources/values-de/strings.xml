@@ -175,4 +175,7 @@
     <string name="undo_already_pending">Es gibt bereits eine offene Anfrage zum Zurücknehmen</string>
     <string name="requester_cannot_vote">Der Anfragende kann nicht über die eigene Anfrage abstimmen</string>
     <string name="already_voted">Deine Stimme wurde bereits gezählt</string>
+    <string name="bot_thinking">Bot denkt nach…</string>
+    <string name="bot_search_failed">Ein Zug konnte nicht gewählt werden. Bitte erneut versuchen.</string>
+    <string name="bot_retry">Erneut versuchen</string>
 </resources>

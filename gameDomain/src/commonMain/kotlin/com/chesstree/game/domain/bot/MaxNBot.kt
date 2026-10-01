@@ -352,10 +352,11 @@ private fun featureValues(
     )
 }
 
-private fun evaluate(
+internal fun evaluate(
     state: GameState,
     policy: BotPolicy,
     knownLegalMoves: List<Move>? = null,
+    knownLegalMovesByPlayer: Map<PlayerId, List<Move>>? = null,
 ): DoubleArray {
     val outcome = (state.phase as? GamePhase.Finished)?.outcome
     if (outcome != null) return terminalScores(outcome)
@@ -387,7 +388,9 @@ private fun evaluate(
     if (mobilityWeight != 0.0) {
         PlayerId.entries.forEach { player ->
             if (state.participants.getValue(player).status == ParticipantStatus.Active) {
-                val moveCount = if (player == state.turn?.player && knownLegalMoves != null) {
+                val moveCount = if (knownLegalMovesByPlayer?.containsKey(player) == true) {
+                    knownLegalMovesByPlayer.getValue(player).size
+                } else if (player == state.turn?.player && knownLegalMoves != null) {
                     knownLegalMoves.size
                 } else {
                     LegalMoveGenerator.legalMoves(state, player).size

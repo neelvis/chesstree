@@ -44,7 +44,8 @@ import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.GameSnapshot
 import com.chesstree.game.data.GameSnapshotCodec
 import com.chesstree.game.data.SaveGameResult
-import com.chesstree.game.domain.bot.MaxNBot
+import com.chesstree.game.domain.bot.BoundedBotResult
+import com.chesstree.game.domain.bot.BotEvaluationMode
 import com.chesstree.game.domain.bot.BotPolicyLearner
 import com.chesstree.game.domain.bot.BotTrainingSample
 import com.chesstree.game.domain.ArmyColor
@@ -70,13 +71,25 @@ import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.game.presentation.history.GameHistoryDialog
 import com.chesstree.game.presentation.history.GameHistoryNavigation
 import com.chesstree.game.presentation.history.GameLogExporter
+import com.chesstree.game.presentation.bot.LocalBotIdentity
+import com.chesstree.game.presentation.bot.LocalBotReply
+import com.chesstree.game.presentation.bot.LocalBotRequest
+import com.chesstree.game.presentation.bot.LocalBotActivity
+import com.chesstree.game.presentation.bot.LocalBotRunner
+import com.chesstree.game.presentation.bot.matchesCurrentRequest
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.random.Random
 @Composable
 internal fun ChessNavigationRoot(
+    botRunner: LocalBotRunner,
+    botActivity: LocalBotActivity,
     gameSaveStore: GameSaveStore,
     settings: GameSettings,
     onSettingsChanged: (GameSettings) -> Unit,
@@ -104,6 +117,12 @@ internal fun ChessNavigationRoot(
     var botGameEnabled by rememberSaveable { mutableStateOf(false) }
     var moveAnimationInProgress by remember { mutableStateOf(false) }
     var localGameId by rememberSaveable { mutableStateOf(Random.nextLong().toString()) }
+    var positionRevision by rememberSaveable { mutableStateOf(0L) }
+    var requestSequence by rememberSaveable { mutableStateOf(0L) }
+    var activeRequest by remember { mutableStateOf<LocalBotIdentity?>(null) }
+    var botFailed by remember { mutableStateOf(false) }
+    var retrySequence by remember { mutableStateOf(0L) }
+    val activePolicy = remember(localGameId) { gameSaveStore.loadBotPolicy() }
     var learnedGameId by rememberSaveable { mutableStateOf<String?>(null) }
     var storageMessage by remember { mutableStateOf<String?>(null) }
     var historyNavigation by remember { mutableStateOf(GameHistoryNavigation.latest()) }
@@ -148,6 +167,12 @@ internal fun ChessNavigationRoot(
         zoomToCell = null
     }
 
+    fun invalidateBotPosition() {
+        activeRequest = null
+        positionRevision += 1
+        botFailed = false
+    }
+
     fun save(updatedSession: GameSession): SaveGameResult {
         val snapshot = GameSnapshot(
             scenarioId = updatedSession.scenario.id,
@@ -167,6 +192,7 @@ internal fun ChessNavigationRoot(
             ),
         )) {
             is SessionMoveResult.Applied -> {
+                invalidateBotPosition()
                 session = result.session
                 historyNavigation = GameHistoryNavigation.latest()
                 storageMessage = when (val saveResult = save(result.session)) {
@@ -182,6 +208,7 @@ internal fun ChessNavigationRoot(
     }
 
     fun restart() {
+        invalidateBotPosition()
         session = GameSession(session.scenario)
         localGameId = Random.nextLong().toString()
         historyNavigation = GameHistoryNavigation.latest()
@@ -189,53 +216,92 @@ internal fun ChessNavigationRoot(
         storageMessage = "i18n:game_restarted"
     }
 
-    LaunchedEffect(session.state, botGameEnabled) {
-        val currentSession = session
-        if (!botGameEnabled) return@LaunchedEffect
-        val finishedOutcome = (currentSession.state.phase as? GamePhase.Finished)?.outcome
-        if (finishedOutcome != null) {
-            if (learnedGameId == localGameId) return@LaunchedEffect
-            val samples = withContext(Dispatchers.Default) {
-                currentSession.moves.indices.mapNotNull { moveIndex ->
-                    val before = currentSession.atMoveCount(moveIndex)?.state ?: return@mapNotNull null
-                    val after = currentSession.atMoveCount(moveIndex + 1)?.state ?: return@mapNotNull null
-                    BotTrainingSample.fromTransition(
-                        before = before,
-                        after = after,
-                        player = currentSession.moves[moveIndex].actor,
-                    )
+    LaunchedEffect(session.state, botGameEnabled, localGameId, positionRevision,
+        retrySequence, isViewingLatest, settings.showGameHistory, botRunner, botActivity) {
+        botActivity.state.collectLatest { activityState ->
+            val currentSession = session
+            if (!activityState.active || !botGameEnabled || !isViewingLatest || settings.showGameHistory) return@collectLatest
+            val finishedOutcome = (currentSession.state.phase as? GamePhase.Finished)?.outcome
+            if (finishedOutcome != null) {
+                if (learnedGameId == localGameId) return@collectLatest
+                val finishedGameId = localGameId
+                val finishedRevision = positionRevision
+                val samples = withContext(Dispatchers.Default) {
+                    currentSession.moves.indices.mapNotNull { moveIndex ->
+                        val before = currentSession.atMoveCount(moveIndex)?.state ?: return@mapNotNull null
+                        val after = currentSession.atMoveCount(moveIndex + 1)?.state ?: return@mapNotNull null
+                        BotTrainingSample.fromTransition(
+                            before = before,
+                            after = after,
+                            player = currentSession.moves[moveIndex].actor,
+                        )
+                    }
                 }
-            }
-            val learnedPolicy = BotPolicyLearner.learn(
-                policy = gameSaveStore.loadBotPolicy(),
-                outcome = finishedOutcome,
-                samples = samples,
-            )
-            storageMessage = when (val result = gameSaveStore.saveBotPolicy(learnedPolicy)) {
-                SaveGameResult.Saved -> {
-                    learnedGameId = localGameId
-                    "i18n:bot_policy_learned"
+                val learnedPolicy = BotPolicyLearner.learn(
+                    policy = activePolicy,
+                    outcome = finishedOutcome,
+                    samples = samples,
+                )
+                if (botActivity.state.value != activityState || !botGameEnabled || localGameId != finishedGameId || positionRevision != finishedRevision) {
+                    return@collectLatest
                 }
+                storageMessage = when (val result = gameSaveStore.saveBotPolicy(learnedPolicy)) {
+                    SaveGameResult.Saved -> {
+                        learnedGameId = localGameId
+                        "i18n:bot_policy_learned"
+                    }
 
-                is SaveGameResult.Failed -> "i18n:bot_policy_save_failed|${result.message}"
+                    is SaveGameResult.Failed -> "i18n:bot_policy_save_failed|${result.message}"
+                }
+                return@collectLatest
             }
-            return@LaunchedEffect
-        }
-        val turn = currentSession.state.turn
-        if (turn == null || currentSession.state.phase != GamePhase.InProgress) {
-            return@LaunchedEffect
-        }
-        val activePolicy = gameSaveStore.loadBotPolicy()
-        val decision = withContext(Dispatchers.Default) {
-            MaxNBot().chooseDecision(currentSession.state, activePolicy)
-        } ?: return@LaunchedEffect
-        if (session != currentSession) return@LaunchedEffect
-        val result = currentSession.apply(decision.intent) as? SessionMoveResult.Applied ?: return@LaunchedEffect
-        session = result.session
-        historyNavigation = GameHistoryNavigation.latest()
-        storageMessage = when (val saveResult = save(result.session)) {
-            SaveGameResult.Saved -> null
-            is SaveGameResult.Failed -> "i18n:save_failed|${saveResult.message}"
+            val turn = currentSession.state.turn
+            if (turn == null || currentSession.state.phase != GamePhase.InProgress) {
+                return@collectLatest
+            }
+            requestSequence += 1
+            val identity = LocalBotIdentity(requestSequence.toString(), localGameId, positionRevision)
+            val request = LocalBotRequest(
+                identity, currentSession.state, activePolicy,
+                evaluation = BotEvaluationMode.POSITIONAL,
+                openingBookVersion = com.chesstree.game.domain.bot.BotOpeningBook.VERSION,
+            )
+            activeRequest = identity
+            botFailed = false
+            try {
+                val reply = try {
+                    botRunner.choose(request)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    LocalBotReply.Failed(identity)
+                }
+                currentCoroutineContext().ensureActive()
+                if (botActivity.state.value != activityState || !botGameEnabled || !historyNavigation.isAtLatest(session)) return@collectLatest
+                if (!reply.matchesCurrentRequest(request, activeRequest, localGameId, positionRevision, session.state)) {
+                    if (activeRequest == identity) botFailed = true
+                    return@collectLatest
+                }
+                val decision = (reply as? LocalBotReply.Completed)?.result
+                if (decision is BoundedBotResult.Move) {
+                    val result = currentSession.apply(decision.intent) as? SessionMoveResult.Applied
+                    if (result == null) {
+                        botFailed = true
+                        return@collectLatest
+                    }
+                    invalidateBotPosition()
+                    session = result.session
+                    historyNavigation = GameHistoryNavigation.latest()
+                    storageMessage = when (val saveResult = save(result.session)) {
+                        SaveGameResult.Saved -> null
+                        is SaveGameResult.Failed -> "i18n:save_failed|${saveResult.message}"
+                    }
+                } else {
+                    botFailed = true
+                }
+            } finally {
+                if (activeRequest == identity) activeRequest = null
+            }
         }
     }
     Column(
@@ -271,6 +337,7 @@ internal fun ChessNavigationRoot(
                         if (!hasSystemBackNavigation) {
                             TextButton(
                                 onClick = {
+                                    activeRequest = null
                                     onBack()
                                 },
                             ) {
@@ -284,8 +351,11 @@ internal fun ChessNavigationRoot(
                         TextButton(
                             onClick = {
                                 if (botGameEnabled) {
+                                    activeRequest = null
+                                    botFailed = false
                                     botGameEnabled = false
                                 } else {
+                                    invalidateBotPosition()
                                     val standardScenario = scenarios.first { it.id == "standard" }
                                     session = GameSession(standardScenario)
                                     localGameId = Random.nextLong().toString()
@@ -328,6 +398,7 @@ internal fun ChessNavigationRoot(
                                             Text(titleKey?.let { localized(it) } ?: scenario.id)
                                         },
                                         onClick = {
+                                            invalidateBotPosition()
                                             session = GameSession(scenario)
                                             localGameId = Random.nextLong().toString()
                                             learnedGameId = null
@@ -360,10 +431,16 @@ internal fun ChessNavigationRoot(
                     )
                     if (gameState.turn != null) {
                         Text(
-                            text = localized("current_turn"),
+                            text = localized(if (activeRequest != null) "bot_thinking" else "current_turn"),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onBackground,
                         )
+                    }
+                    if (botFailed) {
+                        Text(localized("bot_search_failed"), color = MaterialTheme.colorScheme.error)
+                        TextButton(onClick = { retrySequence += 1 }) {
+                            Text(localized("bot_retry"))
+                        }
                     }
                     Text(
                         text = if (isViewingLatest) {
@@ -402,6 +479,7 @@ internal fun ChessNavigationRoot(
                                 val undone = session.undoLastMove() ?: return@TextButton
                                 storageMessage = when (val saveResult = save(undone)) {
                                     SaveGameResult.Saved -> {
+                                        invalidateBotPosition()
                                         session = undone
                                         historyNavigation = GameHistoryNavigation.latest()
                                         clearTransientState()
@@ -534,6 +612,9 @@ internal fun ChessNavigationRoot(
             log = remember(session) { GameLogCodec.encode(session) },
             exporter = gameLogExporter,
             onRestore = { contents ->
+                invalidateBotPosition()
+                localGameId = Random.nextLong().toString()
+                learnedGameId = null
                 val restored = GameLogCodec.restore(session.scenario, contents)
                 session = restored.session
                 historyNavigation = GameHistoryNavigation.latest()

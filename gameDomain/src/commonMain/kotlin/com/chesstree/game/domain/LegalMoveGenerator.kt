@@ -277,7 +277,7 @@ object LegalMoveGenerator {
         MovementDirections.forPiece(PieceType.PAWN, target, pawn.army)
             .none { it.kind == DirectionKind.MOVE }
 
-    private fun attackCoordinates(position: Position, piece: Piece): Set<BoardCoordinate> {
+    internal fun attackCoordinates(position: Position, piece: Piece): Set<BoardCoordinate> {
         val directions = MovementDirections.forPiece(piece.type, piece.coordinate, piece.army)
         return when (piece.type) {
             PieceType.ROOK, PieceType.BISHOP, PieceType.QUEEN -> buildSet {

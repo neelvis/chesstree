@@ -170,4 +170,7 @@
     <string name="undo_already_pending">An undo request is already pending</string>
     <string name="requester_cannot_vote">The requester cannot vote on their own request</string>
     <string name="already_voted">Your vote has already been counted</string>
+    <string name="bot_thinking">Bot is thinking…</string>
+    <string name="bot_search_failed">Could not choose a move. Please try again.</string>
+    <string name="bot_retry">Retry</string>
 </resources>
