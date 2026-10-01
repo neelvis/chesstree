@@ -21,6 +21,7 @@ import com.chesstree.game.domain.PlayerId
 import com.chesstree.game.domain.Position
 import com.chesstree.game.domain.ThreePlayerBoardNotation
 import com.chesstree.game.domain.Turn
+import com.chesstree.game.domain.scenario.StandardGame
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -154,6 +155,103 @@ class BoundedBotTacticalTest {
         // Seven earlier quiet root moves were evaluated. The checking capture
         // reaches BLACK through a quiet RED move and contributes no static leaf.
         assertEquals(7, result.stats.leafEvaluations)
+    }
+
+    @Test
+    fun aLocalCheckCapCanRecoverAtADeeperRootDepth() {
+        val state = forcedRecapture()
+        val completed = mutableListOf<BoundedBotResult.Move>()
+        val result = assertIs<BoundedBotResult.Move>(
+            BoundedMaxNBot(maxDepth = 2, maxNodes = 10_000, maxEvaluations = 10_000, tacticalDepth = 1)
+                .choose(state, pressurePolicy, onCompletedDepth = completed::add),
+        )
+        assertEquals(2, result.stats.completedDepth)
+        assertEquals(BotMoveSource.COMPLETED_DEPTH, result.source)
+        assertTrue(completed.all { it.stats.completedDepth == 2 })
+        assertTrue(result.intent != intent(PlayerId.WHITE, "G10", "G12"))
+        apply(state, result.intent)
+    }
+
+    @Test
+    fun globalStopsAtTheRetryBoundaryTakePrecedenceOverTheLocalCap() {
+        val state = forcedRecapture()
+        var firstAttemptProbes = 0
+        val capped = assertIs<BoundedBotResult.Move>(
+            BoundedMaxNBot(maxDepth = 1, maxNodes = 10_000, maxEvaluations = 10_000, tacticalDepth = 1)
+                .choose(state, pressurePolicy, stop = BotStopProbe {
+                    firstAttemptProbes++
+                    BotStopSignal.CONTINUE
+                }),
+        )
+        assertEquals(BotStopReason.TACTICAL_LIMIT, capped.reason)
+        for ((depth, signal) in listOf(
+            1 to BotStopSignal.CANCEL, 1 to BotStopSignal.TIMEOUT,
+            2 to BotStopSignal.CANCEL, 2 to BotStopSignal.TIMEOUT,
+        )) {
+            var probes = 0
+            val completed = mutableListOf<BoundedBotResult.Move>()
+            val result = BoundedMaxNBot(
+                maxDepth = depth, maxNodes = 10_000, maxEvaluations = 10_000, tacticalDepth = 1,
+            ).choose(state, pressurePolicy, stop = BotStopProbe {
+                probes++
+                if (probes >= firstAttemptProbes + depth - 1) signal else BotStopSignal.CONTINUE
+            }, onCompletedDepth = completed::add)
+            if (signal == BotStopSignal.CANCEL) {
+                assertEquals(capped.stats, assertIs<BoundedBotResult.Cancelled>(result).stats)
+            } else {
+                val timedOut = assertIs<BoundedBotResult.Move>(result)
+                assertEquals(BotStopReason.TIMEOUT, timedOut.reason)
+                assertEquals(capped.stats, timedOut.stats)
+                assertEquals(capped.intent, timedOut.intent)
+            }
+            assertTrue(completed.isEmpty())
+        }
+        val nodeLimited = assertIs<BoundedBotResult.Move>(
+            BoundedMaxNBot(maxDepth = 2, maxNodes = capped.stats.expandedNodes,
+                maxEvaluations = 10_000, tacticalDepth = 1).choose(state, pressurePolicy),
+        )
+        assertEquals(BotStopReason.NODE_LIMIT, nodeLimited.reason)
+        assertEquals(capped.stats, nodeLimited.stats)
+        val evaluationLimited = assertIs<BoundedBotResult.Move>(
+            BoundedMaxNBot(maxDepth = 2, maxNodes = 10_000,
+                maxEvaluations = capped.stats.leafEvaluations, tacticalDepth = 1).choose(state, pressurePolicy),
+        )
+        assertEquals(BotStopReason.EVALUATION_LIMIT, evaluationLimited.reason)
+        assertEquals(capped.stats.leafEvaluations, evaluationLimited.stats.leafEvaluations)
+        assertEquals(0, evaluationLimited.stats.completedDepth)
+        apply(state, evaluationLimited.intent)
+    }
+
+    @Test
+    fun aCappedExchangePassDoesNotBlockDeeperChecks() {
+        val history = recordedOpening()
+        val state = history.last()
+        val completed = mutableListOf<BoundedBotResult.Move>()
+        fun choose(depth: Int, callbacks: MutableList<BoundedBotResult.Move>) =
+            assertIs<BoundedBotResult.Move>(BoundedMaxNBot(
+                maxDepth = depth, maxNodes = 2_000, maxEvaluations = 2_000, tacticalDepth = 4,
+                evaluation = BotEvaluationMode.POSITIONAL, openingBookVersion = 1,
+                seed = -1565357663579236111L, searchModel = BotSearchModel.PARANOID,
+                profileCatalogVersion = 2,
+            ).choose(state, recentPositions = history, onCompletedDepth = callbacks::add))
+        val shallow = choose(1, mutableListOf())
+        assertEquals(BotStopReason.TACTICAL_LIMIT, shallow.reason)
+        assertEquals(BotSearchHorizon.CHECKS, shallow.stats.completedHorizon)
+        val deeper = choose(2, completed)
+        assertEquals(2, deeper.stats.completedDepth)
+        assertTrue(completed.any {
+            it.stats.completedDepth == 2 && it.stats.completedHorizon == BotSearchHorizon.CHECKS
+        })
+        assertFalse(completed.any {
+            it.stats.completedDepth == 1 && it.stats.completedHorizon == BotSearchHorizon.EXCHANGES
+        })
+        assertTrue(deeper.stats.expandedNodes <= 2_000)
+        assertTrue(deeper.stats.leafEvaluations <= 2_000)
+        assertTrue(deeper.stats.leafEvaluations > shallow.stats.leafEvaluations)
+        val repeated = mutableListOf<BoundedBotResult.Move>()
+        assertEquals(deeper, choose(2, repeated))
+        assertEquals(completed, repeated)
+        apply(state, deeper.intent)
     }
 
     @Test
@@ -333,6 +431,20 @@ class BoundedBotTacticalTest {
             if (best == null || score[actor.ordinal] > checkNotNull(best)[actor.ordinal]) best = score
         }
         return checkNotNull(best)
+    }
+
+    /** First nine legal moves of the owner's 2026-10-01 export, before move 10. */
+    private fun recordedOpening(): List<GameState> {
+        val moves = listOf(
+            intent(PlayerId.WHITE, "E2", "E3"), intent(PlayerId.RED, "D7", "D6"),
+            intent(PlayerId.BLACK, "E11", "E10"), intent(PlayerId.WHITE, "F1", "C4"),
+            intent(PlayerId.RED, "M8", "L6"), intent(PlayerId.BLACK, "M12", "L10"),
+            intent(PlayerId.WHITE, "B1", "C3"), intent(PlayerId.RED, "C8", "L5"),
+            intent(PlayerId.BLACK, "F12", "L9"),
+        )
+        val history = mutableListOf(StandardGame.scenario.initialState)
+        moves.forEach { move -> history += apply(history.last(), move).state }
+        return history
     }
 
     private fun forcedRecapture(): GameState = state(

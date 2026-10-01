@@ -104,6 +104,73 @@ or language-model calls during a game, forced opponent cooperation, and new
 game rules. The repertoire size and line contents are implementation candidates,
 not an unsupported promise of established ChessTree theory.
 
+## Accepted amendment: recover from a local tactical search limit
+
+Status: **accepted; implemented and verified for the scoped domain change**.
+Verification is recorded in [the recovery report](search-limit-recovery.md);
+full playing-quality acceptance remains open. Prepared on 2026-10-01 in
+response to the owner's request to improve search after reviewing two local
+game exports. The owner explicitly approved the linked draft with "го" after
+reviewing BOT-SP01–04 and the acceptance criteria. Approval covers this amendment
+as presented; existing approved requirements remain in force.
+
+Purpose: use the remaining difficulty budget for useful search when one tactical
+continuation cannot be completed, without treating an unresolved check or a
+partially searched set of root moves as a completed result.
+
+- BOT-SP01: Reaching a local tactical continuation limit abandons the affected
+  search attempt, not automatically the entire move request. If another bounded
+  attempt is available under the configured depth and resource limits, search
+  may continue. Optional exchange enrichment must not by itself prevent trying
+  a deeper check-aware search under the remaining budget.
+- BOT-SP02: Only a fully completed root attempt can replace the previously
+  completed choice or be reported as completed depth. An unresolved mandatory
+  response to check is not converted to a static leaf, silently skipped, or
+  represented as a hypothetical pass by an intermediate player.
+- BOT-SP03: All attempts share the existing time, node, and evaluation budgets.
+  Cancellation and global resource exhaustion stop the request. Retrying does
+  not reset counters or create an unbounded extension. If no attempt completes,
+  retain the established legal fallback behavior.
+- BOT-SP04: Diagnostics report the depth and horizon of the actual completed
+  choice, or zero depth for fallback. Identical complete inputs, versions, and
+  fixed work budgets reproduce the search result. Timed runs may differ because
+  of scheduling, as already documented in the product specification.
+
+Acceptance:
+
+1. A reproducible position where exchange enrichment hits a local tactical cap
+   and a deeper check-aware attempt can complete must retain that deeper result
+   when the shared budget permits it.
+2. An incomplete attempt must never publish a completed-depth callback or
+   replace a completed defense. If all attempts remain incomplete, a legal
+   fallback is returned; existing forced-recapture and third-player-check
+   protections remain covered.
+3. Exercise cancellation, timeout, node/evaluation exhaustion, fixed-work
+   reproducibility, and legal application through the public reducer across
+   retry boundaries.
+4. Compare the recorded opening, the position before export move 124, and
+   selected shuffle positions under matched work budgets before and after the
+   change. Record completed depth/horizon, fallback, stop reason, and consumed
+   work. Do not claim increased playing strength solely from greater depth;
+   tournament evidence remains part of the existing release acceptance.
+5. Run focused domain tests and compile affected Android, iOS, Kotlin/JS, and
+   Kotlin/Wasm targets available on the host; explicitly identify unavailable
+   checks.
+
+Scope excludes changing game rules, evaluation weights, repetition penalties,
+seed/restart behavior, difficulty budgets, or the public export format. Existing
+uncommitted repetition-preference work must be preserved. This amendment does
+not promise depth four on every position or establish full playing-quality
+acceptance.
+
+Evidence: both owner-provided exports (`chess_party_2026-10-01_18-35-36.txt` and
+`chess_party_2026-10-01_18-41-02.txt`) contain the same 229 moves and seeds:
+209 tactical-limit stops, 226 depth-one choices, two depth-two choices, and one
+fallback at move 124. They are one repeated trajectory, not two independent
+game samples. `BoundedMaxNBot` propagates the tactical cap through the global
+interruption flag; `BoundedBotTacticalTest` currently enforces abandonment of
+an incomplete root attempt and retention of completed defensive choices.
+
 ## Verification and remaining scope
 
 Requirement evidence belongs in stage reports, not in normative requirements.

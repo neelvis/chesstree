@@ -6,6 +6,7 @@ import com.chesstree.game.domain.GameState
 import com.chesstree.game.domain.MoveReduction
 import com.chesstree.game.domain.PieceType
 import com.chesstree.game.domain.PlayerId
+import com.chesstree.game.domain.Position
 import com.chesstree.game.domain.ThreePlayerBoardNotation
 import com.chesstree.game.domain.Turn
 import com.chesstree.game.domain.scenario.gameScenario
@@ -38,6 +39,21 @@ class BotHistoryPreferenceTest {
         assertEquals(BotMoveSource.COMPLETED_DEPTH, candidate.source)
         assertIs<MoveReduction.Applied>(GameReducer.reduce(state, candidate.intent))
         assertEquals(baseline, engine.choose(state, material))
+    }
+
+    @Test
+    fun opponentMovementDoesNotHideAnOtherwiseEqualOwnReturn() {
+        val engine = BoundedMaxNBot(maxDepth = 1, maxEvaluations = 256)
+        val baseline = assertIs<BoundedBotResult.Move>(engine.choose(state, material))
+        val after = assertIs<MoveReduction.Applied>(GameReducer.reduce(state, baseline.intent)).state
+        val earlier = GameState(
+            Position(after.position.pieces.mapValues { (_, piece) ->
+                if (piece.army == ArmyColor.BLACK) piece.copy(coordinate = at("N7")) else piece
+            }), after.participants, after.armies, after.turn?.copy(ply = 17), after.phase,
+        )
+        val result = assertIs<BoundedBotResult.Move>(engine.choose(state, material, recentPositions = listOf(earlier)))
+        assertTrue(result.intent != baseline.intent)
+        assertEquals(0.0, result.repetitionPenalty)
     }
 
     @Test

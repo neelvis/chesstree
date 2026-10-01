@@ -204,9 +204,11 @@ class BoundedMaxNBot(
             fallback: MoveIntent,
         ): BoundedBotResult {
             rootActor = actor
+            val activityHistory = recentPositions.map { previous -> previous to controlledPieces(previous, actor) }
             var chosen: MoveIntent? = null
             var openingInfluenced = false
             var chosenPenalty = 0.0
+            var lastAttemptCapped = false
             val horizons = if (tacticalDepth == 0) listOf(BotSearchHorizon.STATIC)
                 else listOf(BotSearchHorizon.CHECKS, BotSearchHorizon.EXCHANGES)
             iterations@ for (depth in 1..maxDepth) {
@@ -240,9 +242,21 @@ class BoundedMaxNBot(
                             else Double.NEGATIVE_INFINITY,
                             Double.POSITIVE_INFINITY,
                         ) ?: break
-                        val repeated = recentPositions.count { previous ->
-                            val after = transition.state
-                            previous.position == after.position && previous.participants == after.participants &&
+                        val after = transition.state
+                        val ownPieces = controlledPieces(after, actor)
+                        val repeated = activityHistory.count { (previous, previousOwnPieces) ->
+                            val exact = previous.position == after.position
+                            // Opponent activity must not hide a quiet return to our own layout.
+                            val ownReturn = move.capturedPieceId == null && move.promotion == null &&
+                                after.phase == GamePhase.InProgress && previousOwnPieces == ownPieces &&
+                                previous.position.pieces.keys == after.position.pieces.keys &&
+                                previous.position.pieces.all { (id, piece) ->
+                                    val current = after.position.pieces.getValue(id)
+                                    piece.type == current.type && piece.army == current.army
+                                } && previous.position.enPassantTargets == after.position.enPassantTargets &&
+                                previous.position.castlingRights.filterTo(hashSetOf()) { previous.armies.getValue(it.army).controller == actor } ==
+                                after.position.castlingRights.filterTo(hashSetOf()) { after.armies.getValue(it.army).controller == actor }
+                            (exact || ownReturn) && previous.participants == after.participants &&
                                 previous.armies == after.armies && previous.phase == after.phase &&
                                 previous.turn?.player == after.turn?.player
                         }.coerceAtMost(2)
@@ -270,6 +284,13 @@ class BoundedMaxNBot(
                         }
                     }
                     failure?.let { return BoundedBotResult.Failed(it) }
+                    if (interruption == Interruption.TACTICAL_LIMIT) {
+                        // Discard the entire attempt; deeper checks may settle this frontier.
+                        lastAttemptCapped = true
+                        interruption = null
+                        if (!checkStop()) break@iterations
+                        continue@iterations
+                    }
                     if (!checkStop()) break@iterations
                     if (styleEnabled) {
                         val nearby = candidates.filter { it.score >= checkNotNull(bestScore)[actor.ordinal] - closeThreshold }
@@ -287,6 +308,7 @@ class BoundedMaxNBot(
                         ?: return BoundedBotResult.Failed(BotFailureReason.NO_CANDIDATE)
                     completedDepth = depth
                     completedHorizon = horizon
+                    lastAttemptCapped = false
                     openingInfluenced = bestMove != firstBestMove
                     chosenPenalty = bestPenalty
                     onCompletedDepth(BoundedBotResult.Move(
@@ -306,7 +328,7 @@ class BoundedMaxNBot(
                 Interruption.EVALUATION_LIMIT -> BotStopReason.EVALUATION_LIMIT
                 Interruption.CANCELLED -> return BoundedBotResult.Cancelled(stats())
                 Interruption.TACTICAL_LIMIT -> BotStopReason.TACTICAL_LIMIT
-                null -> BotStopReason.DEPTH_COMPLETE
+                null -> if (lastAttemptCapped) BotStopReason.TACTICAL_LIMIT else BotStopReason.DEPTH_COMPLETE
             }
             return BoundedBotResult.Move(
                 intent = chosen ?: fallback,
@@ -321,6 +343,9 @@ class BoundedMaxNBot(
         private fun preference(move: Move): Int = preferred.indexOf(move.intent()).let {
             if (it < 0) Int.MAX_VALUE else it
         }
+
+        private fun controlledPieces(state: GameState, actor: PlayerId) =
+            state.position.pieces.filterValues { state.armies.getValue(it.army).controller == actor }
 
         private fun evaluateAfter(
             state: GameState,
