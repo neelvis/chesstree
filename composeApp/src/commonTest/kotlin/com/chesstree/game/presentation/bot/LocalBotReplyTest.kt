@@ -4,6 +4,7 @@ import com.chesstree.game.domain.bot.BotPolicy
 import com.chesstree.game.presentation.scenario.ManualGameScenarios
 import kotlin.test.Test
 import kotlin.test.assertFalse
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -28,6 +29,20 @@ class LocalBotReplyTest {
         }
         assertFailsWith<IllegalArgumentException> {
             request.copy(openingBookVersion = 2)
+        }
+    }
+
+    @Test
+    fun tacticalDepthSelectsMatchingWorkerEngineVersion() {
+        assertEquals(1, request.engineVersion)
+        assertEquals(2, request.copy(tacticalDepth = 1).engineVersion)
+        assertEquals(3, request.copy(searchModel = com.chesstree.game.domain.bot.BotSearchModel.PARANOID).engineVersion)
+        assertFailsWith<IllegalArgumentException> { request.copy(tacticalDepth = -1) }
+        assertFailsWith<IllegalArgumentException> { request.copy(tacticalDepth = 7) }
+        assertFailsWith<IllegalArgumentException> { request.copy(recentPositions = listOf(state)) }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(tacticalDepth = 2,
+                recentPositions = List(com.chesstree.game.domain.bot.MAX_BOT_RECENT_POSITIONS + 1) { state })
         }
     }
 

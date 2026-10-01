@@ -43,9 +43,9 @@ fun main() {
     }
 }
 
-private const val PING = "CHESSTREE_BOT_WORKER_PING_V3"
-private const val PONG = "CHESSTREE_BOT_WORKER_PONG_V3"
-private const val BAD_REQUEST = "CHESSTREE_BOT_WORKER_BAD_REQUEST_V3"
+private const val PING = "CHESSTREE_BOT_WORKER_PING_V5"
+private const val PONG = "CHESSTREE_BOT_WORKER_PONG_V5"
+private const val BAD_REQUEST = "CHESSTREE_BOT_WORKER_BAD_REQUEST_V5"
 
 private fun handle(request: BotWorkerRequest, receivedAt: Double) {
     val state = BotStateWireCodec.decode(request.state)
@@ -61,12 +61,17 @@ private fun handle(request: BotWorkerRequest, receivedAt: Double) {
             BotEvaluationMode.entries.single { it.version == request.evaluationVersion },
             request.openingBookVersion,
             request.seed,
+            tacticalDepth = request.tacticalDepth,
+            searchModel = com.chesstree.game.domain.bot.BotSearchModel.valueOf(request.searchModel),
+            profile = com.chesstree.game.domain.bot.BotPlayingProfile.valueOf(request.profile),
+            profileCatalogVersion = request.profileCatalogVersion,
         ).choose(
             state = state,
             policy = policy,
             stop = BotStopProbe {
                 if (performance.now() >= deadline) BotStopSignal.TIMEOUT else BotStopSignal.CONTINUE
             },
+            recentPositions = request.recentPositions.map { checkNotNull(BotStateWireCodec.decode(it)) },
             onFallbackReady = { move ->
                 send(request, receivedAt, kind = "READY", move = move.toWire())
             },
@@ -75,6 +80,8 @@ private fun handle(request: BotWorkerRequest, receivedAt: Double) {
                     request, receivedAt, kind = "PROGRESS", move = completed.intent.toWire(),
                     source = completed.source.name,
                     completedDepth = completed.stats.completedDepth,
+                    completedHorizon = completed.stats.completedHorizon.name,
+                    repetitionPenalty = completed.repetitionPenalty,
                     expandedNodes = completed.stats.expandedNodes,
                     leafEvaluations = completed.stats.leafEvaluations,
                     openingBookInfluenced = completed.openingBook.influenced,
@@ -94,6 +101,8 @@ private fun handle(request: BotWorkerRequest, receivedAt: Double) {
             source = result.source.name,
             reason = result.reason.name,
             completedDepth = result.stats.completedDepth,
+            completedHorizon = result.stats.completedHorizon.name,
+            repetitionPenalty = result.repetitionPenalty,
             expandedNodes = result.stats.expandedNodes,
             leafEvaluations = result.stats.leafEvaluations,
             openingBookInfluenced = result.openingBook.influenced,
@@ -112,6 +121,8 @@ private fun send(
     source: String? = null,
     reason: String? = null,
     completedDepth: Int = 0,
+    completedHorizon: String = "STATIC",
+    repetitionPenalty: Double = 0.0,
     expandedNodes: Int = 0,
     leafEvaluations: Int = 0,
     openingBookInfluenced: Boolean = false,
@@ -124,6 +135,10 @@ private fun send(
                 positionRevision = request.positionRevision,
                 rulesVersion = request.rulesVersion,
                 engineVersion = request.engineVersion,
+                searchModel = request.searchModel,
+                profile = request.profile,
+                profileCatalogVersion = request.profileCatalogVersion,
+                difficulty = request.difficulty,
                 evaluationVersion = request.evaluationVersion,
                 openingBookVersion = request.openingBookVersion,
                 kind = kind,
@@ -132,6 +147,8 @@ private fun send(
                 reason = reason,
                 elapsedMs = (performance.now() - receivedAt).toInt().coerceAtLeast(0),
                 completedDepth = completedDepth,
+                completedHorizon = completedHorizon,
+                repetitionPenalty = repetitionPenalty,
                 expandedNodes = expandedNodes,
                 leafEvaluations = leafEvaluations,
                 openingBookInfluenced = openingBookInfluenced,

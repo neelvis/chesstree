@@ -178,4 +178,25 @@
     <string name="bot_thinking">Bot denkt nach…</string>
     <string name="bot_search_failed">Ein Zug konnte nicht gewählt werden. Bitte erneut versuchen.</string>
     <string name="bot_retry">Erneut versuchen</string>
+    <string name="bot_new_game">Gegen Bots spielen</string>
+    <string name="bot_pause">Bots pausieren</string>
+    <string name="bot_resume">Bots fortsetzen</string>
+    <string name="bot_restore_invalid">Die gespeicherten Bot-Einstellungen konnten nicht wiederhergestellt werden.</string>
+    <string name="bot_thinking_seat">Bot denkt nach: %1$s…</string>
+    <string name="bot_setup_title">Neue Partie gegen Bots</string>
+    <string name="bot_setup_seat">Bot: %1$s</string>
+    <string name="bot_setup_profile">Spielstil</string>
+    <string name="bot_setup_difficulty">Schwierigkeit</string>
+    <string name="bot_setup_option">%1$s: %2$s</string>
+    <string name="bot_setup_setting_description">%1$s, %2$s: %3$s</string>
+    <string name="bot_setup_new_game_note">Diese Einstellungen gelten für die neue Partie.</string>
+    <string name="bot_setup_start">Partie starten</string>
+    <string name="bot_setup_profile_universal">Ausgewogen</string>
+    <string name="bot_setup_profile_attacking">Angriffslustig</string>
+    <string name="bot_setup_profile_positional">Positionell</string>
+    <string name="bot_setup_profile_endgame">Endspielspezialist</string>
+    <string name="bot_setup_difficulty_beginner">Anfänger</string>
+    <string name="bot_setup_difficulty_normal">Normal</string>
+    <string name="bot_setup_difficulty_strong">Stark</string>
+    <string name="game_record_too_large">Diese Partie ist zu lang zum Speichern oder Exportieren.</string>
 </resources>

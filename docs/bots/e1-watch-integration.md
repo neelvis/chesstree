@@ -1,5 +1,8 @@
 # E1 watch integration and pawn-progress candidate
 
+Current integration and remaining acceptance: [E4 checkpoint](e4-playable-integration.md).
+This stage report preserves its historical measurements.
+
 This report freezes the earlier watch integration checkpoint. The current
 positional evaluator, repertoire, wire version, and checks are in
 [E3 strategic play](e3-strategic-play.md).

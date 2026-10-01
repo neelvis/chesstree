@@ -178,4 +178,25 @@
     <string name="bot_thinking">Бот думает…</string>
     <string name="bot_search_failed">Не удалось выбрать ход. Попробуйте ещё раз.</string>
     <string name="bot_retry">Повторить</string>
+    <string name="bot_new_game">Играть с ботами</string>
+    <string name="bot_pause">Приостановить ботов</string>
+    <string name="bot_resume">Продолжить игру ботов</string>
+    <string name="bot_restore_invalid">Не удалось восстановить сохранённые настройки ботов.</string>
+    <string name="bot_thinking_seat">Бот думает: %1$s…</string>
+    <string name="bot_setup_title">Новая партия с ботами</string>
+    <string name="bot_setup_seat">Бот: %1$s</string>
+    <string name="bot_setup_profile">Стиль</string>
+    <string name="bot_setup_difficulty">Сложность</string>
+    <string name="bot_setup_option">%1$s: %2$s</string>
+    <string name="bot_setup_setting_description">%1$s, %2$s: %3$s</string>
+    <string name="bot_setup_new_game_note">Эти настройки применяются к новой партии.</string>
+    <string name="bot_setup_start">Начать партию</string>
+    <string name="bot_setup_profile_universal">Универсальный</string>
+    <string name="bot_setup_profile_attacking">Атакующий</string>
+    <string name="bot_setup_profile_positional">Позиционный</string>
+    <string name="bot_setup_profile_endgame">Эндшпилист</string>
+    <string name="bot_setup_difficulty_beginner">Начальный</string>
+    <string name="bot_setup_difficulty_normal">Обычный</string>
+    <string name="bot_setup_difficulty_strong">Сильный</string>
+    <string name="game_record_too_large">Эта партия слишком длинная для сохранения или экспорта.</string>
 </resources>

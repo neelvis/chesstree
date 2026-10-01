@@ -1,0 +1,369 @@
+# schema	bot-long-game-v1
+# search	bounded;depth=4;seed0;book1;no learning;appBudget=true;q=4;historyLimit=36;model=PARANOID;profile=UNIVERSAL;catalog=2;plyLimit=240;fixedWork=false
+# interpretation	descriptive paired trajectories;synthetic starts are not video reconstructions or forced wins;one game per condition;no strength inference
+fixture	provenance	evaluation	ply	actor	piece	move	capture	promotion	depth	fallback	repeatedPosition	recentRepeat	repetitionPenalty	elapsedNs	horizon	reason	phase
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	1	WHITE	PAWN	e2>e3	false	false	3	false	false	false	0.0	904832417	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	2	RED	PAWN	d7>d6	false	false	2	false	false	false	0.0	139914041	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	3	BLACK	PAWN	e11>e10	false	false	2	false	false	false	0.0	900047625	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	4	WHITE	PAWN	d2>d3	false	false	2	false	false	false	0.0	900491250	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	5	RED	BISHOP	c8>k6	false	false	2	false	false	false	0.0	686129000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	6	BLACK	PAWN	g11>g10	false	false	2	false	false	false	0.0	900039917	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	7	WHITE	PAWN	a2>a3	false	false	1	false	false	false	0.0	216043834	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	8	RED	PAWN	l7>l6	false	false	2	false	false	false	0.0	900342583	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	9	BLACK	KNIGHT	m12>l10	false	false	1	false	false	false	0.0	900179125	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	10	WHITE	KNIGHT	b1>d2	false	false	2	false	false	false	0.0	900148584	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	11	RED	BISHOP	k6>c8	false	false	2	false	false	false	0.0	640744834	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	12	BLACK	BISHOP	f12>g11	false	false	1	false	false	false	0.0	70741375	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	13	WHITE	BISHOP	f1>e2	false	false	1	false	false	false	0.0	53833042	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	14	RED	KNIGHT	m8>n6	false	false	1	false	false	false	0.0	38060667	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	15	BLACK	QUEEN	k12>h4	false	false	1	false	false	false	0.0	43988959	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	16	WHITE	KNIGHT	g1>f3	false	false	1	false	false	false	0.0	101387625	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	17	RED	BISHOP	c8>k6	false	false	1	false	false	false	0.0	50263417	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	18	BLACK	QUEEN	h4>g4	false	false	1	false	false	false	0.0	73431750	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	19	WHITE	PAWN	g2>g3	false	false	1	false	false	false	0.0	261176083	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	20	RED	KNIGHT	b8>a6	false	false	1	false	false	false	0.0	55373709	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	21	BLACK	KNIGHT	g12>e11	false	false	1	false	false	false	0.0	69864834	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	22	WHITE	PAWN	d3>d4	false	false	1	false	false	false	0.0	191885792	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	23	RED	KNIGHT	a6>b8	false	false	1	false	false	false	0.0	58221042	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	24	BLACK	PAWN	m11>m10	false	false	1	false	false	false	0.0	241602709	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	25	WHITE	PAWN	c2>c3	false	false	1	false	false	false	0.0	80157875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	26	RED	PAWN	a7>a5	false	false	1	false	false	false	0.0	58847917	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	27	BLACK	BISHOP	l12>m11	false	false	1	false	false	false	0.0	69961541	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	28	WHITE	BISHOP	e2>d3	false	false	1	false	false	false	0.0	93626291	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	29	RED	PAWN	b7>b6	false	false	1	false	false	false	0.0	69020708	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	30	BLACK	KNIGHT	l10>n9	false	false	1	false	false	false	0.0	66629583	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	31	WHITE	ROOK	h1>g1	false	false	1	false	false	false	0.0	56625458	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	32	RED	ROOK	a8>a7	false	false	1	false	false	false	0.0	900763625	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	33	BLACK	BISHOP	m11>f3	true	false	1	false	false	false	0.0	120852709	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	34	WHITE	KNIGHT	d2>f3	true	false	1	false	false	false	0.0	900817125	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	35	RED	PAWN	m7>m5	false	false	1	false	false	false	0.0	305813375	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	36	BLACK	KNIGHT	n9>m11	false	false	1	false	false	false	0.0	83839208	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	37	WHITE	BISHOP	c1>d2	false	false	1	false	false	false	0.0	142109208	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	38	RED	BISHOP	l8>m7	false	false	1	false	false	false	0.0	367335167	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	39	BLACK	PAWN	h11>h9	false	false	1	false	false	false	0.0	89477625	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	40	WHITE	KING	e1>f1	false	false	1	false	false	false	0.0	152831875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	41	RED	BISHOP	k6>d5	false	false	1	false	false	false	0.0	110736459	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	42	BLACK	PAWN	l11>l10	false	false	1	false	false	false	0.0	194528458	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	43	WHITE	ROOK	g1>g2	false	false	1	false	false	false	0.0	108612209	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	44	RED	PAWN	k7>k5	false	false	1	false	false	false	0.0	209956167	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	45	BLACK	PAWN	f11>f9	false	false	1	false	false	false	0.0	673119500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	46	WHITE	KING	f1>g1	false	false	1	false	false	false	0.0	900148125	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	47	RED	BISHOP	d5>k6	false	false	1	false	false	false	0.0	65783834	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	48	BLACK	KING	e12>f11	false	false	1	false	false	false	0.0	127847750	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	49	WHITE	KING	g1>h1	false	false	1	false	false	false	0.0	409400458	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	50	RED	KING	d8>k7	false	false	1	false	false	false	0.0	66958583	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	51	BLACK	KNIGHT	e11>k9	false	false	1	false	false	false	0.0	142389125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	52	WHITE	ROOK	a1>b1	false	false	1	false	false	false	0.0	659563917	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	53	RED	KNIGHT	n6>l5	false	false	1	false	false	false	0.0	68695584	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	54	BLACK	PAWN	m10>m9	false	false	1	false	false	false	0.0	96537708	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	55	WHITE	ROOK	b1>a1	false	false	1	false	false	false	0.0	313213291	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	56	RED	KNIGHT	l5>n6	false	false	1	false	false	false	0.0	69406791	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	57	BLACK	PAWN	n11>n10	false	false	1	false	false	false	0.0	147179792	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	58	WHITE	ROOK	a1>b1	false	false	1	false	false	false	0.0	635218542	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	59	RED	KING	k7>d8	false	false	1	false	false	false	0.0	64091500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	60	BLACK	KING	f11>e11	false	false	1	false	false	false	0.0	276021667	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	61	WHITE	ROOK	b1>a1	false	false	1	false	false	false	0.0	728229166	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	62	RED	KING	d8>c8	false	false	1	false	false	false	0.0	63950500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	63	BLACK	ROOK	h12>g12	false	false	1	false	false	false	0.0	96566000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	64	WHITE	ROOK	a1>b1	false	false	1	false	false	false	0.0	682236500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	65	RED	KING	c8>b7	false	false	1	false	false	false	0.0	59563584	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	66	BLACK	ROOK	g12>h12	false	false	1	false	false	false	0.0	71326959	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	67	WHITE	ROOK	b1>a1	false	false	1	false	false	false	0.0	729209875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	68	RED	ROOK	a7>a8	false	false	1	false	false	false	0.0	123698125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	69	BLACK	ROOK	h12>g12	false	false	1	false	false	false	0.0	78303833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	70	WHITE	ROOK	a1>b1	false	false	1	false	false	false	0.0	689716666	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	71	RED	KNIGHT	b8>c6	false	false	1	false	false	false	0.0	62114541	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	72	BLACK	ROOK	g12>h12	false	false	1	false	false	false	0.0	93208125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	73	WHITE	ROOK	b1>a1	false	false	1	false	false	false	0.0	813925291	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	74	RED	KNIGHT	c6>k7	false	false	1	false	false	false	0.0	139681916	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	75	BLACK	ROOK	h12>g12	false	false	1	false	false	false	0.0	83793708	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	76	WHITE	ROOK	a1>b1	false	false	1	false	false	false	0.0	832257417	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	77	RED	QUEEN	k8>m6	false	false	1	false	false	false	0.0	155605875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	78	BLACK	KNIGHT	k9>m10	false	false	1	false	false	false	0.0	76629291	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	79	WHITE	BISHOP	d3>b5	false	false	1	false	false	false	0.0	151027125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	80	RED	KNIGHT	n6>l7	false	false	1	false	false	false	0.0	291864042	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	81	BLACK	ROOK	g12>h12	false	false	1	false	false	false	0.0	77212333	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	82	WHITE	BISHOP	b5>d3	false	false	1	false	false	false	0.0	171622209	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	83	RED	PAWN	n7>n6	false	false	1	false	false	false	0.0	301024625	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	84	BLACK	KNIGHT	m11>k10	false	false	1	false	false	false	0.0	75588166	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	85	WHITE	BISHOP	d3>b5	false	false	1	false	false	false	0.0	149243000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	86	RED	QUEEN	m6>n7	false	false	1	false	false	false	0.0	242368000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	87	BLACK	KNIGHT	k10>f11	false	false	1	false	false	false	0.0	78712125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	88	WHITE	BISHOP	b5>d3	false	false	1	false	false	false	0.0	167757667	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	89	RED	ROOK	n8>k8	false	false	1	false	false	false	0.0	261343833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	90	BLACK	PAWN	k11>k9	false	false	1	false	false	false	0.0	73273833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	91	WHITE	BISHOP	d3>b5	false	false	1	false	false	false	0.0	360168334	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	92	RED	ROOK	k8>l8	false	false	1	false	false	false	0.0	287410875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	93	BLACK	KING	e11>k11	false	false	1	false	false	false	0.0	76767250	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	94	WHITE	BISHOP	b5>d3	false	false	1	false	false	false	0.0	169078292	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	95	RED	BISHOP	k6>d7	false	false	1	false	false	false	0.0	311509250	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	96	BLACK	BISHOP	g11>f10	false	false	1	false	false	false	0.0	68498708	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	97	WHITE	ROOK	b1>a1	false	false	1	false	false	false	0.0	165429833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	98	RED	ROOK	l8>m8	false	false	1	false	false	false	0.0	341804125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	99	BLACK	KNIGHT	f11>k10	false	false	1	false	false	false	0.0	75829584	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	100	WHITE	PAWN	c3>c4	false	false	1	false	false	false	0.0	818702375	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	101	RED	ROOK	m8>l8	false	false	1	false	false	false	0.0	314412541	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	102	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	93396917	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	103	WHITE	PAWN	b2>b3	false	false	1	false	false	false	0.0	181223834	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	104	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	341699166	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	105	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	89975541	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	106	WHITE	BISHOP	d2>c3	false	false	1	false	false	false	0.0	763616958	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	107	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	310367834	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	108	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	90100042	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	109	WHITE	ROOK	a1>a2	false	false	1	false	false	false	0.0	227365208	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	110	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	345241125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	111	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	94486958	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	112	WHITE	ROOK	g2>g1	false	false	1	false	false	false	0.0	673257666	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	113	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	346130000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	114	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	95093791	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	115	WHITE	ROOK	g1>f1	false	false	1	false	false	false	0.0	197962834	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	116	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	365472667	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	117	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	93073875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	118	WHITE	ROOK	f1>e1	false	false	1	false	false	false	0.0	682757500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	119	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	344216500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	120	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	93101333	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	121	WHITE	ROOK	e1>g1	false	false	1	false	false	false	0.0	195369208	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	122	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	370914000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	123	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	94500000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	124	WHITE	ROOK	g1>g2	false	false	1	false	false	false	0.0	770998709	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	125	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	309556292	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	126	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	94318041	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	127	WHITE	KING	h1>g1	false	false	1	false	false	false	0.0	232678083	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	128	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	342416000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	129	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	95592000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	130	WHITE	KING	g1>f1	false	false	1	false	false	false	0.0	752347125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	131	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	309875708	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	132	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	92182875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	133	WHITE	ROOK	g2>g1	false	false	1	false	false	false	0.0	232552375	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	134	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	357381292	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	135	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	97037291	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	136	WHITE	ROOK	g1>h1	false	false	1	false	false	false	0.0	717996083	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	137	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	313212833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	138	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	97382125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	139	WHITE	KING	f1>g2	false	false	1	false	false	false	0.0	204639833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	140	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	370539083	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	141	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	102275541	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	142	WHITE	QUEEN	d1>b1	false	false	1	false	false	false	0.0	76521750	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	143	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	540798833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	144	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	98096250	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	145	WHITE	KNIGHT	f3>d2	false	false	1	false	false	false	0.0	74779000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	146	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	72002584	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	147	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	100298916	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	148	WHITE	QUEEN	b1>c1	false	false	1	false	false	false	0.0	63356667	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	149	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	73532791	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	150	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	103539042	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	151	WHITE	KING	g2>g1	false	false	1	false	false	false	0.0	900274666	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	152	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	65902250	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	153	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	96393000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	154	WHITE	QUEEN	c1>e1	false	false	1	false	false	false	0.0	856936250	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	155	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	61778875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	156	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	93036958	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	157	WHITE	QUEEN	e1>f1	false	false	1	false	false	false	0.0	900263083	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	158	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	102156292	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	159	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	100321750	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	160	WHITE	QUEEN	f1>c1	false	false	1	false	false	false	0.0	813980167	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	161	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	62961750	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	162	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	95744334	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	163	WHITE	KING	g1>g2	false	false	1	false	false	false	0.0	56612917	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	164	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	72910500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	165	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	103674875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	166	WHITE	ROOK	h1>g1	false	false	1	false	false	false	0.0	64586625	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	167	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	71175458	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	168	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	102370833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	169	WHITE	KING	g2>h1	false	false	1	false	false	false	0.0	66065125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	170	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	118152458	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	171	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	98703708	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	172	WHITE	ROOK	g1>g2	false	false	1	false	false	false	0.0	447078583	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	173	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	111639084	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	174	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	96298875	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	175	WHITE	QUEEN	c1>e1	false	false	1	false	false	false	0.0	854380584	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	176	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	115516666	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	177	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	93290000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	178	WHITE	ROOK	g2>g1	false	false	1	false	false	false	0.0	54230416	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	179	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	115367000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	180	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	93817959	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	181	WHITE	ROOK	a2>a1	false	false	1	false	false	false	0.0	57820833	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	182	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	127803292	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	183	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	101722959	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	184	WHITE	ROOK	g1>g2	false	false	1	false	false	false	0.0	513449958	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	185	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	111479708	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	186	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	92220125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	187	WHITE	QUEEN	e1>g1	false	false	1	false	false	false	0.0	900204333	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	188	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	111197542	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	189	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	91275667	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	190	WHITE	BISHOP	c3>b2	false	false	1	false	false	false	0.0	900330459	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	191	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	107157958	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	192	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	89609000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	193	WHITE	QUEEN	g1>e1	false	false	1	false	false	false	0.0	900329083	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	194	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	112548375	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	195	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	91865709	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	196	WHITE	ROOK	g2>g1	false	false	1	false	false	false	0.0	51117583	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	197	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	112373916	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	198	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	91634917	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	199	WHITE	ROOK	a1>a2	false	false	1	false	false	false	0.0	52701209	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	200	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	112004375	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	201	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	91434250	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	202	WHITE	ROOK	g1>g2	false	false	1	false	false	false	0.0	900661292	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	203	RED	BISHOP	n8>m7	false	false	1	false	false	false	0.0	108866125	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	204	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	91663583	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	205	WHITE	QUEEN	e1>c1	false	false	1	false	false	false	0.0	900210959	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	206	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	108734208	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	207	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	93183041	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	208	WHITE	BISHOP	b2>c3	false	false	1	false	true	true	12.0	429904250	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	209	RED	BISHOP	n8>m7	false	false	1	false	true	true	12.0	111287167	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	210	BLACK	ROOK	h12>g12	false	false	1	false	false	false	0.0	95891458	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	211	WHITE	QUEEN	c1>e1	false	false	1	false	false	false	0.0	533198000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	212	RED	ROOK	l8>m8	false	false	1	false	false	false	0.0	112565667	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	213	BLACK	KNIGHT	k10>f11	false	false	1	false	false	false	0.0	91406500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	214	WHITE	QUEEN	e1>c1	false	false	1	false	false	false	0.0	55660958	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	215	RED	ROOK	m8>l8	false	false	1	false	false	false	0.0	115039459	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	216	BLACK	KNIGHT	m10>n5	false	false	1	false	false	false	0.0	95527917	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	217	WHITE	QUEEN	c1>e1	false	false	1	false	false	false	0.0	57447958	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	218	RED	BISHOP	m7>n8	false	false	1	false	false	false	0.0	113388333	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	219	BLACK	KNIGHT	f11>k10	false	false	1	false	false	false	0.0	92144167	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	220	WHITE	QUEEN	e1>c1	false	false	1	false	false	false	0.0	572704166	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	221	RED	PAWN	l6>l5	false	false	1	false	false	false	0.0	127612500	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	222	BLACK	PAWN	m9>l5	true	false	1	false	false	false	0.0	95508167	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	223	WHITE	QUEEN	c1>e1	false	false	1	false	false	false	0.0	884351291	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	224	RED	ROOK	l8>m8	false	false	1	false	false	false	0.0	109640916	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	225	BLACK	ROOK	g12>h12	false	false	1	false	false	false	0.0	91984583	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	226	WHITE	QUEEN	e1>c1	false	false	1	false	false	false	0.0	577192917	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	227	RED	ROOK	m8>l8	false	false	1	false	false	false	0.0	113541250	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	228	BLACK	ROOK	h12>h11	false	false	1	false	false	false	0.0	95025792	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	229	WHITE	QUEEN	c1>e1	false	false	1	false	false	false	0.0	876288417	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	230	RED	ROOK	l8>m8	false	false	1	false	false	false	0.0	109689083	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	231	BLACK	ROOK	n12>m12	false	false	1	false	false	false	0.0	92987084	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	232	WHITE	QUEEN	e1>c1	false	false	1	false	false	false	0.0	547916958	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	233	RED	PAWN	m5>m9	false	false	1	false	false	false	0.0	130901084	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	234	BLACK	PAWN	n10>m9	true	false	1	false	false	false	0.0	105233709	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	235	WHITE	QUEEN	c1>e1	false	false	1	false	false	false	0.0	900017500	CHECKS	TIMEOUT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	236	RED	KNIGHT	l7>m5	false	false	1	false	false	false	0.0	113504000	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	237	BLACK	ROOK	m12>n12	false	false	1	false	false	false	0.0	91921459	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	238	WHITE	QUEEN	e1>c1	false	false	1	false	false	false	0.0	588396917	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	239	RED	QUEEN	n7>l7	false	false	1	false	false	false	0.0	114820792	CHECKS	TACTICAL_LIMIT	InProgress
+standard	StandardGame.scenario.initialState;reachable opening	POSITIONAL_HISTORY	240	BLACK	KNIGHT	n5>m10	false	false	1	false	false	false	0.0	106303292	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	293	WHITE	PAWN	k9>k10	false	false	4	false	false	false	0.0	46498250	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	294	RED	PAWN	d3>d2	false	false	3	false	false	false	0.0	12239250	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	295	BLACK	PAWN	k6>k7	false	false	2	false	false	false	0.0	1357750	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	296	WHITE	PAWN	k10>k11	false	false	1	false	false	false	0.0	1299459	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	297	RED	PAWN	d2>d1	false	true	1	false	false	false	0.0	517458	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	298	BLACK	PAWN	k7>k8	false	true	1	false	false	false	0.0	1647416	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	299	WHITE	PAWN	k11>k12	false	true	1	false	false	false	0.0	2124791	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	300	RED	QUEEN	d1>d5	false	false	1	false	false	false	0.0	5683000	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	301	BLACK	QUEEN	k8>k12	true	false	1	false	false	false	0.0	6137458	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	302	WHITE	KING	h12>h11	false	false	1	false	false	false	0.0	11206875	EXCHANGES	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	303	RED	KING	a1>b2	false	false	3	false	false	false	0.0	900052709	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	304	BLACK	QUEEN	k12>k11	false	false	0	true	false	false	0.0	4218208	STATIC	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	305	WHITE	KING	h11>g10	false	false	2	false	false	false	0.0	75380333	CHECKS	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	306	RED	KING	b2>c2	false	false	1	false	false	false	0.0	72460583	EXCHANGES	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	307	BLACK	QUEEN	k11>e10	false	false	3	false	false	false	0.0	900019833	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	308	WHITE	KING	g10>h11	false	false	1	false	false	false	0.0	52805208	EXCHANGES	TACTICAL_LIMIT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	309	RED	QUEEN	d5>d4	false	false	3	false	false	false	0.0	900036041	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	310	BLACK	KING	n8>n7	false	false	3	false	false	false	0.0	900011875	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	311	RED	QUEEN	d4>d7	false	false	3	false	false	false	0.0	900024000	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	312	BLACK	KING	n7>n6	false	false	3	false	false	false	0.0	900045875	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	313	RED	QUEEN	d7>c6	false	false	3	false	false	false	0.0	900025792	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	314	BLACK	KING	n6>n7	false	false	3	false	false	false	0.0	900022042	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	315	RED	QUEEN	c6>b7	false	false	3	false	false	false	0.0	900028167	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	316	BLACK	KING	n7>n6	false	false	3	false	false	false	0.0	900035750	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	317	RED	QUEEN	b7>n12	false	false	3	false	false	false	0.0	900039500	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	318	BLACK	KING	n6>m6	false	false	3	false	false	false	0.0	900045375	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	319	RED	QUEEN	n12>m12	false	false	3	false	false	false	0.0	900048959	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	320	BLACK	KING	m6>l6	false	false	3	false	false	false	0.0	900012208	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	321	RED	QUEEN	m12>h12	false	false	3	false	false	false	0.0	900034708	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	322	BLACK	KING	l6>l7	false	false	3	false	false	false	0.0	900062000	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	323	RED	QUEEN	h12>g11	false	false	3	false	false	false	0.0	900021459	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	324	BLACK	QUEEN	e10>e4	false	false	3	false	false	false	0.0	900075917	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	325	RED	KING	c2>d2	false	false	3	false	false	false	0.0	900040250	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	326	BLACK	KING	l7>m6	false	false	3	false	false	false	0.0	900053291	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	327	RED	KING	d2>c3	false	false	3	false	false	false	0.0	900029250	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	328	BLACK	KING	m6>l7	false	false	3	false	false	false	0.0	900019417	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	329	RED	KING	c3>b3	false	false	3	false	false	false	0.0	900062084	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	330	BLACK	KING	l7>m6	false	false	3	false	false	false	0.0	900041542	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	331	RED	KING	b3>b2	false	false	3	false	false	false	0.0	900041625	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	332	BLACK	QUEEN	e4>e2	false	false	3	false	false	false	0.0	900062041	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	333	RED	KING	b2>c3	false	false	3	false	false	false	0.0	900016583	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	334	BLACK	QUEEN	e2>e4	false	false	3	false	false	false	0.0	900029375	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	335	RED	KING	c3>d2	false	false	3	false	false	false	0.0	900016917	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	336	BLACK	KING	m6>l7	false	false	3	false	false	false	0.0	900042500	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	337	RED	KING	d2>c3	false	false	3	false	false	false	0.0	900058250	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	338	BLACK	KING	l7>k6	false	false	3	false	false	false	0.0	900029125	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	339	RED	KING	c3>d2	false	false	3	false	false	false	0.0	900041625	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	340	BLACK	KING	k6>d6	false	false	3	false	false	false	0.0	900011542	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	341	RED	KING	d2>c3	false	false	3	false	false	false	0.0	900017833	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	342	BLACK	QUEEN	e4>e3	false	false	3	false	false	false	0.0	900013209	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	343	RED	KING	c3>c2	false	false	3	false	false	false	0.0	900017500	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	344	BLACK	QUEEN	e3>e4	false	false	3	false	false	false	0.0	900016792	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	345	RED	KING	c2>d2	false	false	3	false	false	false	0.0	900077708	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	346	BLACK	KING	d6>c6	false	false	3	false	false	false	0.0	900012417	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	347	RED	KING	d2>c3	false	false	3	false	false	false	0.0	900048167	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	348	BLACK	KING	c6>b7	false	false	3	false	false	false	0.0	900029083	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	349	RED	KING	c3>d2	false	false	3	false	false	false	0.0	900040500	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	350	BLACK	KING	b7>b6	false	false	3	false	false	false	0.0	900038083	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	351	RED	KING	d2>c3	false	false	3	false	false	false	0.0	900026625	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	352	BLACK	QUEEN	e4>e3	false	false	3	false	false	false	0.0	900014584	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	353	RED	KING	c3>c2	false	false	3	false	false	false	0.0	900047042	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	354	BLACK	QUEEN	e3>e4	false	false	3	false	false	false	0.0	900031792	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	355	RED	KING	c2>d2	false	false	3	false	false	false	0.0	900051208	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	356	BLACK	KING	b6>c7	false	false	2	false	false	false	0.0	900048084	EXCHANGES	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	357	RED	KING	d2>c3	false	false	3	false	false	false	0.0	900023042	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	358	BLACK	KING	c7>b6	false	false	3	false	false	false	0.0	900033000	CHECKS	TIMEOUT	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	359	RED	QUEEN	g11>d4	false	false	4	false	false	false	0.0	555335333	EXCHANGES	DEPTH_COMPLETE	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	360	BLACK	QUEEN	e4>d4	true	false	4	false	false	false	0.0	32349250	EXCHANGES	DEPTH_COMPLETE	InProgress
+white-changed-file	synthetic constructor ArenaPilotFixtures.changedFile;StandardGame reachability unproven;not video reconstruction	POSITIONAL_HISTORY	361	RED	KING	c3>d4	true	false	4	false	false	false	0.0	2425833	EXCHANGES	DEPTH_COMPLETE	Finished(outcome=TwoWayDraw(first=RED, second=BLACK, third=WHITE, reason=INSUFFICIENT_MATERIAL))
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	293	WHITE	PAWN	k9>k10	false	false	3	false	false	false	0.0	13802375	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	294	RED	PAWN	d3>d2	false	false	3	false	false	false	0.0	14198542	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	295	BLACK	PAWN	k6>k7	false	false	2	false	false	false	0.0	1258917	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	296	WHITE	PAWN	k10>k11	false	false	1	false	false	false	0.0	1237708	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	297	RED	PAWN	d2>d1	false	true	1	false	false	false	0.0	422750	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	298	BLACK	PAWN	k7>k8	false	true	1	false	false	false	0.0	1864792	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	299	WHITE	PAWN	k11>k12	false	true	1	false	false	false	0.0	1897958	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	300	RED	QUEEN	d1>d5	false	false	1	false	false	false	0.0	7642292	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	301	BLACK	QUEEN	k8>k12	true	false	1	false	false	false	0.0	7000708	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	302	WHITE	KING	h12>h11	false	false	1	false	false	false	0.0	4312917	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	303	RED	QUEEN	d5>a8	true	false	4	false	false	false	0.0	563314125	EXCHANGES	DEPTH_COMPLETE	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	304	BLACK	KING	n8>n7	false	false	4	false	false	false	0.0	232742917	EXCHANGES	DEPTH_COMPLETE	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	305	WHITE	KING	h11>g10	false	false	1	false	false	false	0.0	9399083	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	306	RED	QUEEN	a8>d5	false	false	3	false	false	false	0.0	900030875	EXCHANGES	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	307	BLACK	QUEEN	k12>h12	false	false	4	false	false	false	0.0	625379292	EXCHANGES	DEPTH_COMPLETE	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	308	WHITE	KING	g10>f11	false	false	2	false	false	false	0.0	5378625	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	309	RED	KING	a1>a2	false	false	4	false	false	false	0.0	887195583	EXCHANGES	DEPTH_COMPLETE	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	310	BLACK	QUEEN	h12>n8	false	false	3	false	false	false	0.0	207071291	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	311	WHITE	KING	f11>e11	false	false	1	false	false	false	0.0	47240708	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	312	RED	QUEEN	d5>k9	false	false	3	false	false	false	0.0	900019167	EXCHANGES	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	313	BLACK	KING	n7>m8	false	false	3	false	false	false	0.0	148091750	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	314	WHITE	KING	e11>e12	false	false	2	false	false	false	0.0	56510167	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	315	RED	QUEEN	k9>k8	false	false	3	false	false	false	0.0	900029875	EXCHANGES	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	316	BLACK	KING	m8>m7	false	false	3	false	false	false	0.0	142623375	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	317	WHITE	KING	e12>e11	false	false	2	false	false	false	0.0	96343333	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	318	RED	QUEEN	k8>k7	false	false	3	false	false	false	0.0	108626500	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	319	BLACK	KING	m7>m8	false	false	3	false	false	false	0.0	70876458	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	320	WHITE	KING	e11>e12	false	false	2	false	false	false	0.0	41165208	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	321	RED	QUEEN	k7>k6	false	false	3	false	false	false	0.0	66356375	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	322	BLACK	KING	m8>m7	false	false	3	false	false	false	0.0	119243417	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	323	WHITE	KING	e12>f11	false	false	1	false	false	false	0.0	18093208	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	324	RED	QUEEN	k6>d5	false	false	1	false	false	false	0.0	29013625	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	325	BLACK	QUEEN	n8>l8	false	false	3	false	false	false	0.0	436040042	CHECKS	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	326	WHITE	KING	f11>e11	false	false	1	false	false	false	0.0	4990833	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	327	RED	KING	a2>b2	false	false	1	false	false	false	0.0	55446291	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	328	BLACK	QUEEN	l8>l9	false	false	2	false	false	false	0.0	214692333	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	329	WHITE	KING	e11>f11	false	false	1	false	false	false	0.0	23779333	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	330	RED	KING	b2>c2	false	false	1	false	false	false	0.0	104034375	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	331	BLACK	QUEEN	l9>l8	false	false	3	false	false	false	0.0	900011458	CHECKS	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	332	WHITE	KING	f11>e11	false	false	1	false	false	false	0.0	33771792	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	333	RED	QUEEN	d5>k9	false	false	1	false	false	false	0.0	98932125	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	334	BLACK	QUEEN	l8>c5	false	false	3	false	false	false	0.0	211250208	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	335	WHITE	KING	e11>f12	false	false	2	false	false	false	0.0	110836875	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	336	RED	KING	c2>d2	false	false	3	false	false	false	0.0	900032708	EXCHANGES	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	337	BLACK	QUEEN	c5>d4	false	false	4	false	false	false	0.0	690081458	EXCHANGES	DEPTH_COMPLETE	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	338	WHITE	KING	f12>e12	false	false	2	false	false	false	0.0	7201583	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	339	RED	KING	d2>e2	false	false	4	false	false	false	0.0	900041750	CHECKS	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	340	BLACK	KING	m7>l7	false	false	3	false	false	false	0.0	789303291	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	341	WHITE	KING	e12>f12	false	false	1	false	false	false	0.0	38063500	EXCHANGES	TACTICAL_LIMIT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	342	RED	QUEEN	k9>e10	false	false	3	false	false	false	0.0	900014625	CHECKS	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	343	BLACK	QUEEN	d4>b2	false	false	3	false	false	false	0.0	900045167	EXCHANGES	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	344	RED	KING	e2>f3	false	false	3	false	false	false	0.0	900014167	EXCHANGES	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	345	BLACK	QUEEN	b2>b7	false	false	3	false	false	false	0.0	900037625	CHECKS	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	346	RED	QUEEN	e10>e4	false	false	3	false	false	false	0.0	900037959	EXCHANGES	TIMEOUT	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	347	BLACK	QUEEN	b7>e4	true	false	4	false	false	false	0.0	266721708	EXCHANGES	DEPTH_COMPLETE	InProgress
+mixed-material	synthetic ArenaPilotFixtures.mixedMaterial;reachability unproven	POSITIONAL_HISTORY	348	RED	KING	f3>e4	true	false	4	false	false	false	0.0	2461833	EXCHANGES	DEPTH_COMPLETE	Finished(outcome=TwoWayDraw(first=RED, second=BLACK, third=WHITE, reason=INSUFFICIENT_MATERIAL))

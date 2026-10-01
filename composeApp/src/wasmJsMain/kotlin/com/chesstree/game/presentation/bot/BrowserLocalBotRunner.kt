@@ -11,6 +11,7 @@ import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.bot.BotFailureReason
 import com.chesstree.game.domain.bot.BotMoveSource
+import com.chesstree.game.domain.bot.BotSearchHorizon
 import com.chesstree.game.domain.bot.BotStopReason
 import com.chesstree.game.domain.bot.BoundedBotResult
 import com.chesstree.game.domain.bot.BoundedBotStats
@@ -73,6 +74,11 @@ class BrowserLocalBotRunner(
                         requestId = request.identity.requestId,
                         gameId = request.identity.gameId,
                         positionRevision = request.identity.positionRevision,
+                        engineVersion = request.engineVersion,
+                        searchModel = request.searchModel.name,
+                        profile = request.profile.name,
+                        profileCatalogVersion = request.profileCatalogVersion,
+                        difficulty = request.difficulty?.name,
                         evaluationVersion = request.evaluation.version,
                         openingBookVersion = request.openingBookVersion,
                         seed = request.seed,
@@ -83,6 +89,8 @@ class BrowserLocalBotRunner(
                         maxDepth = request.maxDepth,
                         maxNodes = request.maxNodes,
                         maxEvaluations = request.maxEvaluations,
+                        tacticalDepth = request.tacticalDepth,
+                        recentPositions = request.recentPositions.map(BotStateWireCodec::encode),
                     ),
                 )
                 currentCoroutineContext().ensureActive()
@@ -100,6 +108,7 @@ class BrowserLocalBotRunner(
                             when {
                                 reply == null -> fail()
                                 !reply.matches(request.identity) -> Unit
+                                reply.engineVersion != request.engineVersion || reply.searchModel != request.searchModel.name || reply.profile != request.profile.name || reply.profileCatalogVersion != request.profileCatalogVersion || reply.difficulty != request.difficulty?.name -> fail()
                                 reply.evaluationVersion != request.evaluation.version -> fail()
                                 reply.openingBookVersion != request.openingBookVersion -> fail()
                                 reply.kind == "READY" -> {
@@ -119,7 +128,7 @@ class BrowserLocalBotRunner(
                                     val previous = lastCompleted
                                     if (decoded == null ||
                                         (previous != null &&
-                                            (decoded.stats.completedDepth <= previous.stats.completedDepth ||
+                                            (decoded.stats.progressOrder() <= previous.stats.progressOrder() ||
                                                 decoded.stats.expandedNodes < previous.stats.expandedNodes ||
                                                 decoded.stats.leafEvaluations < previous.stats.leafEvaluations))
                                     ) {
@@ -134,7 +143,7 @@ class BrowserLocalBotRunner(
                                     if (decoded == null || decoded is BoundedBotResult.Failed) {
                                         fail()
                                     } else if (decoded is BoundedBotResult.Move && previous != null &&
-                                        (decoded.stats.completedDepth < previous.stats.completedDepth ||
+                                        (decoded.stats.progressOrder() < previous.stats.progressOrder() ||
                                             decoded.stats.expandedNodes < previous.stats.expandedNodes ||
                                             decoded.stats.leafEvaluations < previous.stats.leafEvaluations)
                                     ) {
@@ -180,7 +189,11 @@ private fun BotWorkerReply.toResult(request: LocalBotRequest): BoundedBotResult?
     if (completedDepth > request.maxDepth || expandedNodes > request.maxNodes ||
         leafEvaluations > request.maxEvaluations
     ) return null
-    val stats = BoundedBotStats(expandedNodes, leafEvaluations, completedDepth)
+    val horizon = BotSearchHorizon.entries.singleOrNull { it.name == completedHorizon } ?: return null
+    if ((request.tacticalDepth == 0 || completedDepth == 0) != (horizon == BotSearchHorizon.STATIC)) return null
+    if (repetitionPenalty > request.policy.weight(com.chesstree.game.domain.bot.BotFeature.MATERIAL).coerceAtLeast(0) * 0.24 ||
+        (request.recentPositions.isEmpty() && repetitionPenalty != 0.0)) return null
+    val stats = BoundedBotStats(expandedNodes, leafEvaluations, completedDepth, horizon)
     return when (kind) {
         "PROGRESS" -> {
             val intent = move?.toIntent() ?: return null
@@ -194,6 +207,7 @@ private fun BotWorkerReply.toResult(request: LocalBotRequest): BoundedBotResult?
                 BotStopReason.DEPTH_COMPLETE,
                 stats,
                 com.chesstree.game.domain.bot.BotOpeningDiagnostics(openingBookVersion, openingBookInfluenced),
+                repetitionPenalty,
             )
         }
         "MOVE" -> {
@@ -204,12 +218,14 @@ private fun BotWorkerReply.toResult(request: LocalBotRequest): BoundedBotResult?
             if (parsedReason == BotStopReason.EXECUTION_FAILURE) return null
             if ((parsedSource == BotMoveSource.COMPLETED_DEPTH && completedDepth == 0) ||
                 (parsedSource == BotMoveSource.LEGAL_FALLBACK && completedDepth != 0) ||
-                (parsedReason == BotStopReason.DEPTH_COMPLETE && completedDepth != request.maxDepth) ||
+                (parsedReason == BotStopReason.DEPTH_COMPLETE &&
+                    (completedDepth != request.maxDepth || (request.tacticalDepth > 0 && horizon != BotSearchHorizon.EXCHANGES))) ||
                 (openingBookInfluenced && (parsedSource != BotMoveSource.COMPLETED_DEPTH || completedDepth == 0))
             ) return null
             BoundedBotResult.Move(
                 intent, parsedSource, parsedReason, stats,
                 com.chesstree.game.domain.bot.BotOpeningDiagnostics(openingBookVersion, openingBookInfluenced),
+                repetitionPenalty,
             )
         }
         "TERMINAL" -> {
@@ -253,3 +269,5 @@ private fun createSearchWorker(url: String): SearchWorker = js("new Worker(url)"
 @Suppress("UNUSED_PARAMETER")
 private fun messageText(event: SearchWorkerEvent): String? =
     js("typeof event.data === 'string' ? event.data : null")
+
+private fun BoundedBotStats.progressOrder(): Int = completedDepth * 3 + completedHorizon.ordinal

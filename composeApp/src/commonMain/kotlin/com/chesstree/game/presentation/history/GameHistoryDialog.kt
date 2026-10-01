@@ -1,11 +1,17 @@
 package com.chesstree.game.presentation.history
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -15,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.chesstree.app.localized
@@ -28,6 +35,7 @@ fun GameHistoryDialog(
     exporter: GameLogExporter,
     onRestore: (String) -> String,
     onDismiss: () -> Unit,
+    exportContents: String? = log,
 ) {
     val scope = rememberCoroutineScope()
     var importMode by remember { mutableStateOf(false) }
@@ -36,11 +44,12 @@ fun GameHistoryDialog(
     var exportInProgress by remember { mutableStateOf(false) }
 
     fun export(action: suspend GameLogExporter.(String) -> GameLogExportResult) {
+        val contents = exportContents ?: return
         if (exportInProgress) return
         scope.launch {
             exportInProgress = true
             message = try {
-                when (exporter.action(log)) {
+                when (exporter.action(contents)) {
                     GameLogExportResult.COPIED -> "i18n:logs_copied"
                     GameLogExportResult.FILE_SAVED -> "i18n:logs_saved"
                     GameLogExportResult.FILE_DIALOG_OPENED -> "i18n:choose_save_location"
@@ -56,11 +65,14 @@ fun GameHistoryDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(localized(if (importMode) "restore_dialog_title" else "history_dialog_title")) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                modifier = Modifier.widthIn(max = 560.dp).fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(localized(if (importMode) "restore_dialog_title" else "history_dialog_title"),
+                    style = MaterialTheme.typography.headlineSmall)
                 OutlinedTextField(
                     value = if (importMode) importText else log,
                     onValueChange = { value -> if (importMode) importText = value },
@@ -75,52 +87,51 @@ fun GameHistoryDialog(
                         .fillMaxWidth()
                         .heightIn(min = 180.dp, max = 360.dp),
                 )
+                if (exportContents == null) Text(localized("game_record_too_large"))
                 message?.let { Text(localizedMessage(it)) }
-            }
-        },
-        confirmButton = {
-            if (importMode) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(
-                        onClick = {
-                            message = onRestore(importText)
-                            importMode = false
-                        },
-                    ) {
-                        Text(localized("restore"))
-                    }
-                    TextButton(onClick = { importMode = false }) { Text(localized("back")) }
-                }
-            } else {
-                Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(
-                            onClick = { export(GameLogExporter::save) },
-                            enabled = !exportInProgress,
-                        ) {
-                            Text(localized("save"))
-                        }
-                        TextButton(
-                            onClick = { export(GameLogExporter::copy) },
-                            enabled = !exportInProgress,
-                        ) {
-                            Text(localized("copy"))
-                        }
-                    }
+                if (importMode) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         TextButton(
                             onClick = {
-                                importText = ""
-                                message = null
-                                importMode = true
+                                message = onRestore(importText)
+                                importMode = false
                             },
                         ) {
-                            Text(localized("restore_from_log"))
+                            Text(localized("restore"))
                         }
-                        TextButton(onClick = onDismiss) { Text(localized("close")) }
+                        TextButton(onClick = { importMode = false }) { Text(localized("back")) }
+                    }
+                } else {
+                    Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(
+                                onClick = { export(GameLogExporter::save) },
+                                enabled = !exportInProgress && exportContents != null,
+                            ) {
+                                Text(localized("save"))
+                            }
+                            TextButton(
+                                onClick = { export(GameLogExporter::copy) },
+                                enabled = !exportInProgress && exportContents != null,
+                            ) {
+                                Text(localized("copy"))
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(
+                                onClick = {
+                                    importText = ""
+                                    message = null
+                                    importMode = true
+                                },
+                            ) {
+                                Text(localized("restore_from_log"))
+                            }
+                            TextButton(onClick = onDismiss) { Text(localized("close")) }
+                        }
                     }
                 }
             }
-        },
-    )
+        }
+    }
 }

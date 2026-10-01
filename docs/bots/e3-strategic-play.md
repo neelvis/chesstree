@@ -1,5 +1,8 @@
 # E3: positional evaluation and an experimental repertoire
 
+Current integration and remaining acceptance: [E4 checkpoint](e4-playable-integration.md).
+This stage report preserves its historical measurements.
+
 Date: 2026-10-01. Requirements: product specification section 7 and
 [BOT-D01–04 / accepted BOT-OB01–05](spec.md). This is a measured development
 slice; full release acceptance remains open.

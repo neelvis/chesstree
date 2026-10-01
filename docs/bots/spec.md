@@ -41,18 +41,18 @@ the passive bot shown in the recording.
 
 ## Current acceptance slice and reading map
 
-The immediate slice connects the existing bounded-search prototype to local
-watch play. It must keep page input responsive, clear thinking state after every
-outcome, cancel on stopping/leaving/replacement, and reject stale results after
-restart, undo, or restore (F03–F08, F11). Policy is fixed during an active game
-(F09–F10). This infrastructure slice alone does not meet the full v1 scope.
+The current slice integrates human versus two independent bots and watch play,
+with frozen per-seat styles/difficulty, pause/resume, human-round undo, full
+snapshot restoration, and replay diagnostics. It keeps execution, stale-result,
+and public-reducer boundaries from F03–F08/F11. This functional slice does not
+establish the full v1 playing-quality or performance thresholds.
 
 | Concern | Required source |
 | --- | --- |
 | Full product behavior and release thresholds | Product spec sections 4–9 and 12 |
 | Rules and placement | [Rules contract](rules-contract.md) |
 | Execution, cancellation, identity, fallback | [Execution decision](e1-execution-decision.md) |
-| Current implementation evidence and gaps | [Strategic candidate](e3-strategic-play.md); [watch integration](e1-watch-integration.md) |
+| Current implementation evidence and gaps | [Playable integration checkpoint](e4-playable-integration.md); historical [strategic candidate](e3-strategic-play.md) and [watch integration](e1-watch-integration.md) |
 | Opening repertoire behavior and provenance | [Experimental repertoire](opening-repertoire.md) |
 | Passive behavior evidence | [Recording review](king-shuffle-video-review.md) |
 
@@ -107,9 +107,10 @@ not an unsupported promise of established ChessTree theory.
 ## Verification and remaining scope
 
 Requirement evidence belongs in stage reports, not in normative requirements.
-The full v1 still requires human versus two bots, four recognizable profiles,
-three calibrated difficulties, settings persistence and replay diagnostics,
-quality corpus and tournament evidence, and measured N01–N07. Emulator and
+Human versus two bots, frozen settings, and replay diagnostics now have
+functional evidence in the current checkpoint. Full v1 still requires four
+recognizable profiles, three calibrated difficulties, broader quality corpus and
+tournament evidence, and measured N01–N07. Emulator and
 simulator checks provide development evidence; they do not establish phone
 performance thresholds. Proposed numeric thresholds remain acceptance targets
 pending the calibration explicitly allowed by the product spec.

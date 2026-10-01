@@ -40,12 +40,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chesstree.game.data.LocalBotMoveDiagnostic
+import kotlin.time.TimeSource
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import com.chesstree.game.data.LoadGameResult
+import com.chesstree.game.data.LocalBotGameConfig
+import com.chesstree.game.data.LocalBotGameConfigCodec
+import com.chesstree.game.presentation.components.LocalBotSetupScreen
 import com.chesstree.game.data.GameSaveStore
 import com.chesstree.game.data.GameSnapshot
 import com.chesstree.game.data.GameSnapshotCodec
 import com.chesstree.game.data.SaveGameResult
 import com.chesstree.game.domain.bot.BoundedBotResult
-import com.chesstree.game.domain.bot.BotEvaluationMode
 import com.chesstree.game.domain.bot.BotPolicyLearner
 import com.chesstree.game.domain.bot.BotTrainingSample
 import com.chesstree.game.domain.ArmyColor
@@ -71,9 +78,10 @@ import com.chesstree.game.presentation.board.toBoardPieces
 import com.chesstree.game.presentation.history.GameHistoryDialog
 import com.chesstree.game.presentation.history.GameHistoryNavigation
 import com.chesstree.game.presentation.history.GameLogExporter
+import com.chesstree.game.presentation.bot.requestForTurn
+import com.chesstree.game.presentation.bot.beforeLatestHumanMove
 import com.chesstree.game.presentation.bot.LocalBotIdentity
 import com.chesstree.game.presentation.bot.LocalBotReply
-import com.chesstree.game.presentation.bot.LocalBotRequest
 import com.chesstree.game.presentation.bot.LocalBotActivity
 import com.chesstree.game.presentation.bot.LocalBotRunner
 import com.chesstree.game.presentation.bot.matchesCurrentRequest
@@ -99,14 +107,19 @@ internal fun ChessNavigationRoot(
     onBack: () -> Unit,
 ) {
     val scenarios = remember { ManualGameScenarios.all }
+    val loadedSave = remember(gameSaveStore) { gameSaveStore.load() }
+    val loadedSnapshot = remember(loadedSave, scenarios) {
+        (loadedSave as? LoadGameResult.Loaded)?.contents?.let(GameSnapshotCodec::decode)
+            ?.takeIf { restoreSnapshot(it, scenarios) != null }
+    }
     val sessionSaver = remember(scenarios) {
         Saver<GameSession, String>(
-            save = { encodeSessionForRestoration(it) },
+            save = { encodeSessionForRestorationOrNull(it) },
             restore = { restoreSessionOrDefault(it, scenarios) },
         )
     }
     var session by rememberSaveable(stateSaver = sessionSaver) {
-        mutableStateOf(GameSession(scenarios.first()))
+        mutableStateOf(loadedSnapshot?.let { restoreSnapshot(it, scenarios) } ?: GameSession(scenarios.first()))
     }
     var selectedPieceId by remember { mutableStateOf<String?>(null) }
     var pendingPromotionMoves by remember { mutableStateOf(emptyList<Move>()) }
@@ -114,7 +127,26 @@ internal fun ChessNavigationRoot(
     var zoomToCell by remember { mutableStateOf<BoardCellId?>(null) }
     var zoomOutRequest by remember { mutableStateOf(0L) }
     var scenarioMenuExpanded by remember { mutableStateOf(false) }
-    var botGameEnabled by rememberSaveable { mutableStateOf(false) }
+    var botConfigContents by rememberSaveable {
+        mutableStateOf(loadedSnapshot?.botGame?.let(LocalBotGameConfigCodec::encode))
+    }
+    val botConfig = remember(botConfigContents) { botConfigContents?.let(LocalBotGameConfigCodec::decode) }
+    val diagnosticsSaver = remember {
+        Saver<List<LocalBotMoveDiagnostic>, String>(
+            save = { it.joinToString("\n", transform = LocalBotMoveDiagnostic::encode) },
+            restore = { contents ->
+                if (contents.isEmpty()) emptyList() else {
+                    contents.lineSequence().map { LocalBotMoveDiagnostic.decode(it) }.toList()
+                        .takeIf { it.all { entry -> entry != null } }?.filterNotNull()
+                }
+            },
+        )
+    }
+    var botDiagnostics by rememberSaveable(stateSaver = diagnosticsSaver) {
+        mutableStateOf(loadedSnapshot?.diagnostics ?: emptyList())
+    }
+    var botGameEnabled by rememberSaveable { mutableStateOf(loadedSnapshot?.botsRunning == true) }
+    var showBotSetup by remember { mutableStateOf(false) }
     var moveAnimationInProgress by remember { mutableStateOf(false) }
     var localGameId by rememberSaveable { mutableStateOf(Random.nextLong().toString()) }
     var positionRevision by rememberSaveable { mutableStateOf(0L) }
@@ -122,9 +154,12 @@ internal fun ChessNavigationRoot(
     var activeRequest by remember { mutableStateOf<LocalBotIdentity?>(null) }
     var botFailed by remember { mutableStateOf(false) }
     var retrySequence by remember { mutableStateOf(0L) }
-    val activePolicy = remember(localGameId) { gameSaveStore.loadBotPolicy() }
+    val legacyPolicy = remember(localGameId) { gameSaveStore.loadBotPolicy() }
+    val activePolicy = botConfig?.basePolicy ?: legacyPolicy
     var learnedGameId by rememberSaveable { mutableStateOf<String?>(null) }
-    var storageMessage by remember { mutableStateOf<String?>(null) }
+    var storageMessage by remember {
+        mutableStateOf<String?>(if (loadedSave is LoadGameResult.Failed || loadedSave is LoadGameResult.Loaded && loadedSnapshot == null) "i18n:bot_restore_invalid" else null)
+    }
     var historyNavigation by remember { mutableStateOf(GameHistoryNavigation.latest()) }
     val displayedSession = remember(session, historyNavigation) {
         historyNavigation.displayedSession(session)
@@ -173,16 +208,26 @@ internal fun ChessNavigationRoot(
         botFailed = false
     }
 
-    fun save(updatedSession: GameSession): SaveGameResult {
+    fun save(updatedSession: GameSession, diagnostics: List<LocalBotMoveDiagnostic> = botDiagnostics): SaveGameResult {
         val snapshot = GameSnapshot(
             scenarioId = updatedSession.scenario.id,
             moves = updatedSession.moves,
+            botGame = botConfigContents?.let(LocalBotGameConfigCodec::decode),
+            botsRunning = botGameEnabled && botConfigContents != null,
+            initialState = updatedSession.scenario.initialState,
+            diagnostics = diagnostics,
         )
-        return gameSaveStore.save(GameSnapshotCodec.encode(snapshot))
+        return try {
+            val contents = GameSnapshotCodec.encodeOrNull(snapshot)
+                ?: return SaveGameResult.Failed("i18n:game_record_too_large")
+            gameSaveStore.save(contents)
+        } catch (_: IllegalArgumentException) {
+            SaveGameResult.Failed("i18n:action_unavailable")
+        }
     }
 
     fun applyMove(move: Move) {
-        if (!isViewingLatest) return
+        if (!isViewingLatest || (botConfig != null && session.state.turn?.player != botConfig.humanSeat)) return
         when (val result = session.apply(
             MoveIntent(
                 actor = move.actor,
@@ -210,19 +255,24 @@ internal fun ChessNavigationRoot(
     fun restart() {
         invalidateBotPosition()
         session = GameSession(session.scenario)
+        botDiagnostics = emptyList()
         localGameId = Random.nextLong().toString()
         historyNavigation = GameHistoryNavigation.latest()
         clearTransientState()
-        storageMessage = "i18n:game_restarted"
+        storageMessage = when (val result = save(session)) {
+            SaveGameResult.Saved -> "i18n:game_restarted"
+            is SaveGameResult.Failed -> "i18n:save_failed|${result.message}"
+        }
     }
 
-    LaunchedEffect(session.state, botGameEnabled, localGameId, positionRevision,
+    LaunchedEffect(session.state, botGameEnabled, botConfigContents, showBotSetup, localGameId, positionRevision,
         retrySequence, isViewingLatest, settings.showGameHistory, botRunner, botActivity) {
         botActivity.state.collectLatest { activityState ->
             val currentSession = session
-            if (!activityState.active || !botGameEnabled || !isViewingLatest || settings.showGameHistory) return@collectLatest
+            if (!activityState.active || !botGameEnabled || botConfig == null || showBotSetup || !isViewingLatest || settings.showGameHistory) return@collectLatest
             val finishedOutcome = (currentSession.state.phase as? GamePhase.Finished)?.outcome
             if (finishedOutcome != null) {
+                if (botConfig.humanSeat != null) return@collectLatest
                 if (learnedGameId == localGameId) return@collectLatest
                 val finishedGameId = localGameId
                 val finishedRevision = positionRevision
@@ -259,15 +309,13 @@ internal fun ChessNavigationRoot(
             if (turn == null || currentSession.state.phase != GamePhase.InProgress) {
                 return@collectLatest
             }
+            if (botConfig.seatFor(turn.player) == null) return@collectLatest
             requestSequence += 1
             val identity = LocalBotIdentity(requestSequence.toString(), localGameId, positionRevision)
-            val request = LocalBotRequest(
-                identity, currentSession.state, activePolicy,
-                evaluation = BotEvaluationMode.POSITIONAL,
-                openingBookVersion = com.chesstree.game.domain.bot.BotOpeningBook.VERSION,
-            )
+            val request = botConfig.requestForTurn(identity, currentSession) ?: return@collectLatest
             activeRequest = identity
             botFailed = false
+            val started = TimeSource.Monotonic.markNow()
             try {
                 val reply = try {
                     botRunner.choose(request)
@@ -291,6 +339,12 @@ internal fun ChessNavigationRoot(
                     }
                     invalidateBotPosition()
                     session = result.session
+                    if (result.session.moves.size <= GameSnapshotCodec.MAX_MOVES) botDiagnostics = botDiagnostics + LocalBotMoveDiagnostic(
+                        moveIndex = result.session.moves.size, player = turn.player,
+                        elapsedMs = started.elapsedNow().inWholeMilliseconds, source = decision.source,
+                        reason = decision.reason, stats = decision.stats, openingBook = decision.openingBook,
+                        repetitionPenalty = decision.repetitionPenalty,
+                    )
                     historyNavigation = GameHistoryNavigation.latest()
                     storageMessage = when (val saveResult = save(result.session)) {
                         SaveGameResult.Saved -> null
@@ -303,6 +357,78 @@ internal fun ChessNavigationRoot(
                 if (activeRequest == identity) activeRequest = null
             }
         }
+    }
+    LaunchedEffect(botConfigContents, botGameEnabled, localGameId) {
+        // Freeze the setup with the position even before the first move or after a pause.
+        if (canPersistInitialGame(loadedSave, loadedSnapshot, positionRevision)) {
+            when (val result = save(session)) {
+                SaveGameResult.Saved -> Unit
+                is SaveGameResult.Failed -> storageMessage = "i18n:save_failed|${result.message}"
+            }
+        }
+    }
+    if (showBotSetup) {
+        LocalBotSetupScreen(
+            currentConfig = botConfig,
+            onDismiss = { showBotSetup = false },
+            onStart = { config ->
+                invalidateBotPosition()
+                session = GameSession(scenarios.first { it.id == "standard" })
+                botDiagnostics = emptyList()
+                botConfigContents = LocalBotGameConfigCodec.encode(
+                    LocalBotGameConfig(config.humanSeat, config.seats),
+                )
+                localGameId = Random.nextLong().toString()
+                learnedGameId = null
+                botGameEnabled = true
+                showBotSetup = false
+                historyNavigation = GameHistoryNavigation.latest()
+                clearTransientState()
+            },
+        )
+        return
+    }
+    if (settings.showGameHistory) {
+        GameHistoryDialog(
+            log = remember(session) { GameLogCodec.encode(session) },
+            exporter = gameLogExporter,
+            exportContents = GameSnapshotCodec.encodeOrNull(GameSnapshot(
+                scenarioId = session.scenario.id,
+                moves = session.moves,
+                botGame = botConfig,
+                botsRunning = botGameEnabled && botConfig != null,
+                initialState = session.scenario.initialState,
+                diagnostics = botDiagnostics,
+            )),
+            onRestore = { contents ->
+                val snapshot = GameSnapshotCodec.decode(contents)
+                val restoredSession = if (snapshot != null) restoreSnapshot(snapshot, scenarios) else null
+                if (contents.trimStart().startsWith("CHESSTREE|") && restoredSession == null) {
+                    "i18n:bot_restore_invalid"
+                } else {
+                    val restoredLog = if (snapshot == null) GameLogCodec.restore(session.scenario, contents) else null
+                    val restored = restoredSession ?: checkNotNull(restoredLog).session
+                    invalidateBotPosition()
+                    localGameId = Random.nextLong().toString()
+                    learnedGameId = null
+                    botConfigContents = snapshot?.botGame?.let(LocalBotGameConfigCodec::encode)
+                    // Imported games open paused so the restored position remains inspectable.
+                    botGameEnabled = false
+                    session = restored
+                    botDiagnostics = snapshot?.diagnostics ?: emptyList()
+                    historyNavigation = GameHistoryNavigation.latest()
+                    clearTransientState()
+                    when (val result = save(restored)) {
+                        SaveGameResult.Saved -> "i18n:restore_moves|${restored.moves.size}|${snapshot?.moves?.size ?: restoredLog?.totalMoves ?: 0}"
+                        is SaveGameResult.Failed -> "i18n:save_failed|${result.message}"
+                    }
+                }
+            },
+            onDismiss = {
+                onSettingsChanged(settings.copy(showGameHistory = false))
+            },
+        )
+        return
     }
     Column(
         modifier = Modifier
@@ -330,7 +456,7 @@ internal fun ChessNavigationRoot(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -348,28 +474,45 @@ internal fun ChessNavigationRoot(
                             }
                         }
                         Spacer(Modifier.weight(1f))
+                        TextButton(onClick = {
+                            invalidateBotPosition()
+                            clearTransientState()
+                            showBotSetup = true
+                        }) { Text(localized("bot_new_game"), maxLines = 1) }
                         TextButton(
                             onClick = {
-                                if (botGameEnabled) {
-                                    activeRequest = null
-                                    botFailed = false
+                                if (botConfig != null) {
+                                    invalidateBotPosition()
+                                    clearTransientState()
+                                    botGameEnabled = !botGameEnabled
+                                } else if (botGameEnabled) {
+                                    invalidateBotPosition()
                                     botGameEnabled = false
+                                    botConfigContents = null
                                 } else {
                                     invalidateBotPosition()
-                                    val standardScenario = scenarios.first { it.id == "standard" }
-                                    session = GameSession(standardScenario)
+                                    session = GameSession(scenarios.first { it.id == "standard" })
+                                    botDiagnostics = emptyList()
                                     localGameId = Random.nextLong().toString()
                                     learnedGameId = null
                                     historyNavigation = GameHistoryNavigation.latest()
                                     clearTransientState()
+                                    botConfigContents = LocalBotGameConfigCodec.encode(
+                                        LocalBotGameConfig.watchGame(
+                                            seeds = PlayerId.entries.associateWith { Random.nextLong() },
+                                            basePolicy = gameSaveStore.loadBotPolicy(),
+                                        ),
+                                    )
                                     botGameEnabled = true
                                 }
+                                // State changes are saved by the setup persistence effect below.
                             },
                         ) {
-                            Text(
-                                localized(if (botGameEnabled) "stop_three_bots" else "watch_three_bots"),
-                                maxLines = 1,
-                            )
+                            Text(localized(
+                                if (botConfig != null) {
+                                    if (botGameEnabled) "bot_pause" else "bot_resume"
+                                } else if (botGameEnabled) "stop_three_bots" else "watch_three_bots",
+                            ), maxLines = 1)
                         }
                         Box {
                             TextButton(
@@ -400,9 +543,11 @@ internal fun ChessNavigationRoot(
                                         onClick = {
                                             invalidateBotPosition()
                                             session = GameSession(scenario)
+                                            botDiagnostics = emptyList()
                                             localGameId = Random.nextLong().toString()
                                             learnedGameId = null
                                             botGameEnabled = false
+                                            botConfigContents = null
                                             historyNavigation = GameHistoryNavigation.latest()
                                             clearTransientState()
                                             storageMessage = null
@@ -431,7 +576,12 @@ internal fun ChessNavigationRoot(
                     )
                     if (gameState.turn != null) {
                         Text(
-                            text = localized(if (activeRequest != null) "bot_thinking" else "current_turn"),
+                            text = if (activeRequest != null) localized("bot_thinking_seat", localized(when (gameState.turn?.player) {
+                                PlayerId.WHITE -> "turn_player_white"
+                                PlayerId.RED -> "turn_player_red"
+                                PlayerId.BLACK -> "turn_player_black"
+                                null -> "current_turn"
+                            })) else localized("current_turn"),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onBackground,
                         )
@@ -474,13 +624,22 @@ internal fun ChessNavigationRoot(
                         ) {
                             Text(localized("forward"))
                         }
+                        TextButton(onClick = {
+                            invalidateBotPosition()
+                            clearTransientState()
+                            onSettingsChanged(settings.copy(showGameHistory = true))
+                        }) { Text(localized("history_dialog_title")) }
                         TextButton(
                             onClick = {
-                                val undone = session.undoLastMove() ?: return@TextButton
-                                storageMessage = when (val saveResult = save(undone)) {
+                                val undone = botConfig?.let { session.beforeLatestHumanMove(it) }
+                                    ?: if (botConfig == null) session.undoLastMove() else null
+                                if (undone == null) return@TextButton
+                                val remainingDiagnostics = botDiagnostics.filter { it.moveIndex <= undone.moves.size }
+                                storageMessage = when (val saveResult = save(undone, remainingDiagnostics)) {
                                     SaveGameResult.Saved -> {
                                         invalidateBotPosition()
                                         session = undone
+                                        botDiagnostics = remainingDiagnostics
                                         historyNavigation = GameHistoryNavigation.latest()
                                         clearTransientState()
                                         "i18n:last_move_undone"
@@ -490,7 +649,9 @@ internal fun ChessNavigationRoot(
                                         "i18n:undo_failed|${saveResult.message}"
                                 }
                             },
-                            enabled = !botGameEnabled && isViewingLatest && session.moves.isNotEmpty(),
+                            enabled = isViewingLatest && if (botConfig?.humanSeat != null) {
+                                session.moves.any { it.actor == botConfig.humanSeat }
+                            } else !botGameEnabled && session.moves.isNotEmpty(),
                         ) {
                             Text(localized("undo_move"))
                         }
@@ -506,7 +667,7 @@ internal fun ChessNavigationRoot(
                             moveLineHints = selectedMoveHints.moveLines,
                             trophies = trophies,
                             moveAnimationKey = BoardMoveAnimationKey(
-                                gameId = "solo:${session.scenario.id}",
+                                gameId = "solo:$localGameId",
                                 moveCount = session.moves.size,
                             ),
                             animatePieceMovement = settings.animatePieceMovement,
@@ -516,7 +677,8 @@ internal fun ChessNavigationRoot(
                             pieceSet = settings.pieceSet,
                             showDecorativeBirds = gameState.turn == null,
                             onCellSelected = { cell ->
-                                if (botGameEnabled) return@ThreePlayerChessBoard
+                                if (showBotSetup || (botConfig != null && gameState.turn?.player != botConfig.humanSeat) ||
+                                    (botConfig == null && botGameEnabled)) return@ThreePlayerChessBoard
                                 if (!isViewingLatest) return@ThreePlayerChessBoard
                                 if (cell == null) {
                                     selectedPieceId = null
@@ -607,30 +769,7 @@ internal fun ChessNavigationRoot(
             },
         )
     }
-    if (settings.showGameHistory) {
-        GameHistoryDialog(
-            log = remember(session) { GameLogCodec.encode(session) },
-            exporter = gameLogExporter,
-            onRestore = { contents ->
-                invalidateBotPosition()
-                localGameId = Random.nextLong().toString()
-                learnedGameId = null
-                val restored = GameLogCodec.restore(session.scenario, contents)
-                session = restored.session
-                historyNavigation = GameHistoryNavigation.latest()
-                clearTransientState()
-                val snapshot = GameSnapshot(
-                    scenarioId = restored.session.scenario.id,
-                    moves = restored.session.moves,
-                )
-                gameSaveStore.save(GameSnapshotCodec.encode(snapshot))
-                "i18n:restore_moves|${restored.restoredMoves}|${restored.totalMoves}"
-            },
-            onDismiss = {
-                onSettingsChanged(settings.copy(showGameHistory = false))
-            },
-        )
-    }
+
 }
 
 

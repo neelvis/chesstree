@@ -27,6 +27,10 @@ object BackgroundLocalBotRunner : LocalBotRunner {
                         request.evaluation,
                         request.openingBookVersion,
                         request.seed,
+                        tacticalDepth = request.tacticalDepth,
+                        searchModel = request.searchModel,
+                        profile = request.profile,
+                        profileCatalogVersion = request.profileCatalogVersion,
                     ).choose(request.state, request.policy, BotStopProbe {
                         when {
                             !context.isActive -> BotStopSignal.CANCEL
@@ -34,7 +38,7 @@ object BackgroundLocalBotRunner : LocalBotRunner {
                                 BotStopSignal.TIMEOUT
                             else -> BotStopSignal.CONTINUE
                         }
-                    })
+                    }, recentPositions = request.recentPositions)
                     LocalBotReply.Completed(request.identity, result)
                 } catch (cancelled: CancellationException) {
                     throw cancelled

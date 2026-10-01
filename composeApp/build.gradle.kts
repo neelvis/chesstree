@@ -52,6 +52,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.gameDomain)
+            implementation(projects.botWire)
             implementation(projects.onlineContract)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -72,14 +73,6 @@ kotlin {
             implementation(libs.ktor.client.mock)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.coroutines.test)
-        }
-
-        jsMain.dependencies {
-            implementation(projects.botWire)
-        }
-
-        wasmJsMain.dependencies {
-            implementation(projects.botWire)
         }
 
         androidMain.dependencies {
