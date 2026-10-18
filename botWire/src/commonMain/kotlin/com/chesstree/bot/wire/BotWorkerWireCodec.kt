@@ -43,7 +43,7 @@ object BotWorkerWireCodec {
                 it.evaluationVersion in 1..3 && it.openingBookVersion in 0..1 && it.requestId.isNotBlank() && it.gameId.isNotBlank() &&
                 it.positionRevision >= 0 && it.kind in REPLY_KINDS &&
                 it.elapsedMs >= 0 && it.completedDepth >= 0 &&
-                it.repetitionPenalty.isFinite() && it.repetitionPenalty in 0.0..2400.0 &&
+                it.repetitionPenalty.isFinite() && it.repetitionPenalty in 0.0..BotPolicy.MAX_RULE_WEIGHT.toDouble() &&
                 (it.completedDepth > 0 || it.repetitionPenalty == 0.0) &&
                 (it.engineVersion != 1 || it.repetitionPenalty == 0.0) &&
                 it.completedHorizon in setOf("STATIC", "CHECKS", "EXCHANGES") &&

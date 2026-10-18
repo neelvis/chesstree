@@ -22,14 +22,21 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.TimeSource
 
-/** Each request owns a worker; the page only decodes results and never searches the position. */
+/** Serial searches reuse one idle worker's bounded cache within the current game. */
 class BrowserLocalBotRunner(
     private val workerUrl: String = "botWorker.js",
 ) : LocalBotRunner {
     private val mutex = Mutex()
+    private var idleWorker: SearchWorker? = null
+    private var idleGameId: String? = null
 
     override suspend fun choose(request: LocalBotRequest): LocalBotReply = mutex.withLock {
         currentCoroutineContext().ensureActive()
+        if (idleGameId != request.identity.gameId) {
+            idleWorker?.terminate()
+            idleWorker = null
+            idleGameId = null
+        }
         val phase = request.state.phase
         if (phase is GamePhase.Finished) {
             return@withLock LocalBotReply.Completed(request.identity, BoundedBotResult.Terminal(phase))
@@ -39,8 +46,12 @@ class BrowserLocalBotRunner(
         val completion = CompletableDeferred<LocalBotReply>()
         var fallback: MoveIntent? = null
         var lastCompleted: BoundedBotResult.Move? = null
-        var worker: SearchWorker? = null
+        var worker: SearchWorker? = idleWorker
+        idleWorker = null
+        idleGameId = null
         var active = true
+        var completedSearch = false
+        var retainWorker = false
 
         fun fallbackOrFailure(reason: BotStopReason): LocalBotReply {
             lastCompleted?.let {
@@ -95,7 +106,7 @@ class BrowserLocalBotRunner(
                 if (dispatchedAt.elapsedNow().inWholeMilliseconds >= request.budgetMs) {
                     return@withTimeoutOrNull fallbackOrFailure(BotStopReason.TIMEOUT)
                 }
-                val searchWorker = createSearchWorker(workerUrl)
+                val searchWorker = worker ?: createSearchWorker(workerUrl)
                 worker = searchWorker
                 searchWorker.onmessage = { event ->
                     if (active && !completion.isCompleted) {
@@ -147,6 +158,9 @@ class BrowserLocalBotRunner(
                                     ) {
                                         fail()
                                     } else {
+                                        completedSearch = decoded is BoundedBotResult.Terminal ||
+                                            (decoded is BoundedBotResult.Move &&
+                                                decoded.source == BotMoveSource.COMPLETED_DEPTH)
                                         completion.complete(LocalBotReply.Completed(request.identity, decoded))
                                     }
                                 }
@@ -158,9 +172,10 @@ class BrowserLocalBotRunner(
                 searchWorker.onmessageerror = { fail() }
                 searchWorker.postMessage(payload)
                 completion.await()
-            } ?: fallbackOrFailure(BotStopReason.TIMEOUT)
+            }
             currentCoroutineContext().ensureActive()
-            result
+            retainWorker = result != null && completedSearch
+            result ?: fallbackOrFailure(BotStopReason.TIMEOUT)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Throwable) {
@@ -172,7 +187,12 @@ class BrowserLocalBotRunner(
                 it.onmessage = null
                 it.onerror = null
                 it.onmessageerror = null
-                it.terminate()
+                if (retainWorker) {
+                    idleWorker = it
+                    idleGameId = request.identity.gameId
+                } else {
+                    it.terminate()
+                }
             }
             completion.cancel()
         }
@@ -189,7 +209,8 @@ private fun BotWorkerReply.toResult(request: LocalBotRequest): BoundedBotResult?
     ) return null
     val horizon = BotSearchHorizon.entries.singleOrNull { it.name == completedHorizon } ?: return null
     if ((request.tacticalDepth == 0 || completedDepth == 0) != (horizon == BotSearchHorizon.STATIC)) return null
-    if (repetitionPenalty > request.policy.weight(com.chesstree.game.domain.bot.BotFeature.MATERIAL).coerceAtLeast(0) * 0.24 ||
+    if (repetitionPenalty > request.policy.weight(com.chesstree.game.domain.bot.BotFeature.MATERIAL).coerceAtLeast(0) *
+        2 * com.chesstree.game.domain.bot.DEFAULT_REPEATED_LAYOUT_PENALTY_PER_OCCURRENCE ||
         (request.recentPositions.isEmpty() && repetitionPenalty != 0.0)) return null
     val stats = BoundedBotStats(expandedNodes, leafEvaluations, completedDepth, horizon)
     return when (kind) {

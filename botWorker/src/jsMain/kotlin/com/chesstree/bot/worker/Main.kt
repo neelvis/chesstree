@@ -5,8 +5,9 @@ import com.chesstree.bot.wire.BotWorkerReply
 import com.chesstree.bot.wire.BotWorkerRequest
 import com.chesstree.bot.wire.BotWorkerWireCodec
 import com.chesstree.bot.wire.toWire
-import com.chesstree.game.domain.bot.BotStopProbe
 import com.chesstree.game.domain.bot.BotEvaluationMode
+import com.chesstree.game.domain.bot.BotSearchCache
+import com.chesstree.game.domain.bot.BotStopProbe
 import com.chesstree.game.domain.bot.BotStopSignal
 import com.chesstree.game.domain.bot.BoundedBotResult
 import com.chesstree.game.domain.bot.BoundedMaxNBot
@@ -28,6 +29,8 @@ private external interface BotPerformance {
 }
 
 fun main() {
+    val cache = BotSearchCache()
+    var cachedGameId: String? = null
     self.onmessage = { event ->
         val receivedAt = performance.now()
         if (event.data == PING) {
@@ -35,7 +38,11 @@ fun main() {
         } else {
             val request = BotWorkerWireCodec.decodeRequest(event.data)
             if (request != null) {
-                handle(request, receivedAt)
+                if (cachedGameId != request.gameId) {
+                    cache.clear()
+                    cachedGameId = request.gameId
+                }
+                handle(request, receivedAt, cache)
             } else {
                 self.postMessage(BAD_REQUEST)
             }
@@ -47,7 +54,7 @@ private const val PING = "CHESSTREE_BOT_WORKER_PING_V5"
 private const val PONG = "CHESSTREE_BOT_WORKER_PONG_V5"
 private const val BAD_REQUEST = "CHESSTREE_BOT_WORKER_BAD_REQUEST_V5"
 
-private fun handle(request: BotWorkerRequest, receivedAt: Double) {
+private fun handle(request: BotWorkerRequest, receivedAt: Double, cache: BotSearchCache) {
     val state = BotStateWireCodec.decode(request.state)
     val policy = request.toPolicy()
     if (state == null || policy == null) {
@@ -65,6 +72,7 @@ private fun handle(request: BotWorkerRequest, receivedAt: Double) {
             searchModel = com.chesstree.game.domain.bot.BotSearchModel.valueOf(request.searchModel),
             profile = com.chesstree.game.domain.bot.BotPlayingProfile.valueOf(request.profile),
             profileCatalogVersion = request.profileCatalogVersion,
+            cache = cache,
         ).choose(
             state = state,
             policy = policy,

@@ -3,6 +3,7 @@ package com.chesstree.game.domain.bot
 import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.GameReducer
 import com.chesstree.game.domain.GameState
+import com.chesstree.game.domain.GeneratedLegalMoveTransition
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.Move
 import com.chesstree.game.domain.MoveIntent
@@ -39,6 +40,8 @@ enum class BotSearchModel { MAX_N, PARANOID }
 enum class BotSearchHorizon { STATIC, CHECKS, EXCHANGES }
 
 const val MAX_BOT_RECENT_POSITIONS = 36
+
+const val DEFAULT_REPEATED_LAYOUT_PENALTY_PER_OCCURRENCE = 0.50
 
 data class BoundedBotStats(
     val expandedNodes: Int,
@@ -98,6 +101,8 @@ class BoundedMaxNBot(
     private val searchModel: BotSearchModel = BotSearchModel.MAX_N,
     private val profile: BotPlayingProfile = BotPlayingProfile.UNIVERSAL,
     private val profileCatalogVersion: Int = 1,
+    private val repeatedLayoutPenaltyPerOccurrence: Double = DEFAULT_REPEATED_LAYOUT_PENALTY_PER_OCCURRENCE,
+    private val cache: BotSearchCache? = null,
 ) {
     init {
         require(maxDepth > 0)
@@ -106,6 +111,7 @@ class BoundedMaxNBot(
         require(openingBookVersion == 0 || openingBookVersion == BotOpeningBook.VERSION)
         require(tacticalDepth in 0..6)
         require(profileCatalogVersion in 1..2)
+        require(repeatedLayoutPenaltyPerOccurrence in 0.0..1.0)
     }
 
     fun choose(
@@ -142,6 +148,7 @@ class BoundedMaxNBot(
             openingBookVersion, preferred,
             tacticalDepth,
             recentPositions.toList(), searchModel, profile, profileCatalogVersion,
+            repeatedLayoutPenaltyPerOccurrence, cache,
         )
         return search.choose(state, actor, rootMoves, fallback)
     }
@@ -183,15 +190,20 @@ class BoundedMaxNBot(
         private val searchModel: BotSearchModel,
         private val profile: BotPlayingProfile,
         private val profileCatalogVersion: Int,
+        private val repeatedLayoutPenaltyPerOccurrence: Double,
+        private val cache: BotSearchCache?,
     ) {
         private var expandedNodes = 0
         private var leafEvaluations = 0
         private var completedDepth = 0
         private var completedHorizon = BotSearchHorizon.STATIC
         private var rootActor = PlayerId.WHITE
+        private var rootPly = 0
         private var currentHorizon = BotSearchHorizon.STATIC
         private var interruption: Interruption? = null
         private var failure: BotFailureReason? = null
+        private var cutoffs = 0L
+        private lateinit var configuration: BotSearchCache.Configuration
 
         private data class Candidate(val move: Move, val score: Double, val penalty: Double, val style: Double)
 
@@ -204,6 +216,9 @@ class BoundedMaxNBot(
             fallback: MoveIntent,
         ): BoundedBotResult {
             rootActor = actor
+            rootPly = checkNotNull(state.turn).ply
+            cache?.beginSearch(rootPly)
+            configuration = BotSearchCache.Configuration(policy.rules.toList(), evaluation, searchModel, actor, tacticalDepth)
             val activityHistory = recentPositions.map { previous -> previous to controlledPieces(previous, actor) }
             var chosen: MoveIntent? = null
             var openingInfluenced = false
@@ -229,7 +244,7 @@ class BoundedMaxNBot(
                     }
                     for (move in orderedRoot) {
                         if (!checkStop()) break
-                        val transition = GameReducer.reduceGeneratedLegalMove(state, move)
+                        val transition = transition(state, move)
                         if (transition == null) {
                             return BoundedBotResult.Failed(BotFailureReason.GENERATED_MOVE_REJECTED)
                         }
@@ -260,7 +275,8 @@ class BoundedMaxNBot(
                                 previous.armies == after.armies && previous.phase == after.phase &&
                                 previous.turn?.player == after.turn?.player
                         }.coerceAtMost(2)
-                        val penalty = repeated * policy.weight(BotFeature.MATERIAL).coerceAtLeast(0) * 0.12
+                        val penalty = repeated * policy.weight(BotFeature.MATERIAL).coerceAtLeast(0) *
+                            repeatedLayoutPenaltyPerOccurrence
                         score[actor.ordinal] -= penalty
                         if (styleEnabled) {
                             candidates += Candidate(move, score[actor.ordinal], penalty, profile.preference(transition.state, actor, profileCatalogVersion))
@@ -356,6 +372,24 @@ class BoundedMaxNBot(
             beta: Double,
         ): DoubleArray? {
             if (!checkStop()) return null
+            val key = cache?.takeIf { depth > 0 }?.let {
+                BotSearchCache.SearchKey(state, configuration, depth, currentHorizon, responders.toSet())
+            }
+            if (key != null) cache?.search(key)?.let { return it }
+            val beforeCutoffs = cutoffs
+            val scores = evaluateUncached(state, depth, knownLegalMoves, responders, alpha, beta) ?: return null
+            if (key != null && cutoffs == beforeCutoffs && checkStop()) cache?.rememberSearch(key, scores)
+            return scores
+        }
+
+        private fun evaluateUncached(
+            state: GameState,
+            depth: Int,
+            knownLegalMoves: List<Move>,
+            responders: Set<PlayerId>,
+            alpha: Double,
+            beta: Double,
+        ): DoubleArray? {
             if (state.phase != GamePhase.InProgress) return staticScores(state, knownLegalMoves)
             if (depth == 0) return tacticalFrontier(state, knownLegalMoves, tacticalDepth, responders, true, alpha, beta)
             if (!enterNode()) return null
@@ -376,7 +410,7 @@ class BoundedMaxNBot(
             val component = if (searchModel == BotSearchModel.PARANOID) rootActor.ordinal else actor.ordinal
             for (move in orderedMoves(state, moves)) {
                 if (!checkStop()) return null
-                val transition = GameReducer.reduceGeneratedLegalMove(state, move)
+                val transition = transition(state, move)
                 if (transition == null) {
                     failure = BotFailureReason.GENERATED_MOVE_REJECTED
                     return null
@@ -391,7 +425,10 @@ class BoundedMaxNBot(
                 if (searchModel == BotSearchModel.PARANOID) {
                     if (minimizing) upper = minOf(upper, score[component]) else lower = maxOf(lower, score[component])
                     // Strict bounds preserve exact root ties, including repertoire preferences.
-                    if (lower > upper) break
+                    if (lower > upper) {
+                        cutoffs++
+                        break
+                    }
                 }
             }
             return best
@@ -426,6 +463,24 @@ class BoundedMaxNBot(
                 it.capturedPieceId != null || it.promotion != null
             }
             if (!activeCheck && responders.isEmpty() && !newExchange) return staticScores(state, knownLegalMoves)
+            val key = cache?.let {
+                BotSearchCache.SearchKey(state, configuration, 0, currentHorizon, responders.toSet(), remaining, allowNewExchange)
+            }
+            if (key != null) cache?.search(key)?.let { return it }
+            val beforeCutoffs = cutoffs
+            val scores = tacticalUncached(state, knownLegalMoves, remaining, responders, alpha, beta) ?: return null
+            if (key != null && cutoffs == beforeCutoffs && checkStop()) cache?.rememberSearch(key, scores)
+            return scores
+        }
+
+        private fun tacticalUncached(
+            state: GameState,
+            knownLegalMoves: List<Move>,
+            remaining: Int,
+            responders: Set<PlayerId>,
+            alpha: Double,
+            beta: Double,
+        ): DoubleArray? {
             if (!enterNode()) return null
             val actor = state.turn?.player ?: run {
                 failure = BotFailureReason.INVALID_STATE
@@ -444,7 +499,7 @@ class BoundedMaxNBot(
             val component = if (searchModel == BotSearchModel.PARANOID) rootActor.ordinal else actor.ordinal
             for (move in orderedMoves(state, moves)) {
                 if (!checkStop()) return null
-                val transition = GameReducer.reduceGeneratedLegalMove(state, move) ?: run {
+                val transition = transition(state, move) ?: run {
                     failure = BotFailureReason.GENERATED_MOVE_REJECTED
                     return null
                 }
@@ -457,7 +512,10 @@ class BoundedMaxNBot(
                 if (searchModel == BotSearchModel.PARANOID) {
                     if (minimizing) upper = minOf(upper, score[component]) else lower = maxOf(lower, score[component])
                     // Strict bounds preserve exact root ties, including repertoire preferences.
-                    if (lower > upper) break
+                    if (lower > upper) {
+                        cutoffs++
+                        break
+                    }
                 }
             }
             return best
@@ -482,15 +540,27 @@ class BoundedMaxNBot(
             }
         }
 
+        private fun transition(state: GameState, move: Move): GeneratedLegalMoveTransition? {
+            val root = state.turn?.ply == rootPly
+            cache?.transition(state, move, root)?.let { return it }
+            val transition = GameReducer.reduceGeneratedLegalMove(state, move) ?: return null
+            if (cache != null && checkStop()) cache.rememberTransition(state, move, transition, root)
+            return transition
+        }
+
         private fun staticScores(state: GameState, knownLegalMoves: List<Move>): DoubleArray? {
             if (!checkStop()) return null
+            val key = cache?.let { BotSearchCache.EvaluationKey(state, configuration) }
+            if (key != null) cache?.evaluation(key)?.let { return it }
             if (leafEvaluations >= maxEvaluations) {
                 interruption = Interruption.EVALUATION_LIMIT
                 return null
             }
             leafEvaluations++
             val score = evaluation.evaluate(state, policy, knownLegalMoves)
-            return score.takeIf { checkStop() }
+            if (!checkStop()) return null
+            if (key != null) cache?.rememberEvaluation(key, score)
+            return score
         }
 
         private fun enterNode(): Boolean {

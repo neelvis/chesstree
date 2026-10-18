@@ -10,20 +10,23 @@ release acceptance, playing-strength superiority, or calibrated difficulty.
 The local game now offers **Play against bots**. A new-game screen selects the
 human's color and independently selects each other seat's style and difficulty.
 The four styles are Universal, Attacking, Positional, and Endgame Specialist.
-The three difficulty presets use the initial product budgets:
+The three difficulty presets use the current approved budgets:
 
 | Preset | Soft search budget | Browser hard watchdog | Maximum nominal depth |
 | --- | ---: | ---: | ---: |
 | Beginner | 100 ms | 150 ms | 2 |
 | Normal | 350 ms | 500 ms | 3 |
-| Strong | 900 ms | 1,200 ms | 4 |
+| Strong | 30,000 ms | 35,000 ms | 4 |
 
-Each preset has 20,000 node and evaluation caps and four tactical continuation
-plies. Depth and horizon diagnostics describe the completed work; a preset's
+Beginner and Normal retain 20,000 node and evaluation caps. Strong uses 1,000,000
+for both caps so work limits do not silently defeat the longer timer. All presets
+retain four tactical continuation plies. Depth and horizon diagnostics describe the completed work; a preset's
 maximum depth is not a promise that every move reaches it. Native stop checks
 remain cooperative. A long individual rules/evaluation operation can overrun the
 soft budget or delay cancellation. These presets have not been calibrated to
-ratings, ordering of strength, or phone performance thresholds.
+ratings, ordering of strength, or phone performance thresholds. See the approved
+BOT-QF amendment in [the bot specification](spec.md) and the
+[October 17 measurements](e6-oct17-search-diagnosis.md).
 
 The acting bot receives only the public session and its own frozen seat setup.
 The human can act only on the human seat's turn, including any armies that the
@@ -53,6 +56,17 @@ utility and alpha-beta pruning; other actual actors minimize that component.
 Each bot independently searches from its own root. There is no shared private
 analysis or move coordination between seats. The opponent model remains an
 empirical candidate requiring comparison against MaxN under matched resources.
+
+Local runners enable a bounded, in-memory analysis cache. It reuses exact legal
+transitions, static evaluations, and completed cutoff-free search results, keyed
+by the full state and relevant search configuration. Root history/style
+preferences are always recomputed. The 2,048-entry storage protects root
+transitions and deeper completed results from transient leaf traffic. Native
+access is serialized; Web reuses a single idle worker only after a validated
+completed reply. Cancellation, hard timeout, malformed replies, and worker errors
+terminate it. Switching game identity clears retained analysis. No cache is
+persisted or included in the snapshot. The domain constructor keeps caching
+optional so the uncached comparison control remains available.
 
 Positive tactical depth first completes a check-resolving horizon, then attempts
 an exchange-response horizon at the same nominal depth. Captures/promotions track
@@ -107,8 +121,9 @@ during screen rendering or state restoration saving.
 History displays the ordinary move list. Its Copy/Save actions export the full
 snapshot, including elapsed request time, node/evaluation counts, completed
 depth/horizon, stop reason, fallback source, repertoire influence, and recurrence
-penalty. The preceding move prefix identifies each searched position. Cache hits
-are zero because this implementation has no transposition cache. No account,
+penalty. The preceding move prefix identifies each searched position. The trailing
+reserved cache field remains zero for export compatibility; it does not report
+the in-memory cache's hit counters. No account,
 authentication, or unrelated personal data belongs to this record. Request time
 includes dispatch/worker overhead. Seed plus a wall-clock deadline is not claimed
 to reproduce a search exactly; the domain's fixed-work path retains stable order
@@ -209,9 +224,10 @@ strength improvement or proof that passive endgames have been eliminated.
 ## Acceptance that remains open
 
 The owner subsequently observed active early piece development followed by
-repetitive play in an actual game. The detailed game report is pending; diagnosing
-that recurrence is a separate follow-up. The three probe trajectories above do
-not establish that the recurrence problem is resolved.
+repetitive play in an actual game. The October 11 report and a fixed-work
+repetition-preference experiment are recorded in the [E5 report](e5-reported-game-repetition.md).
+That single continuation does not establish tournament strength or close the
+broader passive-play acceptance.
 
 The new functional slice advances F01–F12 and the approved tactical/endgame work.
 Full product acceptance still needs the broader mandatory tactical corpus,

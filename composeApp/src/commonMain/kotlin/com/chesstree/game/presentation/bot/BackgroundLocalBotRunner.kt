@@ -1,5 +1,6 @@
 package com.chesstree.game.presentation.bot
 
+import com.chesstree.game.domain.bot.BotSearchCache
 import com.chesstree.game.domain.bot.BotStopProbe
 import com.chesstree.game.domain.bot.BotStopSignal
 import com.chesstree.game.domain.bot.BoundedMaxNBot
@@ -15,10 +16,16 @@ import kotlin.time.TimeSource
 /** Native composition roots use this shared, single-search background runner. */
 object BackgroundLocalBotRunner : LocalBotRunner {
     private val ownership = Mutex()
+    private val cache = BotSearchCache()
+    private var cachedGameId: String? = null
 
     override suspend fun choose(request: LocalBotRequest): LocalBotReply {
         val started = TimeSource.Monotonic.markNow()
         return ownership.withLock {
+            if (cachedGameId != request.identity.gameId) {
+                cache.clear()
+                cachedGameId = request.identity.gameId
+            }
             withContext(Dispatchers.Default) {
                 val context = currentCoroutineContext()
                 try {
@@ -31,6 +38,7 @@ object BackgroundLocalBotRunner : LocalBotRunner {
                         searchModel = request.searchModel,
                         profile = request.profile,
                         profileCatalogVersion = request.profileCatalogVersion,
+                        cache = cache,
                     ).choose(request.state, request.policy, BotStopProbe {
                         when {
                             !context.isActive -> BotStopSignal.CANCEL

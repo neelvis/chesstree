@@ -279,6 +279,26 @@ class BoundedBotTacticalTest {
     }
 
     @Test
+    fun repetitionPenaltyDoesNotSuppressTheOnlySafeKingEscape() {
+        val state = defensivePosition()
+        val legalDefenses = LegalMoveGenerator.legalMoves(state)
+        assertTrue(legalDefenses.isNotEmpty())
+        assertTrue(legalDefenses.all { state.position.pieces.getValue(it.pieceId).type == PieceType.KING })
+        val repeatedPositions = legalDefenses.map { move -> apply(state, move.intent()).state }
+        assertTrue(repeatedPositions.all { !LegalMoveGenerator.isKingInCheck(it, PlayerId.WHITE) })
+
+        val repeated = assertIs<BoundedBotResult.Move>(
+            BoundedMaxNBot(maxDepth = 1, maxNodes = 256, maxEvaluations = 256).choose(
+                state,
+                recentPositions = repeatedPositions,
+            ),
+        )
+        val defended = apply(state, repeated.intent).state
+        assertFalse(LegalMoveGenerator.isKingInCheck(defended, PlayerId.WHITE))
+        assertEquals(50.0, repeated.repetitionPenalty)
+    }
+
+    @Test
     fun timeoutBeforeExchangePassPreservesTheCompletedCheckSafeChoice() {
         val state = forcedRecapture()
         val completed = mutableListOf<BoundedBotResult.Move>()

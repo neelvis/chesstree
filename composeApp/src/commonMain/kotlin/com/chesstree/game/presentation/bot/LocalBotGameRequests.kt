@@ -3,6 +3,7 @@ package com.chesstree.game.presentation.bot
 import com.chesstree.game.data.LocalBotGameConfig
 import com.chesstree.game.domain.GamePhase
 import com.chesstree.game.domain.bot.BotEvaluationMode
+import com.chesstree.game.domain.bot.BotDifficulty
 import com.chesstree.game.domain.bot.BotSearchModel
 import com.chesstree.game.domain.bot.MAX_BOT_RECENT_POSITIONS
 import com.chesstree.game.domain.session.GameSession
@@ -22,6 +23,8 @@ internal fun LocalBotGameConfig.requestForTurn(
         budgetMs = seat.difficulty.hardBudgetMs,
         softBudgetMs = seat.difficulty.softBudgetMs,
         maxDepth = seat.difficulty.maxDepth,
+        maxNodes = if (seat.difficulty == BotDifficulty.STRONG) 1_000_000 else 20_000,
+        maxEvaluations = if (seat.difficulty == BotDifficulty.STRONG) 1_000_000 else 20_000,
         evaluation = BotEvaluationMode.POSITIONAL,
         openingBookVersion = bookVersion,
         seed = seat.seed,

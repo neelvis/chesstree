@@ -79,8 +79,8 @@ class BotPlayingProfileTest {
     }
 
     @Test
-    fun difficultyPresetsKeepTheApprovedInitialSoftAndHardBudgets() {
-        assertEquals(listOf(100 to 150, 350 to 500, 900 to 1200), BotDifficulty.entries.map { it.softBudgetMs to it.hardBudgetMs })
+    fun difficultyPresetsKeepTheirSoftAndHardBudgets() {
+        assertEquals(listOf(100 to 150, 350 to 500, 30_000 to 35_000), BotDifficulty.entries.map { it.softBudgetMs to it.hardBudgetMs })
         assertEquals(listOf(2, 3, 4), BotDifficulty.entries.map { it.maxDepth })
     }
 

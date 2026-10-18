@@ -45,6 +45,13 @@ class LocalBotMoveDiagnosticTest {
     }
 
     @Test
+    fun preservesCurrentMaximumRepetitionPenalty() {
+        val maximum = trace.copy(repetitionPenalty = com.chesstree.game.domain.bot.BotPolicy.MAX_RULE_WEIGHT.toDouble())
+        assertEquals(maximum, LocalBotMoveDiagnostic.decode(maximum.encode()))
+        assertFailsWith<IllegalArgumentException> { maximum.copy(repetitionPenalty = 10_001.0) }
+    }
+
+    @Test
     fun fallbackCannotBeRecordedAsACompletedHorizon() {
         assertFailsWith<IllegalArgumentException> { trace.copy(source = BotMoveSource.LEGAL_FALLBACK) }
         val fallback = trace.copy(source = BotMoveSource.LEGAL_FALLBACK,

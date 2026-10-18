@@ -10,6 +10,20 @@ class BotWorkerWireCodecTest {
     private val initial = StandardGame.scenario.initialState
 
     @Test
+    fun repetitionPenaltySupportsTheCurrentCoefficientAtMaximumMaterialWeight() {
+        val move = com.chesstree.game.domain.LegalMoveGenerator.legalMoves(initial).first()
+        val reply = BotWorkerReply(
+            requestId = "cache-penalty", gameId = "game", positionRevision = 1,
+            engineVersion = 3, searchModel = "PARANOID", kind = "MOVE",
+            move = com.chesstree.game.domain.MoveIntent(move.actor, move.from, move.to, move.promotion).toWire(),
+            source = "COMPLETED_DEPTH", reason = "TIMEOUT", completedDepth = 1,
+            completedHorizon = "CHECKS", repetitionPenalty = BotPolicy.MAX_RULE_WEIGHT.toDouble(),
+        )
+        assertEquals(reply, BotWorkerWireCodec.decodeReply(BotWorkerWireCodec.encodeReply(reply)))
+        assertNull(BotWorkerWireCodec.decodeReply(BotWorkerWireCodec.encodeReply(reply.copy(repetitionPenalty = 10_001.0))))
+    }
+
+    @Test
     fun requestRoundTripsWithStateAndFrozenPolicy() {
         val request = BotWorkerRequest(
             requestId = "request-1",

@@ -21,7 +21,7 @@ data class LocalBotMoveDiagnostic(
     init {
         require(moveIndex in 1..10_000 && elapsedMs >= 0)
         require(stats.expandedNodes >= 0 && stats.leafEvaluations >= 0 && stats.completedDepth >= 0)
-        require(repetitionPenalty.isFinite() && repetitionPenalty in 0.0..2400.0)
+        require(repetitionPenalty.isFinite() && repetitionPenalty in 0.0..com.chesstree.game.domain.bot.BotPolicy.MAX_RULE_WEIGHT.toDouble())
         require(openingBook.version in 0..1 && (!openingBook.influenced || openingBook.version == 1))
         require(if (source == BotMoveSource.LEGAL_FALLBACK) {
             stats.completedDepth == 0 && stats.completedHorizon == BotSearchHorizon.STATIC && repetitionPenalty == 0.0
@@ -32,7 +32,7 @@ data class LocalBotMoveDiagnostic(
         "diagnostic", moveIndex, player.name, elapsedMs, source.name, reason.name,
         stats.expandedNodes, stats.leafEvaluations, stats.completedDepth, stats.completedHorizon.name,
         openingBook.version, if (openingBook.influenced) "1" else "0", repetitionPenalty,
-        "0", // This engine has no transposition cache.
+        "0", // Reserved field; cache counters are not part of this export schema.
     ).joinToString("|")
 
     companion object {
