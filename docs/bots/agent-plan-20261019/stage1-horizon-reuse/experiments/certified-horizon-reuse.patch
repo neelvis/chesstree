@@ -1,0 +1,1025 @@
+diff --git a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchCache.kt b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchCache.kt
+index f8454de..c9ce566 100644
+--- a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchCache.kt
++++ b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchCache.kt
+@@ -30,7 +30,9 @@ class BotSearchCache(val maxEntries: Int = 2_048) {
+     private val transientCapacity = maxEntries - rootCapacity - completedCapacity
+     private val entries = linkedMapOf<Any, Any>()
+     private val roots = linkedMapOf<Any, Any>()
+-    private val completed = linkedMapOf<Int, LinkedHashMap<SearchKey, DoubleArray>>()
++    private data class SearchEntry(val scores: DoubleArray, val horizonAlias: Boolean)
++
++    private val completed = linkedMapOf<Int, LinkedHashMap<SearchKey, SearchEntry>>()
+     private var completedSize = 0
+     private var searchHits = 0L
+     private var evaluationHits = 0L
+@@ -64,35 +66,40 @@ class BotSearchCache(val maxEntries: Int = 2_048) {
+         }
+     }
+ 
+-    internal fun search(key: SearchKey): DoubleArray? {
+-        val scores = if (key.remaining == null && key.depth > 0 && completedCapacity > 0) {
++    internal fun search(key: SearchKey, onHorizonAlias: () -> Unit = {}): DoubleArray? {
++        val entry = if (key.remaining == null && key.depth > 0 && completedCapacity > 0) {
+             completed[key.depth]?.let { bucket ->
+                 bucket.remove(key)?.also { bucket[key] = it }
+             }
+-        } else get(entries, key) as? DoubleArray
+-        if (scores != null) searchHits++
+-        return scores?.copyOf()
++        } else get(entries, key) as? SearchEntry
++        if (entry != null) {
++            searchHits++
++            if (entry.horizonAlias) onHorizonAlias()
++        }
++        return entry?.scores?.copyOf()
+     }
+ 
+-    internal fun rememberSearch(key: SearchKey, scores: DoubleArray) {
++    internal fun rememberSearch(key: SearchKey, scores: DoubleArray, horizonAlias: Boolean = false): Boolean {
++        val entry = SearchEntry(scores.copyOf(), horizonAlias)
+         if (key.remaining != null || key.depth <= 0 || completedCapacity == 0) {
+-            put(entries, transientCapacity, key, scores.copyOf())
+-            return
++            put(entries, transientCapacity, key, entry)
++            return true
+         }
+         val existing = completed[key.depth]?.remove(key)
+         if (existing != null) completedSize--
+         if (completedSize >= completedCapacity) {
+             val shallowest = checkNotNull(completed.keys.minOrNull())
+             // A stream of cheap depth-one nodes must not replace deeper exact work.
+-            if (key.depth < shallowest) return
++            if (key.depth < shallowest) return false
+             val bucket = completed.getValue(shallowest)
+             bucket.remove(bucket.keys.first())
+             if (bucket.isEmpty()) completed.remove(shallowest)
+             completedSize--
+             evictions++
+         }
+-        completed.getOrPut(key.depth) { linkedMapOf() }[key] = scores.copyOf()
++        completed.getOrPut(key.depth) { linkedMapOf() }[key] = entry
+         completedSize++
++        return true
+     }
+ 
+     internal fun evaluation(key: EvaluationKey): DoubleArray? = (get(entries, key) as? DoubleArray)?.also {
+diff --git a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchDiagnostics.kt b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchDiagnostics.kt
+index 1f28558..311e241 100644
+--- a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchDiagnostics.kt
++++ b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchDiagnostics.kt
+@@ -43,6 +43,14 @@ internal data class BotSearchDiagnostics(
+     val attempts: List<BotSearchAttemptDiagnostics>,
+     val stop: BotSearchAttemptStop,
+     val failure: BotFailureReason?,
++    val horizonReuse: BotHorizonReuseDiagnostics = BotHorizonReuseDiagnostics(),
++)
++
++internal data class BotHorizonReuseDiagnostics(
++    val certificatesStored: Int = 0,
++    val aliasHits: Int = 0,
++    val divergentFrontiers: Int = 0,
++    val unknownCheckCacheHits: Int = 0,
+ )
+ 
+ internal class BotSearchDiagnosticCollector {
+@@ -55,6 +63,15 @@ internal class BotSearchDiagnosticCollector {
+     private var currentHorizon = BotSearchHorizon.STATIC
+     private var startWork = BotSearchWork()
+     private var cutoff: BotTacticalCutoff? = null
++    private var certificatesStored = 0
++    private var aliasHits = 0
++    private var divergentFrontiers = 0
++    private var unknownCheckCacheHits = 0
++
++    fun horizonCertificateStored() { certificatesStored++ }
++    fun horizonAliasHit() { aliasHits++ }
++    fun divergentHorizonFrontier() { divergentFrontiers++ }
++    fun unknownCheckCacheHit() { unknownCheckCacheHits++ }
+ 
+     private fun work() = BotSearchWork(normalNodes, tacticalNodes, normalEvaluations, tacticalEvaluations)
+ 
+@@ -99,6 +116,7 @@ internal class BotSearchDiagnosticCollector {
+             }
+         }
+         endAttempt(stop)
+-        return BotSearchDiagnostics(work(), attempts.toList(), stop, (result as? BoundedBotResult.Failed)?.reason)
++        return BotSearchDiagnostics(work(), attempts.toList(), stop, (result as? BoundedBotResult.Failed)?.reason,
++            BotHorizonReuseDiagnostics(certificatesStored, aliasHits, divergentFrontiers, unknownCheckCacheHits))
+     }
+ }
+diff --git a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
+index 46564cc..bee5e2f 100644
+--- a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
++++ b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
+@@ -122,7 +122,7 @@ class BoundedMaxNBot(
+         onCompletedDepth: (BoundedBotResult.Move) -> Unit = {},
+         recentPositions: List<GameState> = emptyList(),
+     ): BoundedBotResult = chooseImpl(
+-        state, policy, stop, onFallbackReady, onCompletedDepth, recentPositions, null, true,
++        state, policy, stop, onFallbackReady, onCompletedDepth, recentPositions, null, true, false,
+     )
+ 
+     internal fun chooseWithDiagnostics(
+@@ -133,11 +133,12 @@ class BoundedMaxNBot(
+         onCompletedDepth: (BoundedBotResult.Move) -> Unit = {},
+         recentPositions: List<GameState> = emptyList(),
+         reuseKingAttackContext: Boolean = true,
++        reuseCertifiedHorizons: Boolean = false,
+         diagnostics: (BotSearchDiagnostics) -> Unit,
+     ): BoundedBotResult {
+         val collector = BotSearchDiagnosticCollector()
+         val result = chooseImpl(state, policy, stop, onFallbackReady, onCompletedDepth, recentPositions, collector,
+-            reuseKingAttackContext)
++            reuseKingAttackContext, reuseCertifiedHorizons)
+         diagnostics(collector.finish(result))
+         return result
+     }
+@@ -151,6 +152,7 @@ class BoundedMaxNBot(
+         recentPositions: List<GameState>,
+         diagnostics: BotSearchDiagnosticCollector?,
+         reuseKingAttackContext: Boolean,
++        reuseCertifiedHorizons: Boolean,
+     ): BoundedBotResult {
+         require(recentPositions.size <= MAX_BOT_RECENT_POSITIONS)
+         val phase = state.phase
+@@ -178,7 +180,7 @@ class BoundedMaxNBot(
+             openingBookVersion, preferred,
+             tacticalDepth,
+             recentPositions.toList(), searchModel, profile, profileCatalogVersion,
+-            repeatedLayoutPenaltyPerOccurrence, cache, diagnostics, reuseKingAttackContext,
++            repeatedLayoutPenaltyPerOccurrence, cache, diagnostics, reuseKingAttackContext, reuseCertifiedHorizons,
+         )
+         return search.choose(state, actor, rootMoves, fallback)
+     }
+@@ -224,6 +226,7 @@ class BoundedMaxNBot(
+         private val cache: BotSearchCache?,
+         private val diagnostics: BotSearchDiagnosticCollector?,
+         private val reuseKingAttackContext: Boolean,
++        reuseCertifiedHorizons: Boolean,
+     ) {
+         private var expandedNodes = 0
+         private var leafEvaluations = 0
+@@ -235,6 +238,8 @@ class BoundedMaxNBot(
+         private var interruption: Interruption? = null
+         private var failure: BotFailureReason? = null
+         private var cutoffs = 0L
++        private val certifyHorizons = reuseCertifiedHorizons && cache != null && tacticalDepth > 0
++        private var uncertifiedHorizonSubtrees = 0L
+         private lateinit var configuration: BotSearchCache.Configuration
+ 
+         private data class Candidate(val move: Move, val score: Double, val penalty: Double, val style: Double)
+@@ -408,15 +413,48 @@ class BoundedMaxNBot(
+         ): DoubleArray? {
+             if (!checkStop()) return null
+             val key = cache?.takeIf { depth > 0 }?.let {
+-                BotSearchCache.SearchKey(state, configuration, depth, currentHorizon, responders.toSet())
++                BotSearchCache.SearchKey(state, configuration, depth, currentHorizon, actualResponders(responders).toSet())
+             }
+-            if (key != null) cache?.search(key)?.let { return it }
++            if (key != null) cachedScores(key)?.let { return it }
+             val beforeCutoffs = cutoffs
++            val beforeUncertified = uncertifiedHorizonSubtrees
+             val scores = evaluateUncached(state, depth, knownLegalMoves, responders, alpha, beta) ?: return null
+-            if (key != null && cutoffs == beforeCutoffs && checkStop()) cache?.rememberSearch(key, scores)
++            if (key != null) rememberExact(key, scores, responders, beforeCutoffs, beforeUncertified)
+             return scores
+         }
+ 
++        private fun actualResponders(responders: Set<PlayerId>): Set<PlayerId> =
++            if (currentHorizon == BotSearchHorizon.EXCHANGES) responders else emptySet()
++
++        private fun cachedScores(key: BotSearchCache.SearchKey): DoubleArray? {
++            val scores = cache?.search(key) { diagnostics?.horizonAliasHit() } ?: return null
++            if (certifyHorizons && currentHorizon == BotSearchHorizon.CHECKS) {
++                // An exact CHECKS value proves its score, not the unvisited EXCHANGES tree.
++                uncertifiedHorizonSubtrees++
++                diagnostics?.unknownCheckCacheHit()
++            }
++            return scores
++        }
++
++        private fun rememberExact(
++            key: BotSearchCache.SearchKey,
++            scores: DoubleArray,
++            virtualResponders: Set<PlayerId>,
++            beforeCutoffs: Long,
++            beforeUncertified: Long,
++        ) {
++            if (cutoffs != beforeCutoffs || !checkStop()) return
++            cache?.rememberSearch(key, scores)
++            if (certifyHorizons && currentHorizon == BotSearchHorizon.CHECKS &&
++                uncertifiedHorizonSubtrees == beforeUncertified
++            ) {
++                // All visited leaves agree and no branch was pruned or hidden by an unknown cache hit.
++                val stored = cache?.rememberSearch(key.copy(horizon = BotSearchHorizon.EXCHANGES,
++                    responders = virtualResponders.toSet()), scores, horizonAlias = true) == true
++                if (stored) diagnostics?.horizonCertificateStored()
++            }
++        }
++
+         private fun evaluateUncached(
+             state: GameState,
+             depth: Int,
+@@ -501,26 +539,33 @@ class BoundedMaxNBot(
+                             state.participants.getValue(player).status == ParticipantStatus.Active &&
+                                 isChecked(player)
+                         },
+-                        responders.toSet(),
++                        actualResponders(responders).toSet(),
+                         remaining,
+                     ))
+                     return null
+                 }
+                 return staticScores(state, knownLegalMoves, tactical = continuation, kingAttacks = kingAttacks)
+             }
+-            val newExchange = currentHorizon == BotSearchHorizon.EXCHANGES && allowNewExchange && knownLegalMoves.any {
+-                it.capturedPieceId != null || it.promotion != null
+-            }
+-            if (!activeCheck && responders.isEmpty() && !newExchange) {
++            val exchangeCandidate = (currentHorizon == BotSearchHorizon.EXCHANGES || certifyHorizons) &&
++                allowNewExchange && knownLegalMoves.any { it.capturedPieceId != null || it.promotion != null }
++            val newExchange = currentHorizon == BotSearchHorizon.EXCHANGES && exchangeCandidate
++            if (!activeCheck && actualResponders(responders).isEmpty() && !newExchange) {
++                if (certifyHorizons && currentHorizon == BotSearchHorizon.CHECKS &&
++                    (responders.isNotEmpty() || exchangeCandidate)
++                ) {
++                    uncertifiedHorizonSubtrees++
++                    diagnostics?.divergentHorizonFrontier()
++                }
+                 return staticScores(state, knownLegalMoves, tactical = continuation, kingAttacks = kingAttacks)
+             }
+             val key = cache?.let {
+-                BotSearchCache.SearchKey(state, configuration, 0, currentHorizon, responders.toSet(), remaining, allowNewExchange)
++                BotSearchCache.SearchKey(state, configuration, 0, currentHorizon, actualResponders(responders).toSet(), remaining, allowNewExchange)
+             }
+-            if (key != null) cache?.search(key)?.let { return it }
++            if (key != null) cachedScores(key)?.let { return it }
+             val beforeCutoffs = cutoffs
++            val beforeUncertified = uncertifiedHorizonSubtrees
+             val scores = tacticalUncached(state, knownLegalMoves, remaining, responders, alpha, beta) ?: return null
+-            if (key != null && cutoffs == beforeCutoffs && checkStop()) cache?.rememberSearch(key, scores)
++            if (key != null) rememberExact(key, scores, responders, beforeCutoffs, beforeUncertified)
+             return scores
+         }
+ 
+@@ -580,7 +625,7 @@ class BoundedMaxNBot(
+             }
+ 
+         private fun respondersAfter(state: GameState, move: Move, pending: Set<PlayerId>): Set<PlayerId> {
+-            if (currentHorizon != BotSearchHorizon.EXCHANGES) return emptySet()
++            if (currentHorizon != BotSearchHorizon.EXCHANGES && !certifyHorizons) return emptySet()
+             val active = PlayerId.entries.filterTo(linkedSetOf()) {
+                 state.participants.getValue(it).status == ParticipantStatus.Active
+             }
+diff --git a/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt b/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
+index c4e8ab8..1778032 100644
+--- a/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
++++ b/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
+@@ -18,6 +18,8 @@ import kotlin.test.assertTrue
+ 
+ /** Opt-in corpus evidence. Recorded SAN is deliberately never a best-move oracle. */
+ class BotQualityBaselineProbeTest {
++    private data class Variant(val kingContext: Boolean, val horizonReuse: Boolean)
++
+     private data class Case(
+         val id: String,
+         val group: String,
+@@ -65,6 +67,10 @@ class BotQualityBaselineProbeTest {
+         val contextSetting = System.getenv("CHESSTREE_BOT_QUALITY_KING_CONTEXT") ?: "true"
+         require(contextSetting in setOf("false", "true", "both"))
+         val contextVariants = if (contextSetting == "both") listOf(false, true) else listOf(contextSetting == "true")
++        val horizonSetting = System.getenv("CHESSTREE_BOT_QUALITY_HORIZON_REUSE") ?: "false"
++        require(horizonSetting in setOf("false", "true", "both"))
++        val horizonVariants = if (horizonSetting == "both") listOf(false, true) else listOf(horizonSetting == "true")
++        val configurations = contextVariants.flatMap { king -> horizonVariants.map { Variant(king, it) } }
+         val repetitions = (System.getenv("CHESSTREE_BOT_QUALITY_REPEATS") ?: if (timed) "1" else "2").toInt()
+         require(repetitions in 1..5)
+         val selected = System.getenv("CHESSTREE_BOT_QUALITY_CASES")?.split(',')?.toSet()
+@@ -82,6 +88,7 @@ class BotQualityBaselineProbeTest {
+             log("# export_sha256\t${corpus.sourceSha256}")
+             log("# runtime\t${System.getProperty("java.version")};${System.getProperty("os.name")};${System.getProperty("os.arch")}")
+             log("# protocol\tseed=0;depth=4;tactical=4;model=PARANOID;eval=POSITIONAL:3;profile=UNIVERSAL:2;book=1;repetition=.50;history=36;cache=cold2048;savedMoveOrdering=false;reuseKingAttackContext=$contextSetting;nodes=$cap;evaluations=$cap;softMs=${if (timed) 30000 else "none"};repeats=$repetitions;order=alternating-by-case-and-repeat")
++            log("# certified_horizon_reuse\t$horizonSetting;fresh-cache-per-run;off-disables-new-certificates;compatible-existing-exact-aliases-remain-readable")
+             log("# semantics\tFixed-work runs have no time cutoff; timed mode keeps the 30-second soft cap. Heuristic terms describe the selected immediate child, not the minimax leaf score. Terminal scores are excluded from term decomposition.")
+             log("# interpretation\tNo recorded move is a best-move expectation. Held-out states were selected by seeded random legal trajectories before tuning; six trajectories from one start are not six independent strength trials.")
+             val sources = listOf(
+@@ -96,18 +103,19 @@ class BotQualityBaselineProbeTest {
+                 .sortedBy { it.relativeTo(root).path }
+             check(sources.isNotEmpty())
+             sources.forEach { log("# source_sha256\t${it.relativeTo(root).path}=${sha256(it.readBytes())}") }
+-            log("kind\tcase\tgroup\tclassification\tactor\trootLegal\trepeat\telapsedMs\tdepth\thorizon\tnodes\tevaluations\tmove\tstop\tsource\tcacheSearchHits\tcacheEvaluationHits\tcacheTransitionHits\tcacheEntries\tcacheEvictions\tdetail\treuseKingAttackContext")
++            log("kind\tcase\tgroup\tclassification\tactor\trootLegal\trepeat\telapsedMs\tdepth\thorizon\tnodes\tevaluations\tmove\tstop\tsource\tcacheSearchHits\tcacheEvaluationHits\tcacheTransitionHits\tcacheEntries\tcacheEvictions\tdetail\treuseKingAttackContext\treuseCertifiedHorizons")
+             for ((caseIndex, fixture) in cases.filter { selected == null || it.id in selected }.withIndex()) {
+                 val before = fixture.state
+                 val actor = before.turn?.player
+                 val legal = if (before.phase == GamePhase.InProgress) LegalMoveGenerator.legalMoves(before) else emptyList()
+                 log("# fixture\t${fixture.id};prefix=${fixture.prefix};expectation=${fixture.expectation}")
+-                val results = mutableMapOf<Boolean, BoundedBotResult>()
+-                val traces = mutableMapOf<Boolean, BotSearchDiagnostics?>()
+-                val caches = mutableMapOf<Boolean, BotSearchCacheStats>()
++                val results = mutableMapOf<Variant, BoundedBotResult>()
++                val traces = mutableMapOf<Variant, BotSearchDiagnostics?>()
++                val caches = mutableMapOf<Variant, BotSearchCacheStats>()
+                 repeat(repetitions) { repeatIndex ->
+-                    val variants = if ((caseIndex + repeatIndex) % 2 == 0) contextVariants else contextVariants.reversed()
+-                    for (reuseKingAttacks in variants) {
++                    val variants = if ((caseIndex + repeatIndex) % 2 == 0) configurations else configurations.reversed()
++                    for (variant in variants) {
++                        val reuseKingAttacks = variant.kingContext
+                         val cache = BotSearchCache()
+                         var diagnostics: BotSearchDiagnostics? = null
+                         val started = System.nanoTime()
+@@ -119,6 +127,7 @@ class BotQualityBaselineProbeTest {
+                         ).chooseWithDiagnostics(
+                             before, diagnostics = { diagnostics = it },
+                             reuseKingAttackContext = reuseKingAttacks,
++                            reuseCertifiedHorizons = variant.horizonReuse,
+                             recentPositions = fixture.history.takeLast(MAX_BOT_RECENT_POSITIONS),
+                             stop = BotStopProbe {
+                                 if (timed && (System.nanoTime() - started) / 1_000_000 >= 30_000) BotStopSignal.TIMEOUT
+@@ -127,36 +136,38 @@ class BotQualityBaselineProbeTest {
+                         )
+                         val elapsedMs = (System.nanoTime() - started) / 1_000_000
+                         if (!timed && repeatIndex > 0) {
+-                            assertEquals(results[reuseKingAttacks], result, "${fixture.id}: fixed-work result")
+-                            assertEquals(traces[reuseKingAttacks], diagnostics, "${fixture.id}: fixed-work attempts")
+-                            assertEquals(caches[reuseKingAttacks], cache.stats, "${fixture.id}: fixed-work cache")
++                            assertEquals(results[variant], result, "${fixture.id}: fixed-work result")
++                            assertEquals(traces[variant], diagnostics, "${fixture.id}: fixed-work attempts")
++                            assertEquals(caches[variant], cache.stats, "${fixture.id}: fixed-work cache")
+                         }
+-                        results[reuseKingAttacks] = result
+-                        traces[reuseKingAttacks] = diagnostics
+-                        caches[reuseKingAttacks] = cache.stats
+-                        if (!timed && contextVariants.size == 2 && results.size == 2) {
+-                            assertEquals(results[false], results[true], "${fixture.id}: reuse must preserve fixed-work decision")
+-                            assertEquals(traces[false], traces[true], "${fixture.id}: reuse must preserve attempts")
+-                            assertEquals(caches[false], caches[true], "${fixture.id}: reuse must preserve cache behavior")
++                        results[variant] = result
++                        traces[variant] = diagnostics
++                        caches[variant] = cache.stats
++                        val otherContext = variant.copy(kingContext = !variant.kingContext)
++                        if (!timed && otherContext in results) {
++                            assertEquals(results[otherContext], result, "${fixture.id}: king reuse must preserve fixed-work decision")
++                            assertEquals(traces[otherContext], diagnostics, "${fixture.id}: king reuse must preserve attempts")
++                            assertEquals(caches[otherContext], cache.stats, "${fixture.id}: king reuse must preserve cache behavior")
+                         }
+                         val stats = (result as? BoundedBotResult.Move)?.stats
+                         val move = result as? BoundedBotResult.Move
+                         if (move != null) {
+                             assertTrue(move.stats.expandedNodes <= cap && move.stats.leafEvaluations <= cap)
+                             val after = assertIs<MoveReduction.Applied>(GameReducer.reduce(before, move.intent)).state
+-                            log("# selected_child_terms\t${fixture.id};repeat=$repeatIndex;reuse=$reuseKingAttacks;${terms(after)}")
++                            log("# selected_child_terms\t${fixture.id};repeat=$repeatIndex;reuse=$reuseKingAttacks;horizonReuse=${variant.horizonReuse};${terms(after)}")
+                         } else assertIs<BoundedBotResult.Terminal>(result)
+                         log(listOf("result", fixture.id, fixture.group, fixture.classification, actor,
+                             legal.size, repeatIndex, elapsedMs, stats?.completedDepth, stats?.completedHorizon,
+                             stats?.expandedNodes, stats?.leafEvaluations, move?.intent?.token(), move?.reason,
+                             move?.source ?: "TERMINAL", cache.stats.searchHits, cache.stats.evaluationHits,
+                             cache.stats.transitionHits, cache.stats.entries, cache.stats.evictions, diagnostics, reuseKingAttacks,
++                            variant.horizonReuse,
+                         ).joinToString("\t"))
+                     }
+                 }
+             }
+             log(if (timed) "# status\tcomplete;timed outcomes may differ with scheduling"
+-                else "# status\tcomplete;fixed-work results/cache/attempts asserted identical across repeats and context variants")
++                else "# status\tcomplete;fixed-work results/cache/attempts asserted identical across repeats and king-context variants within each horizon setting;horizon settings compared independently")
+         }
+     }
+ 
+diff --git a/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotCertifiedHorizonReuseTest.kt b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotCertifiedHorizonReuseTest.kt
+new file mode 100644
+--- /dev/null
++++ b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotCertifiedHorizonReuseTest.kt
+@@ -0,0 +1,342 @@
++package com.chesstree.game.domain.bot
++
++import com.chesstree.game.domain.ArmyColor
++import com.chesstree.game.domain.ArmyControl
++import com.chesstree.game.domain.GamePhase
++import com.chesstree.game.domain.GameReducer
++import com.chesstree.game.domain.GameState
++import com.chesstree.game.domain.LegalMoveGenerator
++import com.chesstree.game.domain.MoveIntent
++import com.chesstree.game.domain.MoveReduction
++import com.chesstree.game.domain.Participant
++import com.chesstree.game.domain.ParticipantStatus
++import com.chesstree.game.domain.Piece
++import com.chesstree.game.domain.PieceId
++import com.chesstree.game.domain.PieceType
++import com.chesstree.game.domain.PlayerId
++import com.chesstree.game.domain.Position
++import com.chesstree.game.domain.PromotionChoice
++import com.chesstree.game.domain.ThreePlayerBoardNotation
++import com.chesstree.game.domain.Turn
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertFalse
++import kotlin.test.assertIs
++import kotlin.test.assertTrue
++
++class BotCertifiedHorizonReuseTest {
++    private data class Observation(
++        val result: BoundedBotResult,
++        val completed: List<BoundedBotResult.Move>,
++        val diagnostics: BotSearchDiagnostics,
++    )
++
++    @Test
++    fun quietThreePlayerSubtreesProduceRealAliasesAndSaveActualWork() {
++        val state = quiet()
++        val control = observe(state, reuse = false, cache = BotSearchCache())
++        val candidate = observe(state, reuse = true, cache = BotSearchCache())
++        assertEquivalent(control, candidate)
++        assertComplete(candidate, depth = 2, tacticalDepth = 2)
++        assertTrue(candidate.diagnostics.horizonReuse.certificatesStored > 0)
++        assertTrue(candidate.diagnostics.horizonReuse.aliasHits > 0)
++        val before = assertIs<BoundedBotResult.Move>(control.result).stats
++        val after = assertIs<BoundedBotResult.Move>(candidate.result).stats
++        assertTrue(after.expandedNodes < before.expandedNodes || after.leafEvaluations < before.leafEvaluations,
++            "Aliases must replace actual search work, not only increment a counter")
++    }
++
++    @Test
++    fun fullyCompletedSparseSearchesMatchEveryAttemptAcrossAllSeatsModelsAndModes() {
++        for (actor in PlayerId.entries) {
++            for (model in BotSearchModel.entries) {
++                for (mode in BotEvaluationMode.entries) {
++                    for (q in listOf(0, 2)) {
++                        val state = quiet(actor)
++                        val control = observe(state, false, BotSearchCache(), model, mode, q)
++                        val candidate = observe(state, true, BotSearchCache(), model, mode, q)
++                        assertEquivalent(control, candidate)
++                        assertComplete(control, 2, q)
++                        assertComplete(candidate, 2, q)
++                        assertEquals(if (q == 0) 2 else 4, candidate.completed.size)
++                        if (q == 0) assertEquals(0, candidate.diagnostics.horizonReuse.aliasHits)
++                    }
++                }
++            }
++        }
++    }
++
++    @Test
++    fun captureAndInterveningResponderFrontiersCannotBeCertifiedAsQuiet() {
++        var divergent = 0
++        for (state in listOf(forcedRecapture(), uncheckedRecapture())) {
++            for (model in BotSearchModel.entries) {
++                val control = observe(state, false, BotSearchCache(), model, maxDepth = 1)
++                val candidate = observe(state, true, BotSearchCache(), model, maxDepth = 1)
++                assertEquivalent(control, candidate)
++                divergent += candidate.diagnostics.horizonReuse.divergentFrontiers
++            }
++        }
++        assertTrue(divergent > 0, "At least one actual capture-response frontier must reject certification")
++
++        // A public-reducer line establishes why an unchecked capture needs both real responses.
++        val afterCapture = apply(uncheckedRecapture(), intent(PlayerId.WHITE, "D4", "E4"))
++        assertTrue(PlayerId.entries.none { LegalMoveGenerator.isKingInCheck(afterCapture, it) })
++        val afterRed = apply(afterCapture, intent(PlayerId.RED, "B1", "A1"))
++        val afterBlack = apply(afterRed, intent(PlayerId.BLACK, "F4", "E4"))
++        assertFalse(PieceId("white-rook") in afterBlack.position.pieces)
++        assertEquals(PlayerId.WHITE, afterBlack.turn?.player)
++    }
++
++    @Test
++    fun checkedEvasionsTransferTwoActivePlayAndPromotionsMatchTheUnaliasedControl() {
++        val afterMate = apply(mateTransfer(), intent(PlayerId.WHITE, "G11", "G12"))
++        assertEquals(2, afterMate.participants.values.count { it.status == ParticipantStatus.Active })
++        assertEquals(PlayerId.WHITE, afterMate.armies.getValue(ArmyColor.RED).controller)
++        assertEquals(PlayerId.BLACK, afterMate.turn?.player)
++        val states = listOf(defense(), mateTransfer(), afterMate, finalMate(), promotion())
++        for (state in states) {
++            for (model in BotSearchModel.entries) {
++                val control = observe(state, false, BotSearchCache(), model, maxDepth = 1)
++                val candidate = observe(state, true, BotSearchCache(), model, maxDepth = 1)
++                assertEquivalent(control, candidate)
++                val move = assertIs<BoundedBotResult.Move>(candidate.result)
++                val after = apply(state, move.intent)
++                assertFalse(LegalMoveGenerator.isKingInCheck(after, move.intent.actor))
++            }
++        }
++        PromotionChoice.entries.forEach { choice ->
++            val after = apply(promotion(), intent(PlayerId.WHITE, "K11", "K12").copy(promotion = choice))
++            assertEquals(choice.pieceType, after.position.pieces.getValue(PieceId("white-pawn")).type)
++        }
++    }
++
++    @Test
++    fun cacheOffTinyColdWarmAndExperimentSwitchesPreserveCompletedDecisions() {
++        val state = quiet()
++        for (model in BotSearchModel.entries) {
++            val plain = observe(state, false, null, model)
++            assertComplete(plain, 2, 2)
++            assertEquivalent(plain, observe(state, true, null, model))
++            for (capacity in listOf(2, 2_048)) {
++                val cache = BotSearchCache(capacity)
++                for (reuse in listOf(true, true, false, true)) {
++                    val result = observe(state, reuse, cache, model)
++                    assertEquivalent(plain, result)
++                    assertComplete(result, 2, 2)
++                    assertTrue(cache.stats.entries <= capacity)
++                }
++            }
++        }
++    }
++
++    @Test
++    fun reusedCacheSeparatesActorsEvaluationPoliciesAndTacticalSettings() {
++        val cache = BotSearchCache()
++        for (actor in PlayerId.entries) {
++            for (model in BotSearchModel.entries) {
++                for (mode in BotEvaluationMode.entries) {
++                    for (q in listOf(0, 2)) {
++                        val policy = if (q == 0) BotPolicy.DEFAULT else BotPolicy(listOf(
++                            BotRule(BotFeature.MATERIAL, 75), BotRule(BotFeature.KING_SAFETY, 120),
++                        ))
++                        val state = quiet(actor)
++                        val control = observe(state, false, null, model, mode, q, policy = policy)
++                        val candidate = observe(state, true, cache, model, mode, q, policy = policy)
++                        assertEquivalent(control, candidate)
++                        assertComplete(candidate, 2, q)
++                        assertTrue(cache.stats.entries <= cache.maxEntries)
++                    }
++                }
++            }
++        }
++    }
++
++    @Test
++    fun checksCachedWithoutCertificationRemainExactButBlockNewCertificates() {
++        val state = quiet()
++        val cache = BotSearchCache()
++        val control = observe(state, false, cache)
++        val candidate = observe(state, true, cache)
++        assertEquivalent(control, candidate)
++        assertComplete(candidate, 2, 2)
++        assertTrue(candidate.diagnostics.horizonReuse.unknownCheckCacheHits > 0,
++            "An ordinary CHECKS result cannot establish the omitted EXCHANGES frontier proof")
++    }
++
++    @Test
++    fun globalCapsRetainOnlyActuallyCompletedRootDecisions() {
++        for ((nodes, evaluations, expected) in listOf(
++            Triple(1, 20_000, BotStopReason.NODE_LIMIT),
++            Triple(20_000, 1, BotStopReason.EVALUATION_LIMIT),
++        )) {
++            val control = observe(quiet(), false, BotSearchCache(), maxNodes = nodes, maxEvaluations = evaluations)
++            val candidate = observe(quiet(), true, BotSearchCache(), maxNodes = nodes, maxEvaluations = evaluations)
++            assertEquivalent(control, candidate)
++            val move = assertIs<BoundedBotResult.Move>(candidate.result)
++            assertEquals(expected, move.reason)
++            if (expected == BotStopReason.NODE_LIMIT) {
++                // The first CHECKS root needs one node: every child is a static leaf.
++                // Its completed decision survives the cap before the EXCHANGES attempt.
++                val completed = candidate.completed.single()
++                assertEquals(BotMoveSource.COMPLETED_DEPTH, move.source)
++                assertEquals(1, move.stats.completedDepth)
++                assertEquals(BotSearchHorizon.CHECKS, move.stats.completedHorizon)
++                assertEquals(completed.intent, move.intent)
++            } else {
++                // More than one root move needs evaluation, so one leaf cannot finish the root.
++                assertTrue(LegalMoveGenerator.legalMoves(quiet()).size > 1)
++                assertEquals(BotMoveSource.LEGAL_FALLBACK, move.source)
++                assertEquals(0, move.stats.completedDepth)
++                assertTrue(candidate.completed.isEmpty())
++            }
++        }
++    }
++
++    @Test
++    fun cancellationAndTimeoutAfterACompletedCallbackRetainTheirAuthority() {
++        for (signal in listOf(BotStopSignal.CANCEL, BotStopSignal.TIMEOUT)) {
++            val control = observe(quiet(), false, BotSearchCache(), afterCompleted = signal)
++            val candidate = observe(quiet(), true, BotSearchCache(), afterCompleted = signal)
++            assertEquivalent(control, candidate)
++            assertEquals(1, candidate.completed.size)
++            if (signal == BotStopSignal.CANCEL) {
++                assertIs<BoundedBotResult.Cancelled>(candidate.result)
++            } else {
++                val move = assertIs<BoundedBotResult.Move>(candidate.result)
++                assertEquals(BotStopReason.TIMEOUT, move.reason)
++                assertEquals(BotMoveSource.COMPLETED_DEPTH, move.source)
++                assertEquals(candidate.completed.single().intent, move.intent)
++            }
++            val completedCache = BotSearchCache()
++            observe(quiet(), true, completedCache, afterCompleted = signal)
++            assertEquivalent(observe(quiet(), false, null), observe(quiet(), true, completedCache))
++        }
++    }
++
++    private fun observe(
++        state: GameState,
++        reuse: Boolean,
++        cache: BotSearchCache?,
++        model: BotSearchModel = BotSearchModel.MAX_N,
++        mode: BotEvaluationMode = BotEvaluationMode.CONTROL,
++        tacticalDepth: Int = 2,
++        maxDepth: Int = 2,
++        maxNodes: Int = 20_000,
++        maxEvaluations: Int = 20_000,
++        policy: BotPolicy = BotPolicy.DEFAULT,
++        afterCompleted: BotStopSignal = BotStopSignal.CONTINUE,
++    ): Observation {
++        val completed = mutableListOf<BoundedBotResult.Move>()
++        var diagnostics: BotSearchDiagnostics? = null
++        val result = BoundedMaxNBot(
++            maxDepth = maxDepth, maxNodes = maxNodes, maxEvaluations = maxEvaluations,
++            tacticalDepth = tacticalDepth, searchModel = model, evaluation = mode, cache = cache,
++        ).chooseWithDiagnostics(
++            state, policy,
++            stop = BotStopProbe { if (completed.isEmpty()) BotStopSignal.CONTINUE else afterCompleted },
++            onCompletedDepth = completed::add,
++            reuseCertifiedHorizons = reuse,
++            diagnostics = { diagnostics = it },
++        )
++        val move = result as? BoundedBotResult.Move
++        if (move != null) apply(state, move.intent)
++        return Observation(result, completed.toList(), checkNotNull(diagnostics))
++    }
++
++    private fun assertEquivalent(control: Observation, candidate: Observation) {
++        assertEquals(normalize(control.result), normalize(candidate.result))
++        assertEquals(control.completed.map(::normalize), candidate.completed.map(::normalize))
++        assertEquals(control.diagnostics.attempts.map { Triple(it.depth, it.horizon, it.stop) },
++            candidate.diagnostics.attempts.map { Triple(it.depth, it.horizon, it.stop) })
++    }
++
++    private fun normalize(result: BoundedBotResult): BoundedBotResult = when (result) {
++        is BoundedBotResult.Move -> result.copy(stats = result.stats.copy(expandedNodes = 0, leafEvaluations = 0))
++        is BoundedBotResult.Cancelled -> result.copy(stats = result.stats.copy(expandedNodes = 0, leafEvaluations = 0))
++        else -> result
++    }
++
++    private fun assertComplete(observation: Observation, depth: Int, tacticalDepth: Int) {
++        val move = assertIs<BoundedBotResult.Move>(observation.result)
++        assertEquals(BotStopReason.DEPTH_COMPLETE, move.reason)
++        assertEquals(BotMoveSource.COMPLETED_DEPTH, move.source)
++        assertEquals(depth, move.stats.completedDepth)
++        assertEquals(if (tacticalDepth == 0) BotSearchHorizon.STATIC else BotSearchHorizon.EXCHANGES,
++            move.stats.completedHorizon)
++    }
++
++    private fun quiet(actor: PlayerId = PlayerId.WHITE) = state(
++        piece("white-king", PieceType.KING, ArmyColor.WHITE, "H12"),
++        piece("red-king", PieceType.KING, ArmyColor.RED, "A1"),
++        piece("black-king", PieceType.KING, ArmyColor.BLACK, "N8"),
++        actor = actor,
++    )
++
++    private fun forcedRecapture() = state(
++        piece("white-rook", PieceType.ROOK, ArmyColor.WHITE, "G10"),
++        piece("white-king", PieceType.KING, ArmyColor.WHITE, "F12"),
++        piece("red-pawn", PieceType.PAWN, ArmyColor.RED, "G12"),
++        piece("red-king", PieceType.KING, ArmyColor.RED, "A2"),
++        piece("black-bishop", PieceType.BISHOP, ArmyColor.BLACK, "H11"),
++        piece("black-king", PieceType.KING, ArmyColor.BLACK, "H12"),
++    )
++
++    private fun uncheckedRecapture() = state(
++        piece("white-rook", PieceType.ROOK, ArmyColor.WHITE, "D4"),
++        piece("white-king", PieceType.KING, ArmyColor.WHITE, "H12"),
++        piece("red-pawn", PieceType.PAWN, ArmyColor.RED, "E4"),
++        piece("red-king", PieceType.KING, ArmyColor.RED, "B1"),
++        piece("black-rook", PieceType.ROOK, ArmyColor.BLACK, "F4"),
++        piece("black-king", PieceType.KING, ArmyColor.BLACK, "N7"),
++    )
++
++    private fun defense() = state(
++        *quiet().position.pieces.values.toTypedArray(),
++        piece("red-rook", PieceType.ROOK, ArmyColor.RED, "H10"),
++    )
++
++    private fun mateTransfer() = state(
++        piece("white-king", PieceType.KING, ArmyColor.WHITE, "F12"),
++        piece("white-queen", PieceType.QUEEN, ArmyColor.WHITE, "G11"),
++        piece("red-king", PieceType.KING, ArmyColor.RED, "H12"),
++        piece("black-king", PieceType.KING, ArmyColor.BLACK, "N8"),
++    )
++
++    private fun finalMate(): GameState = GameState(
++        Position(listOf(
++            piece("white-king", PieceType.KING, ArmyColor.WHITE, "F12"),
++            piece("white-queen", PieceType.QUEEN, ArmyColor.WHITE, "G11"),
++            piece("black-king", PieceType.KING, ArmyColor.BLACK, "H12"),
++        ).associateBy(Piece::id)),
++        PlayerId.entries.associateWith {
++            Participant(it, if (it == PlayerId.RED) ParticipantStatus.Checkmated(PlayerId.WHITE, 1)
++            else ParticipantStatus.Active)
++        },
++        ArmyColor.entries.associateWith {
++            ArmyControl(it, if (it == ArmyColor.BLACK) PlayerId.BLACK else PlayerId.WHITE)
++        },
++        Turn(PlayerId.WHITE, 2), GamePhase.InProgress,
++    )
++
++    private fun promotion() = state(
++        *quiet().position.pieces.values.toTypedArray(),
++        piece("white-pawn", PieceType.PAWN, ArmyColor.WHITE, "K11"),
++    )
++
++    private fun state(vararg pieces: Piece, actor: PlayerId = PlayerId.WHITE) = GameState(
++        Position(pieces.associateBy(Piece::id)), PlayerId.entries.associateWith(::Participant),
++        ArmyColor.entries.associateWith { ArmyControl(it, it.originalPlayer) },
++        Turn(actor, 1), GamePhase.InProgress,
++    )
++
++    private fun piece(id: String, type: PieceType, army: ArmyColor, square: String) =
++        Piece(PieceId(id), type, army, at(square), hasMoved = true)
++
++    private fun at(square: String) = checkNotNull(ThreePlayerBoardNotation.parse(square))
++
++    private fun intent(actor: PlayerId, from: String, to: String) = MoveIntent(actor, at(from), at(to))
++
++    private fun apply(state: GameState, intent: MoveIntent): GameState =
++        assertIs<MoveReduction.Applied>(GameReducer.reduce(state, intent)).state
++}
+diff --git a/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotSearchCacheHorizonAliasTest.kt b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotSearchCacheHorizonAliasTest.kt
+new file mode 100644
+--- /dev/null
++++ b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotSearchCacheHorizonAliasTest.kt
+@@ -0,0 +1,282 @@
++package com.chesstree.game.domain.bot
++
++import com.chesstree.game.domain.ArmyColor
++import com.chesstree.game.domain.ArmyControl
++import com.chesstree.game.domain.EnPassantTarget
++import com.chesstree.game.domain.GamePhase
++import com.chesstree.game.domain.GameState
++import com.chesstree.game.domain.Participant
++import com.chesstree.game.domain.ParticipantStatus
++import com.chesstree.game.domain.PieceId
++import com.chesstree.game.domain.PieceType
++import com.chesstree.game.domain.PlayerId
++import com.chesstree.game.domain.Position
++import com.chesstree.game.domain.ThreePlayerBoardNotation
++import com.chesstree.game.domain.Turn
++import com.chesstree.game.domain.scenario.StandardGame
++import kotlin.test.Test
++import kotlin.test.assertContentEquals
++import kotlin.test.assertEquals
++import kotlin.test.assertFalse
++import kotlin.test.assertNotEquals
++import kotlin.test.assertNotNull
++import kotlin.test.assertNull
++import kotlin.test.assertTrue
++
++class BotSearchCacheHorizonAliasTest {
++    @Test
++    fun completedAndTacticalAliasesReportProvenanceOnlyOnSuccessfulExactHits() {
++        for (key in listOf(normalKey(), tacticalKey())) {
++            val cache = BotSearchCache()
++            var aliases = 0
++            assertNull(cache.search(key) { aliases++ })
++            assertEquals(0, aliases)
++            assertEquals(0L, cache.stats.searchHits)
++            cache.rememberSearch(key, SCORES, horizonAlias = true)
++            assertContentEquals(SCORES, cache.search(key) { aliases++ })
++            assertEquals(1, aliases)
++            assertEquals(1L, cache.stats.searchHits)
++            // An equal key reconstructed from independent state objects must also reuse it.
++            val equalState = state(key.state.position, key.state.participants, key.state.armies, key.state.turn)
++            assertContentEquals(SCORES, cache.search(key.copy(state = equalState)) { aliases++ })
++            assertEquals(2, aliases)
++            assertEquals(2L, cache.stats.searchHits)
++            assertEquals(0L, cache.stats.evaluationHits)
++            assertEquals(0L, cache.stats.transitionHits)
++            assertEquals(1, cache.stats.entries)
++        }
++    }
++
++    @Test
++    fun aliasAndEvaluationScoresRemainSeparateAndDefensivelyCopied() {
++        for (key in listOf(normalKey(), tacticalKey())) {
++            val cache = BotSearchCache()
++            val source = doubleArrayOf(1.0, 2.0, 3.0)
++            cache.rememberSearch(key, source, horizonAlias = true)
++            source[0] = -100.0
++            val evaluationKey = BotSearchCache.EvaluationKey(key.state, key.configuration)
++            cache.rememberEvaluation(evaluationKey, doubleArrayOf(7.0, 8.0, 9.0))
++            var aliases = 0
++            val returned = assertNotNull(cache.search(key) { aliases++ })
++            assertContentEquals(SCORES, returned)
++            returned[1] = -200.0
++            assertContentEquals(SCORES, cache.search(key) { aliases++ })
++            val evaluated = assertNotNull(cache.evaluation(evaluationKey))
++            assertContentEquals(doubleArrayOf(7.0, 8.0, 9.0), evaluated)
++            evaluated[2] = -300.0
++            assertContentEquals(doubleArrayOf(7.0, 8.0, 9.0), cache.evaluation(evaluationKey))
++            assertEquals(2, aliases)
++            assertEquals(2L, cache.stats.searchHits)
++            assertEquals(2L, cache.stats.evaluationHits)
++            assertEquals(2, cache.stats.entries)
++        }
++    }
++
++    @Test
++    fun overwritingAnEntryReplacesBothScoresAndAliasMetadataInEitherDirection() {
++        for (key in listOf(normalKey(), tacticalKey())) {
++            val cache = BotSearchCache()
++            var aliases = 0
++            cache.rememberSearch(key, SCORES, horizonAlias = true)
++            assertContentEquals(SCORES, cache.search(key) { aliases++ })
++            cache.rememberSearch(key, doubleArrayOf(4.0, 5.0, 6.0))
++            assertContentEquals(doubleArrayOf(4.0, 5.0, 6.0), cache.search(key) { aliases++ })
++            assertEquals(1, aliases, "Ordinary overwrite must remove alias provenance")
++            cache.rememberSearch(key, doubleArrayOf(7.0, 8.0, 9.0), horizonAlias = true)
++            assertContentEquals(doubleArrayOf(7.0, 8.0, 9.0), cache.search(key) { aliases++ })
++            assertEquals(2, aliases, "Alias overwrite must install new provenance")
++            assertEquals(3L, cache.stats.searchHits)
++            assertEquals(1, cache.stats.entries)
++            assertEquals(0L, cache.stats.evictions)
++        }
++    }
++
++    @Test
++    fun tinyCapacityEvictsAliasProvenanceWithTheEntryAndRemainsBounded() {
++        val cache = BotSearchCache(maxEntries = 2)
++        val first = normalKey()
++        val second = tacticalKey()
++        val third = second.copy(remaining = 1)
++        var aliases = 0
++        cache.rememberSearch(first, SCORES, horizonAlias = true)
++        cache.rememberSearch(second, SCORES, horizonAlias = true)
++        assertNotNull(cache.search(first) { aliases++ }) // Refresh the first entry's LRU position.
++        cache.rememberSearch(third, SCORES, horizonAlias = true)
++        assertNull(cache.search(second) { aliases++ })
++        assertEquals(1, aliases)
++        assertNotNull(cache.search(first) { aliases++ })
++        assertNotNull(cache.search(third) { aliases++ })
++        assertEquals(3, aliases)
++        assertEquals(3L, cache.stats.searchHits)
++        assertEquals(2, cache.stats.entries)
++        assertEquals(1L, cache.stats.evictions)
++
++        for (capacity in listOf(1, 2, 8)) {
++            val bounded = BotSearchCache(maxEntries = capacity)
++            repeat(32) { index ->
++                val base = if (index % 2 == 0) normalKey() else tacticalKey()
++                val key = base.copy(configuration = base.configuration.copy(
++                    rules = listOf(BotRule(BotFeature.MATERIAL, index)),
++                ))
++                bounded.rememberSearch(key, SCORES, horizonAlias = true)
++                var hits = 0
++                assertContentEquals(SCORES, bounded.search(key) { hits++ })
++                assertEquals(1, hits)
++                assertTrue(bounded.stats.entries <= capacity)
++            }
++            assertTrue(bounded.stats.evictions > 0)
++        }
++    }
++
++    @Test
++    fun rejectedShallowAliasDoesNotClaimAdmissionOrReplaceDeeperExactWork() {
++        val cache = BotSearchCache(maxEntries = 16)
++        val deeper = (1..4).map { weight ->
++            normalKey().copy(depth = 3, configuration = configuration().copy(
++                rules = listOf(BotRule(BotFeature.MATERIAL, weight)),
++            ))
++        }
++        deeper.forEach { assertTrue(cache.rememberSearch(it, SCORES, horizonAlias = true)) }
++        val rejected = normalKey().copy(depth = 1)
++        assertFalse(cache.rememberSearch(rejected, SCORES, horizonAlias = true))
++        var aliases = 0
++        assertNull(cache.search(rejected) { aliases++ })
++        assertEquals(0, aliases)
++        deeper.forEach { assertContentEquals(SCORES, cache.search(it) { aliases++ }) }
++        assertEquals(4, aliases)
++        assertEquals(4, cache.stats.entries)
++        assertEquals(0L, cache.stats.evictions)
++    }
++
++    @Test
++    fun beginSearchRemovesObsoleteCompletedAliasesAndClearRemovesAllProvenance() {
++        val cache = BotSearchCache(maxEntries = 16)
++        val old = normalKey(ply = 10)
++        val current = normalKey(ply = 13)
++        val tactical = tacticalKey(ply = 10)
++        cache.rememberSearch(old, SCORES, horizonAlias = true)
++        cache.rememberSearch(current, SCORES, horizonAlias = true)
++        cache.rememberSearch(tactical, SCORES, horizonAlias = true)
++        cache.beginSearch(13)
++        var aliases = 0
++        assertNull(cache.search(old) { aliases++ })
++        assertEquals(0, aliases)
++        assertNotNull(cache.search(current) { aliases++ })
++        // beginSearch only cleans the completed table; tactical entries keep existing bounded LRU behavior.
++        assertNotNull(cache.search(tactical) { aliases++ })
++        assertEquals(2, aliases)
++        assertEquals(2, cache.stats.entries)
++        cache.clear()
++        assertEquals(BotSearchCacheStats(0, 0, 0, 0, 0), cache.stats)
++        for (key in listOf(old, current, tactical)) assertNull(cache.search(key) { aliases++ })
++        assertEquals(2, aliases)
++        assertEquals(0L, cache.stats.searchHits)
++    }
++
++    @Test
++    fun aliasesRequireTheCompleteSearchContextConfigurationAndRulesState() {
++        for (key in listOf(normalKey(), tacticalKey())) {
++            val cache = BotSearchCache()
++            cache.rememberSearch(key, SCORES, horizonAlias = true)
++            val configurations = listOf(
++                key.configuration.copy(rules = listOf(BotRule(BotFeature.MATERIAL, 999))),
++                key.configuration.copy(rules = BotPolicy.DEFAULT.rules.map { it.copy(enabled = false) }),
++                key.configuration.copy(evaluation = BotEvaluationMode.CONTROL),
++                key.configuration.copy(model = BotSearchModel.MAX_N),
++                key.configuration.copy(rootActor = PlayerId.RED),
++                key.configuration.copy(tacticalDepth = 3),
++            )
++            val contexts = listOf(
++                key.copy(depth = key.depth + 1),
++                key.copy(horizon = BotSearchHorizon.CHECKS),
++                key.copy(responders = setOf(PlayerId.RED)),
++                key.copy(remaining = if (key.remaining == null) 0 else null),
++                key.copy(allowNewExchange = !key.allowNewExchange),
++            ) + configurations.map { key.copy(configuration = it) } + incompatibleStates(key.state).map { key.copy(state = it) }
++            var aliases = 0
++            contexts.forEach { other ->
++                assertNotEquals(key, other)
++                assertNull(cache.search(other) { aliases++ }, "Incompatible alias context: $other")
++            }
++            assertEquals(0, aliases)
++            assertEquals(0L, cache.stats.searchHits)
++            assertContentEquals(SCORES, cache.search(key) { aliases++ })
++            assertEquals(1, aliases)
++            assertEquals(1L, cache.stats.searchHits)
++        }
++    }
++
++    @Test
++    fun equalHashesCannotBypassTacticalContextOrFullStateEquality() {
++        val nullRemaining = tacticalKey().copy(remaining = null)
++        val zeroRemaining = nullRemaining.copy(remaining = 0)
++        val pawn = initial.position.pieces.values.first { it.type == PieceType.PAWN }
++        fun renamedPawn(id: String): GameState {
++            val renamed = pawn.copy(id = PieceId(id))
++            return state(Position(initial.position.pieces - pawn.id + (renamed.id to renamed)))
++        }
++        val firstState = tacticalKey().copy(state = renamedPawn("Aa"))
++        val secondState = firstState.copy(state = renamedPawn("BB"))
++        for ((first, second) in listOf(nullRemaining to zeroRemaining, firstState to secondState)) {
++            assertNotEquals(first, second)
++            assertEquals(first.hashCode(), second.hashCode(), "Fixture must create a real hash collision")
++            val cache = BotSearchCache()
++            var aliases = 0
++            cache.rememberSearch(first, SCORES, horizonAlias = true)
++            assertNull(cache.search(second) { aliases++ })
++            assertEquals(0, aliases)
++            cache.rememberSearch(second, doubleArrayOf(4.0, 5.0, 6.0))
++            assertContentEquals(doubleArrayOf(4.0, 5.0, 6.0), cache.search(second) { aliases++ })
++            assertEquals(0, aliases)
++            assertContentEquals(SCORES, cache.search(first) { aliases++ })
++            assertEquals(1, aliases)
++            assertEquals(2L, cache.stats.searchHits)
++            assertEquals(2, cache.stats.entries)
++        }
++    }
++
++    private fun incompatibleStates(base: GameState): List<GameState> {
++        val pawn = base.position.pieces.values.first { it.type == PieceType.PAWN }
++        val moved = pawn.copy(hasMoved = !pawn.hasMoved)
++        val promoted = pawn.copy(type = PieceType.KNIGHT, hasMoved = true)
++        return listOf(
++            state(base.position, turn = Turn(PlayerId.WHITE, checkNotNull(base.turn).ply + 1)),
++            state(base.position, turn = Turn(PlayerId.RED, checkNotNull(base.turn).ply)),
++            state(Position(base.position.pieces, castlingRights = base.position.castlingRights.drop(1).toSet()), turn = base.turn),
++            state(Position(base.position.pieces, base.position.castlingRights, enPassantTarget = EnPassantTarget(
++                pawn.id, checkNotNull(ThreePlayerBoardNotation.parse("K10")), setOf(PlayerId.RED),
++            )), turn = base.turn),
++            state(Position(base.position.pieces + (pawn.id to moved), base.position.castlingRights), turn = base.turn),
++            state(Position(base.position.pieces + (pawn.id to promoted), base.position.castlingRights), turn = base.turn),
++            state(base.position, participants = base.participants +
++                (PlayerId.RED to Participant(PlayerId.RED, ParticipantStatus.Stalemated(1))), turn = base.turn),
++            state(base.position, armies = base.armies +
++                (ArmyColor.RED to ArmyControl(ArmyColor.RED, PlayerId.WHITE)), turn = base.turn),
++        )
++    }
++
++    private fun configuration() = BotSearchCache.Configuration(
++        BotPolicy.DEFAULT.rules.toList(), BotEvaluationMode.POSITIONAL, BotSearchModel.PARANOID, PlayerId.WHITE, 4,
++    )
++
++    private fun normalKey(ply: Int = 10) = BotSearchCache.SearchKey(
++        state(turn = Turn(PlayerId.WHITE, ply)), configuration(), 2, BotSearchHorizon.EXCHANGES, emptySet(),
++    )
++
++    private fun tacticalKey(ply: Int = 10) = BotSearchCache.SearchKey(
++        state(turn = Turn(PlayerId.WHITE, ply)), configuration(), 0, BotSearchHorizon.EXCHANGES,
++        setOf(PlayerId.BLACK), remaining = 2, allowNewExchange = false,
++    )
++
++    private fun state(
++        position: Position = initial.position,
++        participants: Map<PlayerId, Participant> = initial.participants,
++        armies: Map<ArmyColor, ArmyControl> = initial.armies,
++        turn: Turn? = initial.turn,
++    ) = GameState(position, participants, armies, turn, GamePhase.InProgress)
++
++    companion object {
++        private val initial = StandardGame.scenario.initialState
++        private val SCORES = doubleArrayOf(1.0, 2.0, 3.0)
++    }
++}

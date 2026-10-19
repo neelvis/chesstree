@@ -1,0 +1,60 @@
+{
+  "baselineCommit": "b68e363bdb3309d58ba2b300dd53550009d0e43e",
+  "productionDecision": "REJECT; all affected modules restored exactly to baseline",
+  "patchApplyCheck": "PASS against restored b68e363 source",
+  "patchSha256": "3d3103be750206816ba4000693b241b93165539d9414d9c4ad0c481f27e6d5d3",
+  "candidateSourceHashes": "measurements/summary.json -> prototypeSourceSha256",
+  "focusedCandidate": {
+    "command": "./gradlew :gameDomain:jvmTest --tests '*BotCertifiedHorizonReuseTest' --tests '*BotSearchCacheHorizonAliasTest' --tests '*BotSearchCacheTest' --tests '*BotSearchDiagnosticsTest' --tests '*BoundedBotTacticalTest' --tests '*BoundedBotKingAttackReuseTest' --tests '*BotKingAttackContextTest' --console=plain",
+    "initial": {
+      "tests": 63,
+      "passed": 62,
+      "failed": 1,
+      "reason": "Incorrect new test premise: nodecap1 legitimately completes static-leaf root; production not defective"
+    },
+    "correction": "Only owned test updated; verify actual depth1CHECKS authority under nodecap1 and genuinely incomplete root fallback under evalcap1",
+    "correctedCommand": "./gradlew :gameDomain:jvmTest --tests '*BotCertifiedHorizonReuseTest' --console=plain",
+    "correctedResult": {
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "logs": [
+      "work/bot-horizon-reuse-20261019/focused.log",
+      "work/bot-horizon-reuse-20261019/focused-corrected.log"
+    ]
+  },
+  "pairedCorpus": {
+    "result": "PASS",
+    "executions": 108,
+    "repeatsPerVariant": 2,
+    "freshCaches": true,
+    "allOffResultWorkCacheAndAttemptsMatchCommittedBaseline": true,
+    "allCandidateMovesDepthsHorizonsSourcesAndFinalStopsMatchOff": true,
+    "command": "CHESSTREE_BOT_QUALITY_HORIZON_REUSE=both CHESSTREE_BOT_QUALITY_OUTPUT=build/reports/bot-quality/certified-horizon-paired.tsv docs/bots/agent-plan-20261019/run-baseline.sh",
+    "log": "work/bot-horizon-reuse-20261019/corpus-paired.log"
+  },
+  "restoredJvm": {
+    "result": "PASS; Gradle build-cache reuse of unchanged tested inputs",
+    "command": "./gradlew :gameDomain:jvmTest --console=plain",
+    "tests": 218,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "testTaskFromCache": true,
+    "log": "work/bot-horizon-reuse-20261019/restored-jvm.log"
+  },
+  "restoredSourceProof": "All Stage1 measured source/test SHA-256 hashes match; git diff b68e363 -- gameDomain botWire botWorker composeApp empty",
+  "review": "Independent mathematical and stable-code reviews found no material correctness issue; candidate rejected for usefulness/cost",
+  "notRunForPrototype": [
+    "Separate committed-baseline elapsed campaign",
+    "Strong30s JVM campaign",
+    "Android/iOS/JS/Wasm prototype compilation",
+    "Chrome production-worker sample",
+    "Phone/UI checks"
+  ],
+  "reusedForUnchangedProduction": "Prior stage1 target/Chrome checks remain valid by unchanged source hashes, not evidence for the rejected prototype",
+  "invalidatedBy": "Source changes invalidate restored baseline equivalence; patch changes invalidate candidate hashes and measured evidence",
+  "finalEvidenceReview": "PASS; independent recomputation matches grouped raw rows, unchanged decisions, patch checksum and exact restored module diffs; no material documentation/decision issue"
+}

@@ -1,0 +1,104 @@
+{
+  "baseCommit": "b68e363bdb3309d58ba2b300dd53550009d0e43e",
+  "decision": "REJECT; production restored exactly to committed baseline",
+  "prototypeSourceSha256": {
+    "gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt": "25f243d87b7c88f2182e2be8ad5bd0932a474b587fe974dc8d0aa0098a81162e",
+    "gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchCache.kt": "f642e30a2ba7ffe247b4b6f3f6e3ef8bf8c1e7870ed80b9553d14ecefc173d21",
+    "gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotSearchDiagnostics.kt": "f7bc7ad20fea2752d66d47906ac2c1ebcd9cddaba9a18f9fbc9e7ef83e0e20e4",
+    "gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt": "5545bcc4f7ddab986237dfcac613388cbb8ae87d7ec6c4d6a8db29a5603ced35",
+    "gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotCertifiedHorizonReuseTest.kt": "a00d96172d364ad7a89a9bf1f5189f30c437fb3343c7a1582dd9c38530d2cc15",
+    "gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotSearchCacheHorizonAliasTest.kt": "c97cd6a057301e301ac0a36ef23f34955e1acbbb328664bf5ba214b591ab039d"
+  },
+  "groups": {
+    "reported": {
+      "false": {
+        "elapsedMs": 41775,
+        "nodes": 11162,
+        "evaluations": 50166,
+        "cacheEvictions": 76450,
+        "certificatesStored": 0,
+        "aliasHits": 0,
+        "divergentFrontiers": 0,
+        "unknownCheckCacheHits": 0
+      },
+      "true": {
+        "elapsedMs": 41591,
+        "nodes": 11162,
+        "evaluations": 50192,
+        "cacheEvictions": 76720,
+        "certificatesStored": 272,
+        "aliasHits": 2,
+        "divergentFrontiers": 39834,
+        "unknownCheckCacheHits": 58
+      }
+    },
+    "synthetic": {
+      "false": {
+        "elapsedMs": 816,
+        "nodes": 11464,
+        "evaluations": 13408,
+        "cacheEvictions": 24048,
+        "certificatesStored": 0,
+        "aliasHits": 0,
+        "divergentFrontiers": 0,
+        "unknownCheckCacheHits": 0
+      },
+      "true": {
+        "elapsedMs": 783,
+        "nodes": 11138,
+        "evaluations": 13170,
+        "cacheEvictions": 22886,
+        "certificatesStored": 616,
+        "aliasHits": 366,
+        "divergentFrontiers": 1858,
+        "unknownCheckCacheHits": 96
+      }
+    },
+    "held-out": {
+      "false": {
+        "elapsedMs": 23135,
+        "nodes": 6234,
+        "evaluations": 24000,
+        "cacheEvictions": 38462,
+        "certificatesStored": 0,
+        "aliasHits": 0,
+        "divergentFrontiers": 0,
+        "unknownCheckCacheHits": 0
+      },
+      "true": {
+        "elapsedMs": 23424,
+        "nodes": 6234,
+        "evaluations": 24000,
+        "cacheEvictions": 38556,
+        "certificatesStored": 94,
+        "aliasHits": 0,
+        "divergentFrontiers": 20622,
+        "unknownCheckCacheHits": 0
+      }
+    },
+    "all": {
+      "false": {
+        "elapsedMs": 65726,
+        "nodes": 28860,
+        "evaluations": 87574,
+        "cacheEvictions": 138960,
+        "certificatesStored": 0,
+        "aliasHits": 0,
+        "divergentFrontiers": 0,
+        "unknownCheckCacheHits": 0
+      },
+      "true": {
+        "elapsedMs": 65798,
+        "nodes": 28534,
+        "evaluations": 87362,
+        "cacheEvictions": 138162,
+        "certificatesStored": 982,
+        "aliasHits": 368,
+        "divergentFrontiers": 62314,
+        "unknownCheckCacheHits": 154
+      }
+    }
+  },
+  "allCandidateChoicesDepthsHorizonsAndStopsUnchanged": true,
+  "allOffWorkCacheAndAttemptFieldsMatchCommittedBaseline": true
+}

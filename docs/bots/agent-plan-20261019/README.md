@@ -8,6 +8,10 @@
   Fixed-work decisions remain unchanged; tactical-quality improvement and a safe
   selective exchange frontier remain open. Each report identifies its own source
   state; historical experiment patches are not active production behavior.
+- [Stage 1 follow-up: certified cross-horizon reuse](stage1-horizon-reuse/README.md).
+  The isolated candidate passed scoped safety checks but added no useful reported
+  decision/horizon improvement or aggregate elapsed saving; production was
+  restored to the committed Stage 1 source.
 
 ## Assignment and authorization
 
