@@ -1,0 +1,1005 @@
+[
+  {
+    "event": "STAGE1-WORKER-FIXED",
+    "data": {
+      "id": "queen-defense-142",
+      "wallMs": 12261,
+      "messages": [
+        {
+          "version": 5,
+          "requestId": "stage1-queen-defense-142",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "READY",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 0,
+              "row": 3
+            },
+            "to": {
+              "vertex": 5,
+              "column": 0,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": null,
+          "reason": null,
+          "elapsedMs": 79,
+          "completedDepth": 0,
+          "completedHorizon": "STATIC",
+          "repetitionPenalty": 0,
+          "expandedNodes": 0,
+          "leafEvaluations": 0,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-queen-defense-142",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 2,
+              "row": 3
+            },
+            "to": {
+              "vertex": 2,
+              "column": 0,
+              "row": 2
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 439,
+          "completedDepth": 1,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 1,
+          "leafEvaluations": 41,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-queen-defense-142",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 1,
+              "row": 0
+            },
+            "to": {
+              "vertex": 1,
+              "column": 2,
+              "row": 0
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 2950,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 95,
+          "leafEvaluations": 429,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-queen-defense-142",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "MOVE",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 1,
+              "row": 0
+            },
+            "to": {
+              "vertex": 1,
+              "column": 2,
+              "row": 0
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": "EVALUATION_LIMIT",
+          "elapsedMs": 12217,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 214,
+          "leafEvaluations": 2000,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        }
+      ]
+    }
+  },
+  {
+    "event": "STAGE1-WORKER-FIXED",
+    "data": {
+      "id": "rook-shuffle-193",
+      "wallMs": 11950,
+      "messages": [
+        {
+          "version": 5,
+          "requestId": "stage1-rook-shuffle-193",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 192,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "READY",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 3,
+              "row": 1
+            },
+            "to": {
+              "vertex": 1,
+              "column": 3,
+              "row": 2
+            },
+            "promotion": null
+          },
+          "source": null,
+          "reason": null,
+          "elapsedMs": 57,
+          "completedDepth": 0,
+          "completedHorizon": "STATIC",
+          "repetitionPenalty": 0,
+          "expandedNodes": 0,
+          "leafEvaluations": 0,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-rook-shuffle-193",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 192,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 2,
+              "column": 3,
+              "row": 1
+            },
+            "to": {
+              "vertex": 2,
+              "column": 3,
+              "row": 2
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 323,
+          "completedDepth": 1,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 1,
+          "leafEvaluations": 31,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-rook-shuffle-193",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 192,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 3,
+              "row": 1
+            },
+            "to": {
+              "vertex": 1,
+              "column": 3,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 3679,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 85,
+          "leafEvaluations": 553,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-rook-shuffle-193",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 192,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "MOVE",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 3,
+              "row": 1
+            },
+            "to": {
+              "vertex": 1,
+              "column": 3,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": "EVALUATION_LIMIT",
+          "elapsedMs": 11922,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 126,
+          "leafEvaluations": 2000,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        }
+      ]
+    }
+  },
+  {
+    "event": "STAGE1-WORKER-FIXED",
+    "data": {
+      "id": "exchange-267",
+      "wallMs": 10397,
+      "messages": [
+        {
+          "version": 5,
+          "requestId": "stage1-exchange-267",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 266,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "READY",
+          "move": {
+            "actor": "BLACK",
+            "from": {
+              "vertex": 4,
+              "column": 2,
+              "row": 3
+            },
+            "to": {
+              "vertex": 4,
+              "column": 2,
+              "row": 2
+            },
+            "promotion": null
+          },
+          "source": null,
+          "reason": null,
+          "elapsedMs": 45,
+          "completedDepth": 0,
+          "completedHorizon": "STATIC",
+          "repetitionPenalty": 0,
+          "expandedNodes": 0,
+          "leafEvaluations": 0,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-exchange-267",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 266,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "BLACK",
+            "from": {
+              "vertex": 5,
+              "column": 2,
+              "row": 2
+            },
+            "to": {
+              "vertex": 5,
+              "column": 0,
+              "row": 1
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 387,
+          "completedDepth": 1,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 4,
+          "leafEvaluations": 61,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-exchange-267",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 266,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "BLACK",
+            "from": {
+              "vertex": 5,
+              "column": 2,
+              "row": 2
+            },
+            "to": {
+              "vertex": 5,
+              "column": 0,
+              "row": 1
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 1409,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 75,
+          "leafEvaluations": 272,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-exchange-267",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 266,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "BLACK",
+            "from": {
+              "vertex": 5,
+              "column": 0,
+              "row": 3
+            },
+            "to": {
+              "vertex": 3,
+              "column": 2,
+              "row": 1
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 6936,
+          "completedDepth": 3,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 306,
+          "leafEvaluations": 1266,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-exchange-267",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 266,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "MOVE",
+          "move": {
+            "actor": "BLACK",
+            "from": {
+              "vertex": 5,
+              "column": 0,
+              "row": 3
+            },
+            "to": {
+              "vertex": 3,
+              "column": 2,
+              "row": 1
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": "EVALUATION_LIMIT",
+          "elapsedMs": 10374,
+          "completedDepth": 3,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 508,
+          "leafEvaluations": 2000,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        }
+      ]
+    }
+  },
+  {
+    "event": "STAGE1-WORKER-FIXED",
+    "data": {
+      "id": "army-transfer-474",
+      "wallMs": 3244,
+      "messages": [
+        {
+          "version": 5,
+          "requestId": "stage1-army-transfer-474",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 473,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "READY",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 0,
+              "column": 2,
+              "row": 2
+            },
+            "to": {
+              "vertex": 0,
+              "column": 2,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": null,
+          "reason": null,
+          "elapsedMs": 49,
+          "completedDepth": 0,
+          "completedHorizon": "STATIC",
+          "repetitionPenalty": 0,
+          "expandedNodes": 0,
+          "leafEvaluations": 0,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-army-transfer-474",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 473,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 4,
+              "column": 1,
+              "row": 1
+            },
+            "to": {
+              "vertex": 3,
+              "column": 0,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 271,
+          "completedDepth": 1,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 12,
+          "leafEvaluations": 80,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-army-transfer-474",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 473,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 4,
+              "column": 1,
+              "row": 1
+            },
+            "to": {
+              "vertex": 3,
+              "column": 0,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 507,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 97,
+          "leafEvaluations": 182,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-army-transfer-474",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 473,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "MOVE",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 4,
+              "column": 1,
+              "row": 1
+            },
+            "to": {
+              "vertex": 3,
+              "column": 0,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": "EVALUATION_LIMIT",
+          "elapsedMs": 3219,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 371,
+          "leafEvaluations": 2000,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        }
+      ]
+    }
+  },
+  {
+    "event": "STAGE1-WORKER-STRONG",
+    "data": {
+      "wallMs": 30023,
+      "messages": [
+        {
+          "version": 5,
+          "requestId": "stage1-queen-defense-142",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "READY",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 0,
+              "row": 3
+            },
+            "to": {
+              "vertex": 5,
+              "column": 0,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": null,
+          "reason": null,
+          "elapsedMs": 48,
+          "completedDepth": 0,
+          "completedHorizon": "STATIC",
+          "repetitionPenalty": 0,
+          "expandedNodes": 0,
+          "leafEvaluations": 0,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-queen-defense-142",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 2,
+              "row": 3
+            },
+            "to": {
+              "vertex": 2,
+              "column": 0,
+              "row": 2
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 321,
+          "completedDepth": 1,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 1,
+          "leafEvaluations": 41,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-queen-defense-142",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 1,
+              "row": 0
+            },
+            "to": {
+              "vertex": 1,
+              "column": 2,
+              "row": 0
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 2986,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 95,
+          "leafEvaluations": 429,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-queen-defense-142",
+          "gameId": "stage1-reported-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "MOVE",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 1,
+              "row": 0
+            },
+            "to": {
+              "vertex": 1,
+              "column": 2,
+              "row": 0
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": "TIMEOUT",
+          "elapsedMs": 30002,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 430,
+          "leafEvaluations": 4647,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        }
+      ]
+    }
+  },
+  {
+    "event": "STAGE1-WORKER-REPLACEMENT",
+    "data": {
+      "oldMessages": 1,
+      "wallMs": 15216,
+      "messages": [
+        {
+          "version": 5,
+          "requestId": "stage1-replacement",
+          "gameId": "stage1-new-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "READY",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 0,
+              "row": 3
+            },
+            "to": {
+              "vertex": 5,
+              "column": 0,
+              "row": 3
+            },
+            "promotion": null
+          },
+          "source": null,
+          "reason": null,
+          "elapsedMs": 66,
+          "completedDepth": 0,
+          "completedHorizon": "STATIC",
+          "repetitionPenalty": 0,
+          "expandedNodes": 0,
+          "leafEvaluations": 0,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-replacement",
+          "gameId": "stage1-new-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 2,
+              "row": 3
+            },
+            "to": {
+              "vertex": 2,
+              "column": 0,
+              "row": 2
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 502,
+          "completedDepth": 1,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 1,
+          "leafEvaluations": 41,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-replacement",
+          "gameId": "stage1-new-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "PROGRESS",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 1,
+              "row": 0
+            },
+            "to": {
+              "vertex": 1,
+              "column": 2,
+              "row": 0
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": null,
+          "elapsedMs": 4149,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 95,
+          "leafEvaluations": 429,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        },
+        {
+          "version": 5,
+          "requestId": "stage1-replacement",
+          "gameId": "stage1-new-game",
+          "positionRevision": 141,
+          "rulesVersion": 1,
+          "engineVersion": 3,
+          "searchModel": "PARANOID",
+          "profile": "UNIVERSAL",
+          "profileCatalogVersion": 2,
+          "difficulty": "STRONG",
+          "evaluationVersion": 3,
+          "kind": "MOVE",
+          "move": {
+            "actor": "WHITE",
+            "from": {
+              "vertex": 1,
+              "column": 1,
+              "row": 0
+            },
+            "to": {
+              "vertex": 1,
+              "column": 2,
+              "row": 0
+            },
+            "promotion": null
+          },
+          "source": "COMPLETED_DEPTH",
+          "reason": "EVALUATION_LIMIT",
+          "elapsedMs": 15187,
+          "completedDepth": 2,
+          "completedHorizon": "CHECKS",
+          "repetitionPenalty": 0,
+          "expandedNodes": 214,
+          "leafEvaluations": 2000,
+          "openingBookVersion": 1,
+          "openingBookInfluenced": false
+        }
+      ]
+    }
+  }
+]

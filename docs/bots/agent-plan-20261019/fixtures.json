@@ -1,0 +1,108 @@
+{
+  "schema": "chesstree-agent-fixtures-v1",
+  "source": "reported-game.txt",
+  "source_sha256": "763ce5415434f1f2f214bdf83e2746a3b9b6be7507d085c5023e0860dd419fba",
+  "base_commit": "22005a6bb8b1eadf1d4599af4092d428e157c2e6",
+  "move_count": 474,
+  "indexing": "prefix_plies=N means apply exactly the first N move| rows; next exported move is N+1 unless terminal. Exported numbering is individual plies, not three-player rounds.",
+  "cases": [
+    {
+      "id": "queen-exposure-139",
+      "prefix_plies": 138,
+      "prefix_move_rows_sha256": "16a0b32d8217a0eeea5f4bef05897b72db4a36659b2e4809d9091fb800e9fc14",
+      "recorded_next_move": "139: W.Qf2",
+      "purpose": "Inspect Qf2 and the subsequent Nxf2; establish legal defensive alternatives before setting expectations."
+    },
+    {
+      "id": "queen-defense-142",
+      "prefix_plies": 141,
+      "prefix_move_rows_sha256": "b1981d05048b3260101760307c9385568b3da9997a27d878912247694a9a6f74",
+      "recorded_next_move": "142: W.Kh2",
+      "purpose": "Second White decision after Qf2; test whether the queen remains defendable."
+    },
+    {
+      "id": "queen-defense-145",
+      "prefix_plies": 144,
+      "prefix_move_rows_sha256": "ba0b09613477545e65b3c8ab2604c3e4cd6a55a3341ea131b6bf4a376cc1cc48",
+      "recorded_next_move": "145: W.Kg2",
+      "purpose": "White is in check after Ng4+; compare legal evasions and queen safety."
+    },
+    {
+      "id": "rook-shuffle-193",
+      "prefix_plies": 192,
+      "prefix_move_rows_sha256": "ccece25f90f103cd4472b497cf181161dab3c82f560fadac899ec41046ae029b",
+      "recorded_next_move": "193: W.Re1",
+      "purpose": "Beginning of 13 consecutive rook moves, plies193\u2013205."
+    },
+    {
+      "id": "rook-shuffle-199",
+      "prefix_plies": 198,
+      "prefix_move_rows_sha256": "8d821d2b1b121e90df5e88ab9b1ffeb7c4e434c7a29c37ff3b7ccb66a0ee1ec7",
+      "recorded_next_move": "199: W.Rd1",
+      "purpose": "Middle of the same shuffle; distinguish safe progress from mandatory defense."
+    },
+    {
+      "id": "exchange-267",
+      "prefix_plies": 266,
+      "prefix_move_rows_sha256": "f5e88aed3444e3f6bed17292d9632bb0127da1b035d42bdd654b4f14110ac31e",
+      "recorded_next_move": "267: B.Bxb7+",
+      "purpose": "Tactical sequence before knight/bishop/queen captures; preserve all three actors."
+    },
+    {
+      "id": "exchange-272",
+      "prefix_plies": 271,
+      "prefix_move_rows_sha256": "ce43cb1a69de2ca035fa2ebc185bae9f5e389367cd014747cb5ddd15f0223b85",
+      "recorded_next_move": "272: R.Bxl6",
+      "purpose": "Red captures Black queen on272; investigate full response sequence, not just immediate gain."
+    },
+    {
+      "id": "promotion-295",
+      "prefix_plies": 294,
+      "prefix_move_rows_sha256": "070c2926ab778cff890d585deb5e95c5b7f41268f8fd1f281671eeaae55c2e41",
+      "recorded_next_move": "295: W.d8=Q+",
+      "purpose": "White promotes d8=Q+; recorded sequence trades the promoted pawn for Red queen."
+    },
+    {
+      "id": "promotion-capture-298",
+      "prefix_plies": 297,
+      "prefix_move_rows_sha256": "6e4732966c7409ea9366af1dfe26f30d0aaa996cd2ce10eaf1f7d0d24e38c473",
+      "recorded_next_move": "298: W.Qxd7+",
+      "purpose": "White Qxd7+ followed by Black Nxd7+; do not forbid a beneficial temporary queen sacrifice."
+    },
+    {
+      "id": "conversion-409",
+      "prefix_plies": 408,
+      "prefix_move_rows_sha256": "7f33cfede33fea26f2ed4490712145de4fa4bcfe3d780f99274f225c94418a6d",
+      "recorded_next_move": "409: W.e10",
+      "purpose": "Late-game three-player checks; assess progress without a forced-rook-move rule."
+    },
+    {
+      "id": "promotion-463",
+      "prefix_plies": 462,
+      "prefix_move_rows_sha256": "f9da88642fd2521dfbfaa86f50816d0941c401f092b37f754ef985f1c6120b4f",
+      "recorded_next_move": "463: W.b8=Q",
+      "purpose": "White b8=Q before final mating sequence."
+    },
+    {
+      "id": "mate-attribution-473",
+      "prefix_plies": 472,
+      "prefix_move_rows_sha256": "c5544e9235e626c6fad0edfbe22b8f0d9ec673b470d2f6d4708d1e94e2319db5",
+      "recorded_next_move": "473: R.Kl10#",
+      "purpose": "Red Kl10# triggers Black elimination credited to White."
+    },
+    {
+      "id": "army-transfer-474",
+      "prefix_plies": 473,
+      "prefix_move_rows_sha256": "daf5dfaaad1d0ebac07f0efb2596c792178edddd4fb287cec132417d3e85e0b7",
+      "recorded_next_move": "474: W.Bd5#",
+      "purpose": "Black is checkmated by White; White controls Black army and has the next move."
+    },
+    {
+      "id": "finished-474",
+      "prefix_plies": 474,
+      "prefix_move_rows_sha256": "e256df0217c4cca2a273d64a563ab062416eb098710f951f88339c030eaecc5a",
+      "recorded_next_move": null,
+      "purpose": "Terminal ranking White first, Red second, Black third; no further move."
+    }
+  ]
+}

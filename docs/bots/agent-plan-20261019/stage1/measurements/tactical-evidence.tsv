@@ -1,0 +1,300 @@
+# source_sha256	763ce5415434f1f2f214bdf83e2746a3b9b6be7507d085c5023e0860dd419fba
+# semantics	All lines use public reducer and actual turn order; recorded replies are legal examples, not forced policies.
+fixture	queen-exposure-139	actor=WHITE	legal=36	checks=	material={WHITE=35, RED=39, BLACK=39}
+pieces	queen-exposure-139	black-back-0:BLACK:ROOK:n12;black-back-1:BLACK:KNIGHT:n10;black-back-2:BLACK:BISHOP:m11;black-back-3:BLACK:QUEEN:m10;black-back-4:BLACK:KING:e11;black-back-5:BLACK:BISHOP:k10;black-back-6:BLACK:KNIGHT:h10;black-back-7:BLACK:ROOK:h12;black-pawn-0:BLACK:PAWN:n9;black-pawn-1:BLACK:PAWN:m9;black-pawn-2:BLACK:PAWN:l10;black-pawn-3:BLACK:PAWN:k9;black-pawn-4:BLACK:PAWN:e10;black-pawn-5:BLACK:PAWN:f11;black-pawn-6:BLACK:PAWN:g10;black-pawn-7:BLACK:PAWN:h9;red-back-0:RED:ROOK:d8;red-back-1:RED:KNIGHT:a5;red-back-2:RED:BISHOP:b7;red-back-3:RED:KING:b8;red-back-4:RED:QUEEN:k8;red-back-5:RED:BISHOP:k7;red-back-6:RED:KNIGHT:k6;red-back-7:RED:ROOK:n8;red-pawn-0:RED:PAWN:a7;red-pawn-1:RED:PAWN:b6;red-pawn-2:RED:PAWN:c5;red-pawn-3:RED:PAWN:d7;red-pawn-4:RED:PAWN:k5;red-pawn-5:RED:PAWN:l6;red-pawn-6:RED:PAWN:m6;red-pawn-7:RED:PAWN:n7;white-back-0:WHITE:ROOK:h1;white-back-1:WHITE:KNIGHT:f3;white-back-2:WHITE:BISHOP:e2;white-back-3:WHITE:KING:h3;white-back-4:WHITE:QUEEN:g1;white-back-6:WHITE:KNIGHT:d2;white-back-7:WHITE:ROOK:a1;white-pawn-0:WHITE:PAWN:h4;white-pawn-1:WHITE:PAWN:g3;white-pawn-2:WHITE:PAWN:f4;white-pawn-3:WHITE:PAWN:e4;white-pawn-5:WHITE:PAWN:c4;white-pawn-6:WHITE:PAWN:b5;white-pawn-7:WHITE:PAWN:a4
+legal	queen-exposure-139	WHITE:h1>h2:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:f3>e9:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:f3>g9:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:f3>h2:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:f3>e1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:f3>d4:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:e2>f1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:e2>d1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:e2>d3:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:h3>h2:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:h3>g2:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>g2:-	capture=null	checks=	queen=g2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>f1:-	capture=null	checks=	queen=f1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>e1:-	capture=null	checks=	queen=e1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>d1:-	capture=null	checks=	queen=d1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>c1:-	capture=null	checks=	queen=c1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>b1:-	capture=null	checks=	queen=b1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>h2:-	capture=null	checks=	queen=h2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>f2:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>e3:-	capture=null	checks=	queen=e3	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>d4:-	capture=null	checks=	queen=d4	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g1>c5:-	capture=red-pawn-2	checks=	queen=c5	material={WHITE=35, RED=38, BLACK=39}
+legal	queen-exposure-139	WHITE:d2>f1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:d2>b1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:d2>b3:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:a1>b1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:a1>c1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:a1>d1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:a1>e1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:a1>f1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:a1>a2:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:a1>a3:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:g3>g4:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:f4>f9:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:e4>e9:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-exposure-139	WHITE:e4>k9:-	capture=black-pawn-3	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=38}
+fixture	queen-defense-142	actor=WHITE	legal=41	checks=	material={WHITE=35, RED=39, BLACK=39}
+pieces	queen-defense-142	black-back-0:BLACK:ROOK:n12;black-back-1:BLACK:KNIGHT:n10;black-back-2:BLACK:BISHOP:m11;black-back-3:BLACK:QUEEN:m10;black-back-4:BLACK:KING:e11;black-back-5:BLACK:BISHOP:k10;black-back-6:BLACK:KNIGHT:h10;black-back-7:BLACK:ROOK:h12;black-pawn-0:BLACK:PAWN:n9;black-pawn-1:BLACK:PAWN:m9;black-pawn-2:BLACK:PAWN:l10;black-pawn-3:BLACK:PAWN:k9;black-pawn-4:BLACK:PAWN:e10;black-pawn-5:BLACK:PAWN:f10;black-pawn-6:BLACK:PAWN:g10;black-pawn-7:BLACK:PAWN:h9;red-back-0:RED:ROOK:d8;red-back-1:RED:KNIGHT:a5;red-back-2:RED:BISHOP:b7;red-back-3:RED:KING:b8;red-back-4:RED:QUEEN:k8;red-back-5:RED:BISHOP:l8;red-back-6:RED:KNIGHT:k6;red-back-7:RED:ROOK:n8;red-pawn-0:RED:PAWN:a7;red-pawn-1:RED:PAWN:b6;red-pawn-2:RED:PAWN:c5;red-pawn-3:RED:PAWN:d7;red-pawn-4:RED:PAWN:k5;red-pawn-5:RED:PAWN:l6;red-pawn-6:RED:PAWN:m6;red-pawn-7:RED:PAWN:n7;white-back-0:WHITE:ROOK:h1;white-back-1:WHITE:KNIGHT:f3;white-back-2:WHITE:BISHOP:e2;white-back-3:WHITE:KING:h3;white-back-4:WHITE:QUEEN:f2;white-back-6:WHITE:KNIGHT:d2;white-back-7:WHITE:ROOK:a1;white-pawn-0:WHITE:PAWN:h4;white-pawn-1:WHITE:PAWN:g3;white-pawn-2:WHITE:PAWN:f4;white-pawn-3:WHITE:PAWN:e4;white-pawn-5:WHITE:PAWN:c4;white-pawn-6:WHITE:PAWN:b5;white-pawn-7:WHITE:PAWN:a4
+legal	queen-defense-142	WHITE:h1>h2:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:h1>g1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:h1>f1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:h1>e1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:h1>d1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:h1>c1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:h1>b1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f3>e9:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f3>g9:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f3>h2:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f3>g1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f3>e1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f3>d4:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:e2>f1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:e2>d1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:e2>d3:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:h3>h2:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:h3>g2:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f2>g2:-	capture=null	checks=	queen=g2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f2>h2:-	capture=null	checks=	queen=h2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f2>f1:-	capture=null	checks=	queen=f1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f2>g1:-	capture=null	checks=	queen=g1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f2>e1:-	capture=null	checks=	queen=e1	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f2>e3:-	capture=null	checks=	queen=e3	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f2>d4:-	capture=null	checks=	queen=d4	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f2>c5:-	capture=red-pawn-2	checks=	queen=c5	material={WHITE=35, RED=38, BLACK=39}
+legal	queen-defense-142	WHITE:d2>f1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:d2>b1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:d2>b3:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:a1>b1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:a1>c1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:a1>d1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:a1>e1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:a1>f1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:a1>g1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:a1>a2:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:a1>a3:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:g3>g4:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:f4>f9:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:e4>e9:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-142	WHITE:e4>k9:-	capture=black-pawn-3	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=38}
+fixture	queen-defense-145	actor=WHITE	legal=3	checks=WHITE	material={WHITE=35, RED=39, BLACK=39}
+pieces	queen-defense-145	black-back-0:BLACK:ROOK:n12;black-back-1:BLACK:KNIGHT:n10;black-back-2:BLACK:BISHOP:m11;black-back-3:BLACK:QUEEN:m10;black-back-4:BLACK:KING:e11;black-back-5:BLACK:BISHOP:k10;black-back-6:BLACK:KNIGHT:g4;black-back-7:BLACK:ROOK:h12;black-pawn-0:BLACK:PAWN:n9;black-pawn-1:BLACK:PAWN:m9;black-pawn-2:BLACK:PAWN:l10;black-pawn-3:BLACK:PAWN:k9;black-pawn-4:BLACK:PAWN:e10;black-pawn-5:BLACK:PAWN:f10;black-pawn-6:BLACK:PAWN:g10;black-pawn-7:BLACK:PAWN:h9;red-back-0:RED:ROOK:d8;red-back-1:RED:KNIGHT:a5;red-back-2:RED:BISHOP:b7;red-back-3:RED:KING:b8;red-back-4:RED:QUEEN:k8;red-back-5:RED:BISHOP:m7;red-back-6:RED:KNIGHT:k6;red-back-7:RED:ROOK:n8;red-pawn-0:RED:PAWN:a7;red-pawn-1:RED:PAWN:b6;red-pawn-2:RED:PAWN:c5;red-pawn-3:RED:PAWN:d7;red-pawn-4:RED:PAWN:k5;red-pawn-5:RED:PAWN:l6;red-pawn-6:RED:PAWN:m6;red-pawn-7:RED:PAWN:n7;white-back-0:WHITE:ROOK:h1;white-back-1:WHITE:KNIGHT:f3;white-back-2:WHITE:BISHOP:e2;white-back-3:WHITE:KING:h2;white-back-4:WHITE:QUEEN:f2;white-back-6:WHITE:KNIGHT:d2;white-back-7:WHITE:ROOK:a1;white-pawn-0:WHITE:PAWN:h4;white-pawn-1:WHITE:PAWN:g3;white-pawn-2:WHITE:PAWN:f4;white-pawn-3:WHITE:PAWN:e4;white-pawn-5:WHITE:PAWN:c4;white-pawn-6:WHITE:PAWN:b5;white-pawn-7:WHITE:PAWN:a4
+legal	queen-defense-145	WHITE:h2>h3:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-145	WHITE:h2>g2:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+legal	queen-defense-145	WHITE:h2>g1:-	capture=null	checks=	queen=f2	material={WHITE=35, RED=39, BLACK=39}
+fixture	promotion-295	actor=WHITE	legal=48	checks=	material={WHITE=25, RED=22, BLACK=20}
+pieces	promotion-295	black-back-0:BLACK:ROOK:h12;black-back-1:BLACK:KNIGHT:l6;black-back-4:BLACK:KING:f11;black-back-5:BLACK:BISHOP:e11;black-back-7:BLACK:ROOK:k7;black-pawn-2:BLACK:PAWN:m5;black-pawn-4:BLACK:PAWN:e10;black-pawn-6:BLACK:PAWN:g10;black-pawn-7:BLACK:PAWN:h9;red-back-0:RED:ROOK:l8;red-back-3:RED:KING:a7;red-back-4:RED:QUEEN:n10;red-back-7:RED:ROOK:n8;red-pawn-0:RED:PAWN:a5;red-pawn-1:RED:PAWN:b6;red-pawn-2:RED:PAWN:c5;white-back-0:WHITE:ROOK:b3;white-back-1:WHITE:KNIGHT:h2;white-back-2:WHITE:BISHOP:c6;white-back-3:WHITE:KING:e2;white-back-6:WHITE:KNIGHT:f2;white-back-7:WHITE:ROOK:c4;white-pawn-0:WHITE:PAWN:h4;white-pawn-1:WHITE:PAWN:g3;white-pawn-2:WHITE:PAWN:f4;white-pawn-5:WHITE:PAWN:d7;white-pawn-6:WHITE:PAWN:b5;white-pawn-7:WHITE:PAWN:a4
+legal	promotion-295	WHITE:b3>c3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:b3>d3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:b3>e3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:b3>f3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:b3>b2:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:b3>b1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:b3>a3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:b3>b4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:h2>g4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:h2>f3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:h2>f1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>b7:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>a8:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>d5:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>e4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>f3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>g2:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>h1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>k9:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>l10:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>m11:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c6>n12:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:e2>e3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:e2>e1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:e2>d2:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:e2>f3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:e2>f1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:e2>d1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:e2>d3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:f2>g4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:f2>e4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:f2>h3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:f2>h1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:f2>d1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:f2>d3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c4>d4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c4>e4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c4>c3:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c4>c2:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c4>c1:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c4>b4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:c4>c5:-	capture=red-pawn-2	checks=	queen=null	material={WHITE=25, RED=21, BLACK=20}
+legal	promotion-295	WHITE:g3>g4:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:f4>f9:-	capture=null	checks=	queen=null	material={WHITE=25, RED=22, BLACK=20}
+legal	promotion-295	WHITE:d7>d8:QUEEN	capture=null	checks=RED	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-295	WHITE:d7>d8:ROOK	capture=null	checks=RED	queen=null	material={WHITE=29, RED=22, BLACK=20}
+legal	promotion-295	WHITE:d7>d8:BISHOP	capture=null	checks=RED	queen=null	material={WHITE=27, RED=22, BLACK=20}
+legal	promotion-295	WHITE:d7>d8:KNIGHT	capture=null	checks=RED	queen=null	material={WHITE=27, RED=22, BLACK=20}
+fixture	promotion-capture-298	actor=WHITE	legal=52	checks=	material={WHITE=33, RED=22, BLACK=20}
+pieces	promotion-capture-298	black-back-0:BLACK:ROOK:h12;black-back-1:BLACK:KNIGHT:l6;black-back-4:BLACK:KING:f11;black-back-5:BLACK:BISHOP:e11;black-back-7:BLACK:ROOK:k12;black-pawn-2:BLACK:PAWN:m5;black-pawn-4:BLACK:PAWN:e10;black-pawn-6:BLACK:PAWN:g10;black-pawn-7:BLACK:PAWN:h9;red-back-0:RED:ROOK:l8;red-back-3:RED:KING:a7;red-back-4:RED:QUEEN:d7;red-back-7:RED:ROOK:n8;red-pawn-0:RED:PAWN:a5;red-pawn-1:RED:PAWN:b6;red-pawn-2:RED:PAWN:c5;white-back-0:WHITE:ROOK:b3;white-back-1:WHITE:KNIGHT:h2;white-back-2:WHITE:BISHOP:c6;white-back-3:WHITE:KING:e2;white-back-6:WHITE:KNIGHT:f2;white-back-7:WHITE:ROOK:c4;white-pawn-0:WHITE:PAWN:h4;white-pawn-1:WHITE:PAWN:g3;white-pawn-2:WHITE:PAWN:f4;white-pawn-5:WHITE:QUEEN:d8;white-pawn-6:WHITE:PAWN:b5;white-pawn-7:WHITE:PAWN:a4
+legal	promotion-capture-298	WHITE:b3>c3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:b3>d3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:b3>e3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:b3>f3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:b3>b2:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:b3>b1:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:b3>a3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:b3>b4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:h2>g4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:h2>f3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:h2>f1:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>b7:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>a8:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>d7:-	capture=red-back-4	checks=	queen=null	material={WHITE=33, RED=13, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>d5:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>e4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>f3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>g2:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>h1:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>k9:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>l10:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>m11:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c6>n12:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:e2>e3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:e2>e1:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:e2>f3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:e2>f1:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:f2>g4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:f2>e4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:f2>h3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:f2>h1:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:f2>d1:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:f2>d3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c4>d4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c4>e4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c4>c3:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c4>c2:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c4>c1:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c4>b4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:c4>c5:-	capture=red-pawn-2	checks=	queen=null	material={WHITE=33, RED=21, BLACK=20}
+legal	promotion-capture-298	WHITE:g3>g4:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:f4>f9:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>d7:-	capture=red-back-4	checks=RED	queen=null	material={WHITE=33, RED=13, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>c8:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>b8:-	capture=null	checks=RED	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>a8:-	capture=null	checks=RED	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>k8:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>l8:-	capture=red-back-0	checks=	queen=null	material={WHITE=33, RED=17, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>c7:-	capture=null	checks=RED	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>b6:-	capture=red-pawn-1	checks=RED	queen=null	material={WHITE=33, RED=21, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>k7:-	capture=null	checks=	queen=null	material={WHITE=33, RED=22, BLACK=20}
+legal	promotion-capture-298	WHITE:d8>l6:-	capture=black-back-1	checks=	queen=null	material={WHITE=33, RED=22, BLACK=17}
+queen-recorded	139	WHITE:g1>f2:-	captured=null	queenPresent=true	material={WHITE=35, RED=39, BLACK=39}
+queen-recorded	140	RED:k7>l8:-	captured=null	queenPresent=true	material={WHITE=35, RED=39, BLACK=39}
+queen-recorded	141	BLACK:f11>f10:-	captured=null	queenPresent=true	material={WHITE=35, RED=39, BLACK=39}
+queen-recorded	142	WHITE:h3>h2:-	captured=null	queenPresent=true	material={WHITE=35, RED=39, BLACK=39}
+queen-recorded	143	RED:l8>m7:-	captured=null	queenPresent=true	material={WHITE=35, RED=39, BLACK=39}
+queen-recorded	144	BLACK:h10>g4:-	captured=null	queenPresent=true	material={WHITE=35, RED=39, BLACK=39}
+queen-recorded	145	WHITE:h2>g2:-	captured=null	queenPresent=true	material={WHITE=35, RED=39, BLACK=39}
+queen-recorded	146	RED:d8>c8:-	captured=null	queenPresent=true	material={WHITE=35, RED=39, BLACK=39}
+queen-recorded	147	BLACK:g4>f2:-	captured=white-back-4	queenPresent=false	material={WHITE=26, RED=39, BLACK=39}
+queen-recorded	148	WHITE:g2>f2:-	captured=black-back-6	queenPresent=false	material={WHITE=26, RED=39, BLACK=36}
+verified-145-punishment	WHITE:h2>h3:-	RED:d8>c8:-	BLACK:g4>f2:-	queenCaptured=true
+verified-145-punishment	WHITE:h2>g2:-	RED:d8>c8:-	BLACK:g4>f2:-	queenCaptured=true
+verified-145-punishment	WHITE:h2>g1:-	RED:d8>c8:-	BLACK:g4>f2:-	queenCaptured=true
+verified-142-defense	142	WHITE:f2>f1:-	captured=null	checks=
+verified-142-defense	143	RED:l8>m7:-	captured=null	checks=
+verified-142-defense	144	BLACK:h10>g4:-	captured=null	checks=
+verified-142-defense	145	WHITE:f1>e1:-	captured=null	checks=
+verified-142-defense	146	RED:d8>c8:-	captured=null	checks=
+verified-142-defense	147	BLACK:g4>f2:-	captured=null	checks=WHITE
+verified-142-defense	148	WHITE:e1>f2:-	captured=black-back-6	checks=
+two-opponent-line	rootPly=139	WHITE:h1>h2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>h1:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:f3>e9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:f3>g9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:f3>h2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:f3>e1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:f3>d4:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-
+two-opponent-line	rootPly=139	WHITE:e2>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:e2>d1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:e2>d3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:h3>h2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:h3>g2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:g1>g2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g2>h2:-;WHITE:g2>g1:-;WHITE:g2>f2:-;WHITE:g2>f1:-
+two-opponent-line	rootPly=139	WHITE:g1>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f1>f2:-;WHITE:f1>g1:-;WHITE:f1>e1:-;WHITE:f1>d1:-;WHITE:f1>c1:-;WHITE:f1>b1:-;WHITE:f1>g2:-
+two-opponent-line	rootPly=139	WHITE:g1>e1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:e1>f1:-;WHITE:e1>g1:-;WHITE:e1>d1:-;WHITE:e1>c1:-;WHITE:e1>b1:-;WHITE:e1>f2:-
+two-opponent-line	rootPly=139	WHITE:g1>d1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:d1>e1:-;WHITE:d1>f1:-;WHITE:d1>g1:-;WHITE:d1>c1:-;WHITE:d1>b1:-;WHITE:d1>c2:-;WHITE:d1>b3:-
+two-opponent-line	rootPly=139	WHITE:g1>c1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:c1>d1:-;WHITE:c1>e1:-;WHITE:c1>f1:-;WHITE:c1>g1:-;WHITE:c1>b1:-;WHITE:c1>c2:-;WHITE:c1>c3:-;WHITE:c1>b2:-;WHITE:c1>a3:-
+two-opponent-line	rootPly=139	WHITE:g1>b1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:b1>c1:-;WHITE:b1>d1:-;WHITE:b1>e1:-;WHITE:b1>f1:-;WHITE:b1>g1:-;WHITE:b1>b2:-;WHITE:b1>b3:-;WHITE:b1>b4:-;WHITE:b1>a2:-;WHITE:b1>c2:-;WHITE:b1>d3:-
+two-opponent-line	rootPly=139	WHITE:g1>h2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:h2>g2:-;WHITE:h2>f2:-;WHITE:h2>g1:-
+two-opponent-line	rootPly=139	WHITE:g1>f2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=139	WHITE:g1>e3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:e3>d3:-;WHITE:e3>c3:-;WHITE:e3>b3:-;WHITE:e3>a3:-;WHITE:e3>f2:-;WHITE:e3>g1:-;WHITE:e3>d4:-;WHITE:e3>c5:-
+two-opponent-line	rootPly=139	WHITE:g1>d4:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:d4>d3:-;WHITE:d4>d5:-;WHITE:d4>d6:-;WHITE:d4>d7:-;WHITE:d4>e3:-;WHITE:d4>f2:-;WHITE:d4>g1:-;WHITE:d4>c3:-;WHITE:d4>b2:-;WHITE:d4>c5:-;WHITE:d4>e9:-;WHITE:d4>f10:-;WHITE:d4>k5:-
+two-opponent-line	rootPly=139	WHITE:g1>c5:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:c5>c6:-;WHITE:c5>c7:-;WHITE:c5>c8:-;WHITE:c5>d5:-;WHITE:c5>k5:-;WHITE:c5>b4:-;WHITE:c5>a3:-;WHITE:c5>b6:-;WHITE:c5>d6:-;WHITE:c5>k7:-;WHITE:c5>l8:-;WHITE:c5>d4:-;WHITE:c5>e3:-;WHITE:c5>f2:-;WHITE:c5>g1:-
+two-opponent-line	rootPly=139	WHITE:d2>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:d2>b1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:d2>b3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:a1>b1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:a1>c1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:a1>d1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:a1>e1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:a1>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:a1>a2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>a1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:a1>a3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>a1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:g3>g4:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>g3:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:f4>f9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:e4>e9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=139	WHITE:e4>k9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=142	WHITE:h1>h2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:h1>g1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:h1>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:h1>e1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:h1>d1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:h1>c1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:h1>b1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:f3>e9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>f3:-;WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:f3>g9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>f3:-;WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:f3>h2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>f3:-;WHITE:f2>g2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:f3>g1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>f3:-;WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:f3>e1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>f3:-;WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:f3>d4:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>f3:-;WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-
+two-opponent-line	rootPly=142	WHITE:e2>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>e2:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:e2>d1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>e2:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:e2>d3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>e2:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:h3>h2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=WHITE	nextLegalQueenMoves=
+two-opponent-line	rootPly=142	WHITE:h3>g2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:f2>g2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g2>h2:-;WHITE:g2>g1:-;WHITE:g2>f2:-;WHITE:g2>f1:-
+two-opponent-line	rootPly=142	WHITE:f2>h2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:h2>g2:-;WHITE:h2>f2:-;WHITE:h2>g1:-
+two-opponent-line	rootPly=142	WHITE:f2>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f1>f2:-;WHITE:f1>g1:-;WHITE:f1>e1:-;WHITE:f1>d1:-;WHITE:f1>c1:-;WHITE:f1>b1:-;WHITE:f1>g2:-
+two-opponent-line	rootPly=142	WHITE:f2>g1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:g1>g2:-;WHITE:g1>f1:-;WHITE:g1>e1:-;WHITE:g1>d1:-;WHITE:g1>c1:-;WHITE:g1>b1:-;WHITE:g1>h2:-;WHITE:g1>f2:-;WHITE:g1>e3:-;WHITE:g1>d4:-;WHITE:g1>c5:-
+two-opponent-line	rootPly=142	WHITE:f2>e1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:e1>f1:-;WHITE:e1>g1:-;WHITE:e1>d1:-;WHITE:e1>c1:-;WHITE:e1>b1:-;WHITE:e1>f2:-
+two-opponent-line	rootPly=142	WHITE:f2>e3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:e3>d3:-;WHITE:e3>c3:-;WHITE:e3>b3:-;WHITE:e3>a3:-;WHITE:e3>f2:-;WHITE:e3>g1:-;WHITE:e3>d4:-;WHITE:e3>c5:-
+two-opponent-line	rootPly=142	WHITE:f2>d4:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:d4>d3:-;WHITE:d4>d5:-;WHITE:d4>d6:-;WHITE:d4>d7:-;WHITE:d4>e3:-;WHITE:d4>f2:-;WHITE:d4>g1:-;WHITE:d4>c3:-;WHITE:d4>b2:-;WHITE:d4>c5:-;WHITE:d4>e9:-;WHITE:d4>f10:-;WHITE:d4>k5:-
+two-opponent-line	rootPly=142	WHITE:f2>c5:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:c5>c6:-;WHITE:c5>c7:-;WHITE:c5>c8:-;WHITE:c5>d5:-;WHITE:c5>k5:-;WHITE:c5>b4:-;WHITE:c5>a3:-;WHITE:c5>b6:-;WHITE:c5>d6:-;WHITE:c5>k7:-;WHITE:c5>l8:-;WHITE:c5>d4:-;WHITE:c5>e3:-;WHITE:c5>f2:-;WHITE:c5>g1:-
+two-opponent-line	rootPly=142	WHITE:d2>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:d2>b1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:d2>b3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:a1>b1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:a1>c1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:a1>d1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:a1>e1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:a1>f1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:a1>g1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:a1>a2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:a1>a3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:g3>g4:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g3:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:f4>f9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:e4>e9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=142	WHITE:e4>k9:-	recordedReplies=applied	nextActor=WHITE	queenPresent=true	checks=	nextLegalQueenMoves=WHITE:f2>g2:-;WHITE:f2>h2:-;WHITE:f2>f1:-;WHITE:f2>g1:-;WHITE:f2>e1:-;WHITE:f2>e3:-;WHITE:f2>d4:-;WHITE:f2>c5:-
+two-opponent-line	rootPly=145	WHITE:h2>h3:-	recordedReplies=applied	nextActor=WHITE	queenPresent=false	checks=WHITE	nextLegalQueenMoves=
+two-opponent-line	rootPly=145	WHITE:h2>g2:-	recordedReplies=applied	nextActor=WHITE	queenPresent=false	checks=	nextLegalQueenMoves=
+two-opponent-line	rootPly=145	WHITE:h2>g1:-	recordedReplies=applied	nextActor=WHITE	queenPresent=false	checks=	nextLegalQueenMoves=
+promotion-recorded	295	WHITE:d7>d8:QUEEN	captured=null	material={WHITE=33, RED=22, BLACK=20}	checks=RED
+promotion-recorded	296	RED:n10>d7:-	captured=null	material={WHITE=33, RED=22, BLACK=20}	checks=
+promotion-recorded	297	BLACK:k7>k12:-	captured=null	material={WHITE=33, RED=22, BLACK=20}	checks=
+promotion-recorded	298	WHITE:d8>d7:-	captured=red-back-4	material={WHITE=33, RED=13, BLACK=20}	checks=RED
+promotion-recorded	299	RED:a7>b8:-	captured=null	material={WHITE=33, RED=13, BLACK=20}	checks=
+promotion-recorded	300	BLACK:l6>d7:-	captured=white-pawn-5	material={WHITE=24, RED=13, BLACK=20}	checks=RED
+promotion-recorded	301	WHITE:b3>c3:-	captured=null	material={WHITE=24, RED=13, BLACK=20}	checks=RED
+# status	complete;all stated recorded continuations reducer-applied;alternatives remain conditional on listed replies

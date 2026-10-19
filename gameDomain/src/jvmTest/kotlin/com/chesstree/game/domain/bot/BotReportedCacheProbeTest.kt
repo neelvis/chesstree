@@ -4,8 +4,6 @@ import com.chesstree.game.domain.GameReducer
 import com.chesstree.game.domain.LegalMoveGenerator
 import com.chesstree.game.domain.MoveIntent
 import com.chesstree.game.domain.MoveReduction
-import com.chesstree.game.domain.PlayerId
-import com.chesstree.game.domain.PromotionChoice
 import com.chesstree.game.domain.ThreePlayerBoardNotation
 import com.chesstree.game.domain.scenario.StandardGame
 import java.io.File
@@ -19,11 +17,8 @@ class BotReportedCacheProbeTest {
         if (System.getenv("CHESSTREE_BOT_CACHE_PROBE") != "true") return
         val input = File(checkNotNull(System.getenv("CHESSTREE_BOT_CACHE_REPORT")))
         val history = mutableListOf(StandardGame.scenario.initialState)
-        input.readLines().filter { it.startsWith("move|") }.forEach { row ->
-            val fields = row.split('|')
-            val intent = BotOpeningBook.decode(
-                "${PlayerId.valueOf(fields[1]).ordinal},${fields.subList(2, 8).joinToString(",")}",
-            ).copy(promotion = fields[8].takeUnless { it == "-" }?.let(PromotionChoice::valueOf))
+        input.readLines().filter { it.startsWith("move|") }.forEachIndexed { index, row ->
+            val intent = ReportedBotFixtures.parseMove(row, index + 1)
             history += assertIs<MoveReduction.Applied>(GameReducer.reduce(history.last(), intent)).state
         }
         val policy = BotPolicy(listOf(

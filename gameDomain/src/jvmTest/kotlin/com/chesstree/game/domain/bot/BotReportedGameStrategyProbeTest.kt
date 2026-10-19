@@ -20,11 +20,8 @@ class BotReportedGameStrategyProbeTest {
         val exportedMoves = report.readLines().filter { it.startsWith("move|") }
         var initial = StandardGame.scenario.initialState
         val history = mutableListOf(initial)
-        exportedMoves.forEach { row ->
-            val fields = row.split('|')
-            val intent = BotOpeningBook.decode(
-                "${PlayerId.valueOf(fields[1]).ordinal},${fields.subList(2, 8).joinToString(",")}",
-            )
+        exportedMoves.forEachIndexed { index, row ->
+            val intent = ReportedBotFixtures.parseMove(row, index + 1)
             initial = assertIs<MoveReduction.Applied>(GameReducer.reduce(initial, intent)).state
             history += initial
         }

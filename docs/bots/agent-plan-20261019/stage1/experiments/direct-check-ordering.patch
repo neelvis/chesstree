@@ -1,0 +1,607 @@
+diff --git a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
+--- a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
++++ b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
+@@ -122,7 +122,7 @@
+         onCompletedDepth: (BoundedBotResult.Move) -> Unit = {},
+         recentPositions: List<GameState> = emptyList(),
+     ): BoundedBotResult = chooseImpl(
+-        state, policy, stop, onFallbackReady, onCompletedDepth, recentPositions, null, true,
++        state, policy, stop, onFallbackReady, onCompletedDepth, recentPositions, null, true, false,
+     )
+ 
+     internal fun chooseWithDiagnostics(
+@@ -133,11 +133,12 @@
+         onCompletedDepth: (BoundedBotResult.Move) -> Unit = {},
+         recentPositions: List<GameState> = emptyList(),
+         reuseKingAttackContext: Boolean = true,
++        prioritizeDirectChecks: Boolean = false,
+         diagnostics: (BotSearchDiagnostics) -> Unit,
+     ): BoundedBotResult {
+         val collector = BotSearchDiagnosticCollector()
+         val result = chooseImpl(state, policy, stop, onFallbackReady, onCompletedDepth, recentPositions, collector,
+-            reuseKingAttackContext)
++            reuseKingAttackContext, prioritizeDirectChecks)
+         diagnostics(collector.finish(result))
+         return result
+     }
+@@ -151,6 +152,7 @@
+         recentPositions: List<GameState>,
+         diagnostics: BotSearchDiagnosticCollector?,
+         reuseKingAttackContext: Boolean,
++        prioritizeDirectChecks: Boolean,
+     ): BoundedBotResult {
+         require(recentPositions.size <= MAX_BOT_RECENT_POSITIONS)
+         val phase = state.phase
+@@ -178,7 +180,7 @@
+             openingBookVersion, preferred,
+             tacticalDepth,
+             recentPositions.toList(), searchModel, profile, profileCatalogVersion,
+-            repeatedLayoutPenaltyPerOccurrence, cache, diagnostics, reuseKingAttackContext,
++            repeatedLayoutPenaltyPerOccurrence, cache, diagnostics, reuseKingAttackContext, prioritizeDirectChecks,
+         )
+         return search.choose(state, actor, rootMoves, fallback)
+     }
+@@ -224,6 +226,7 @@
+         private val cache: BotSearchCache?,
+         private val diagnostics: BotSearchDiagnosticCollector?,
+         private val reuseKingAttackContext: Boolean,
++        private val prioritizeDirectChecks: Boolean,
+     ) {
+         private var expandedNodes = 0
+         private var leafEvaluations = 0
+@@ -572,12 +575,16 @@
+             return best
+         }
+ 
+-        private fun orderedMoves(state: GameState, moves: List<Move>): List<Move> =
+-            if (searchModel == BotSearchModel.MAX_N) moves else moves.sortedByDescending { move ->
++        private fun orderedMoves(state: GameState, moves: List<Move>): List<Move> {
++            if (searchModel == BotSearchModel.MAX_N) return moves
++            val checks = if (prioritizeDirectChecks) directCheckPriorities(state, moves, ::checkStop) else emptyMap()
++            return moves.sortedByDescending { move ->
+                 val captured = move.capturedPieceId?.let { state.position.pieces.getValue(it).type.fallbackValue() } ?: 0
+                 val promotion = move.promotion?.pieceType?.fallbackValue()?.minus(1) ?: 0
+-                (captured + promotion) * 100 - state.position.pieces.getValue(move.pieceId).type.fallbackValue()
+-            }
++                (captured + promotion) * 100 + (if (checks[move] == true) 50 else 0) -
++                    state.position.pieces.getValue(move.pieceId).type.fallbackValue()
++            }
++        }
+ 
+         private fun respondersAfter(state: GameState, move: Move, pending: Set<PlayerId>): Set<PlayerId> {
+             if (currentHorizon != BotSearchHorizon.EXCHANGES) return emptySet()
+diff --git a/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt b/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
+--- a/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
++++ b/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
+@@ -62,6 +62,7 @@
+         val cap = (System.getenv("CHESSTREE_BOT_QUALITY_WORK") ?: "2000").toInt()
+         require(cap in 1..1_000_000)
+         val timed = System.getenv("CHESSTREE_BOT_QUALITY_TIMED") == "true"
++        val prioritizeDirectChecks = System.getenv("CHESSTREE_BOT_QUALITY_DIRECT_CHECKS") == "true"
+         val contextSetting = System.getenv("CHESSTREE_BOT_QUALITY_KING_CONTEXT") ?: "true"
+         require(contextSetting in setOf("false", "true", "both"))
+         val contextVariants = if (contextSetting == "both") listOf(false, true) else listOf(contextSetting == "true")
+@@ -82,6 +83,7 @@
+             log("# export_sha256\t${corpus.sourceSha256}")
+             log("# runtime\t${System.getProperty("java.version")};${System.getProperty("os.name")};${System.getProperty("os.arch")}")
+             log("# protocol\tseed=0;depth=4;tactical=4;model=PARANOID;eval=POSITIONAL:3;profile=UNIVERSAL:2;book=1;repetition=.50;history=36;cache=cold2048;savedMoveOrdering=false;reuseKingAttackContext=$contextSetting;nodes=$cap;evaluations=$cap;softMs=${if (timed) 30000 else "none"};repeats=$repetitions;order=alternating-by-case-and-repeat")
++            log("# direct_check_ordering\t$prioritizeDirectChecks")
+             log("# semantics\tFixed-work runs have no time cutoff; timed mode keeps the 30-second soft cap. Heuristic terms describe the selected immediate child, not the minimax leaf score. Terminal scores are excluded from term decomposition.")
+             log("# interpretation\tNo recorded move is a best-move expectation. Held-out states were selected by seeded random legal trajectories before tuning; six trajectories from one start are not six independent strength trials.")
+             val sources = listOf(
+@@ -119,6 +121,7 @@
+                         ).chooseWithDiagnostics(
+                             before, diagnostics = { diagnostics = it },
+                             reuseKingAttackContext = reuseKingAttacks,
++                            prioritizeDirectChecks = prioritizeDirectChecks,
+                             recentPositions = fixture.history.takeLast(MAX_BOT_RECENT_POSITIONS),
+                             stop = BotStopProbe {
+                                 if (timed && (System.nanoTime() - started) / 1_000_000 >= 30_000) BotStopSignal.TIMEOUT
+diff --git a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotTacticalMoveOrdering.kt b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotTacticalMoveOrdering.kt
+new file mode 100644
+--- /dev/null
++++ b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BotTacticalMoveOrdering.kt
+@@ -0,0 +1,39 @@
++package com.chesstree.game.domain.bot
++
++import com.chesstree.game.domain.GameState
++import com.chesstree.game.domain.LegalMoveGenerator
++import com.chesstree.game.domain.Move
++import com.chesstree.game.domain.ParticipantStatus
++import com.chesstree.game.domain.PieceType
++
++/**
++ * Ordering hints for an already legal move list belonging to the side to move.
++ * Detects attacks by the resulting moved piece, including its promoted type.
++ * Discovered checks and checks by a castling rook can remain false negatives.
++ * These hints neither validate moves nor replace the rules engine's check test.
++ */
++internal fun directCheckPriorities(
++    state: GameState,
++    moves: List<Move>,
++    shouldContinue: () -> Boolean = { true },
++): Map<Move, Boolean> {
++    val actor = state.turn?.player ?: return moves.associateWith { false }
++    // King targets are fixed for every legal move by this actor; kings cannot be captured.
++    val opposingKings = state.position.pieces.values.asSequence()
++        .filter { it.type == PieceType.KING }
++        .filter { king ->
++            val controller = state.armies.getValue(king.army).controller
++            controller != actor && state.participants.getValue(controller).status == ParticipantStatus.Active
++        }
++        .map { it.coordinate }
++        .toSet()
++    if (opposingKings.isEmpty()) return moves.associateWith { false }
++    val priorities = linkedMapOf<Move, Boolean>()
++    for (move in moves) {
++        if (!shouldContinue()) return emptyMap()
++        val after = LegalMoveGenerator.applyToPosition(state.position, move)
++        val movedPiece = after.pieces.getValue(move.pieceId)
++        priorities[move] = LegalMoveGenerator.attackCoordinates(after, movedPiece).any(opposingKings::contains)
++    }
++    return priorities
++}
+diff --git a/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotTacticalMoveOrderingTest.kt b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotTacticalMoveOrderingTest.kt
+new file mode 100644
+--- /dev/null
++++ b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BotTacticalMoveOrderingTest.kt
+@@ -0,0 +1,176 @@
++package com.chesstree.game.domain.bot
++
++import com.chesstree.game.domain.ArmyColor
++import com.chesstree.game.domain.ArmyControl
++import com.chesstree.game.domain.GamePhase
++import com.chesstree.game.domain.GameReducer
++import com.chesstree.game.domain.GameState
++import com.chesstree.game.domain.LegalMoveGenerator
++import com.chesstree.game.domain.Move
++import com.chesstree.game.domain.MoveIntent
++import com.chesstree.game.domain.MoveReduction
++import com.chesstree.game.domain.Participant
++import com.chesstree.game.domain.ParticipantStatus
++import com.chesstree.game.domain.Piece
++import com.chesstree.game.domain.PieceId
++import com.chesstree.game.domain.PieceType
++import com.chesstree.game.domain.PlayerId
++import com.chesstree.game.domain.Position
++import com.chesstree.game.domain.PromotionChoice
++import com.chesstree.game.domain.ThreePlayerBoardNotation
++import com.chesstree.game.domain.Turn
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertFalse
++import kotlin.test.assertIs
++import kotlin.test.assertTrue
++
++class BotTacticalMoveOrderingTest {
++    @Test
++    fun reportedKnightForkIsADirectCheckAndEveryLegalMoveRetainsAnEntry() {
++        val state = reportedKnightFork()
++        val moves = LegalMoveGenerator.legalMoves(state)
++        val fork = moves.single { it.from == at("H10") && it.to == at("G4") }
++        val priorities = directCheckPriorities(state, moves)
++        assertEquals(moves.toSet(), priorities.keys)
++        assertEquals(moves, priorities.keys.toList())
++        assertTrue(priorities.getValue(fork))
++        val after = apply(state, fork)
++        assertTrue(LegalMoveGenerator.isKingInCheck(after, PlayerId.WHITE))
++        val knight = after.position.pieces.getValue(fork.pieceId)
++        assertTrue(at("F2") in LegalMoveGenerator.attackCoordinates(after.position, knight))
++        assertTrue(moves.any { move ->
++            state.position.pieces.getValue(move.pieceId).type == PieceType.KING && !priorities.getValue(move)
++        })
++    }
++
++    @Test
++    fun aFrozenOpposingKingIsNotACheckTarget() {
++        val state = reportedKnightFork(whiteStatus = ParticipantStatus.Stalemated(atPly = 143))
++        val move = LegalMoveGenerator.legalMoves(state).single { it.from == at("H10") && it.to == at("G4") }
++        assertFalse(directCheckPriorities(state, listOf(move)).getValue(move))
++    }
++
++    @Test
++    fun aControlledKingIsNotAnOpposingTarget() {
++        val initial = reportedKnightFork()
++        val pieces = initial.position.pieces.values.map { piece ->
++            if (piece.id == PieceId("black-back-6")) piece.copy(army = ArmyColor.WHITE) else piece
++        }
++        val state = GameState(Position(pieces.associateBy(Piece::id)), initial.participants,
++            initial.armies, Turn(PlayerId.WHITE, 144), initial.phase)
++        val move = LegalMoveGenerator.legalMoves(state).single { it.from == at("H10") && it.to == at("G4") }
++        assertFalse(directCheckPriorities(state, listOf(move)).getValue(move))
++    }
++
++    @Test
++    fun transferredPawnUsesItsOriginalArmyGeometry() {
++        val pawn = piece("red-pawn", PieceType.PAWN, ArmyColor.RED, "D5")
++        val moved = pawn.copy(coordinate = at("D4"))
++        val geometry = Position(mapOf(moved.id to moved))
++        val originalArmyAttacks = LegalMoveGenerator.attackCoordinates(geometry, moved)
++        val controllerArmyAttacks = LegalMoveGenerator.attackCoordinates(geometry, moved.copy(army = ArmyColor.WHITE))
++        val target = originalArmyAttacks.first { it !in controllerArmyAttacks }
++        val pieces = listOf(pawn, piece("white-king", PieceType.KING, ArmyColor.WHITE, "H12"),
++            Piece(PieceId("black-king"), PieceType.KING, ArmyColor.BLACK, target, hasMoved = true))
++        val state = GameState(Position(pieces.associateBy(Piece::id)),
++            PlayerId.entries.associateWith { actor -> Participant(actor, if (actor == PlayerId.RED) {
++                ParticipantStatus.Checkmated(by = PlayerId.WHITE, atPly = 1)
++            } else ParticipantStatus.Active) },
++            ArmyColor.entries.associateWith { army -> ArmyControl(army,
++                if (army == ArmyColor.RED) PlayerId.WHITE else army.originalPlayer) },
++            Turn(PlayerId.WHITE, 2), GamePhase.InProgress)
++        val move = LegalMoveGenerator.legalMoves(state).single { it.pieceId == pawn.id && it.to == at("D4") }
++        assertTrue(directCheckPriorities(state, listOf(move)).getValue(move))
++        assertTrue(LegalMoveGenerator.isKingInCheck(apply(state, move), PlayerId.BLACK))
++    }
++
++    @Test
++    fun promotionsUseTheResultingPieceInsteadOfThePawn() {
++        val state = state(PlayerId.WHITE, listOf(
++            piece("white-king", PieceType.KING, ArmyColor.WHITE, "H12"),
++            piece("red-king", PieceType.KING, ArmyColor.RED, "A1"),
++            piece("black-king", PieceType.KING, ArmyColor.BLACK, "N12"),
++            piece("white-pawn", PieceType.PAWN, ArmyColor.WHITE, "K11"),
++        ))
++        val moves = LegalMoveGenerator.legalMoves(state).filter { it.from == at("K11") && it.to == at("K12") }
++        assertEquals(PromotionChoice.entries.toSet(), moves.map { it.promotion }.toSet())
++        val priorities = directCheckPriorities(state, moves)
++        assertTrue(priorities.getValue(moves.single { it.promotion == PromotionChoice.ROOK }))
++        assertTrue(priorities.getValue(moves.single { it.promotion == PromotionChoice.QUEEN }))
++        assertFalse(priorities.getValue(moves.single { it.promotion == PromotionChoice.KNIGHT }))
++        assertFalse(priorities.getValue(moves.single { it.promotion == PromotionChoice.BISHOP }))
++    }
++
++    @Test
++    fun aDiscoveredCheckMayRemainAFalseNegativeBecauseTheHintIsDirectOnly() {
++        val state = state(PlayerId.WHITE, listOf(
++            piece("white-king", PieceType.KING, ArmyColor.WHITE, "A1"),
++            piece("red-king", PieceType.KING, ArmyColor.RED, "N8"),
++            piece("black-king", PieceType.KING, ArmyColor.BLACK, "G12"),
++            piece("white-rook", PieceType.ROOK, ArmyColor.WHITE, "G10"),
++            piece("white-knight", PieceType.KNIGHT, ArmyColor.WHITE, "G11"),
++        ))
++        val move = LegalMoveGenerator.legalMoves(state).single { it.from == at("G11") && it.to == at("E10") }
++        assertFalse(directCheckPriorities(state, listOf(move)).getValue(move))
++        assertTrue(LegalMoveGenerator.isKingInCheck(apply(state, move), PlayerId.BLACK))
++    }
++
++    @Test
++    fun quietMovesWithoutAnAttackHaveFalseHints() {
++        val state = state(PlayerId.WHITE, listOf(
++            piece("white-king", PieceType.KING, ArmyColor.WHITE, "H12"),
++            piece("red-king", PieceType.KING, ArmyColor.RED, "A1"),
++            piece("black-king", PieceType.KING, ArmyColor.BLACK, "N8"),
++            piece("white-pawn", PieceType.PAWN, ArmyColor.WHITE, "K9"),
++        ))
++        val moves = LegalMoveGenerator.legalMoves(state)
++        assertTrue(moves.isNotEmpty())
++        assertTrue(directCheckPriorities(state, moves).values.none { it })
++        assertTrue(directCheckPriorities(state, emptyList()).isEmpty())
++    }
++
++    // Board geometry before reported ply 144. Rights are omitted and flags set to moved;
++    // this is a focused legal reconstruction, not a replacement for the export replay.
++    private fun reportedKnightFork(whiteStatus: ParticipantStatus = ParticipantStatus.Active): GameState {
++        val pieces = """
++            black-back-0:BLACK:ROOK:n12;black-back-1:BLACK:KNIGHT:n10;black-back-2:BLACK:BISHOP:m11;
++            black-back-3:BLACK:QUEEN:m10;black-back-4:BLACK:KING:e11;black-back-5:BLACK:BISHOP:k10;
++            black-back-6:BLACK:KNIGHT:h10;black-back-7:BLACK:ROOK:h12;black-pawn-0:BLACK:PAWN:n9;
++            black-pawn-1:BLACK:PAWN:m9;black-pawn-2:BLACK:PAWN:l10;black-pawn-3:BLACK:PAWN:k9;
++            black-pawn-4:BLACK:PAWN:e10;black-pawn-5:BLACK:PAWN:f10;black-pawn-6:BLACK:PAWN:g10;
++            black-pawn-7:BLACK:PAWN:h9;red-back-0:RED:ROOK:d8;red-back-1:RED:KNIGHT:a5;
++            red-back-2:RED:BISHOP:b7;red-back-3:RED:KING:b8;red-back-4:RED:QUEEN:k8;
++            red-back-5:RED:BISHOP:m7;red-back-6:RED:KNIGHT:k6;red-back-7:RED:ROOK:n8;
++            red-pawn-0:RED:PAWN:a7;red-pawn-1:RED:PAWN:b6;red-pawn-2:RED:PAWN:c5;
++            red-pawn-3:RED:PAWN:d7;red-pawn-4:RED:PAWN:k5;red-pawn-5:RED:PAWN:l6;
++            red-pawn-6:RED:PAWN:m6;red-pawn-7:RED:PAWN:n7;white-back-0:WHITE:ROOK:h1;
++            white-back-1:WHITE:KNIGHT:f3;white-back-2:WHITE:BISHOP:e2;white-back-3:WHITE:KING:h2;
++            white-back-4:WHITE:QUEEN:f2;white-back-6:WHITE:KNIGHT:d2;white-back-7:WHITE:ROOK:a1;
++            white-pawn-0:WHITE:PAWN:h4;white-pawn-1:WHITE:PAWN:g3;white-pawn-2:WHITE:PAWN:f4;
++            white-pawn-3:WHITE:PAWN:e4;white-pawn-5:WHITE:PAWN:c4;white-pawn-6:WHITE:PAWN:b5;
++            white-pawn-7:WHITE:PAWN:a4
++        """.trimIndent().replace("\n", "").split(';').map { token ->
++            val (id, army, type, square) = token.trim().split(':')
++            piece(id, PieceType.valueOf(type), ArmyColor.valueOf(army), square)
++        }
++        return GameState(Position(pieces.associateBy(Piece::id)),
++            PlayerId.entries.associateWith { actor ->
++                Participant(actor, if (actor == PlayerId.WHITE) whiteStatus else ParticipantStatus.Active)
++            }, ArmyColor.entries.associateWith { ArmyControl(it, it.originalPlayer) },
++            Turn(PlayerId.BLACK, 144), GamePhase.InProgress)
++    }
++
++    private fun state(actor: PlayerId, pieces: List<Piece>) = GameState(
++        Position(pieces.associateBy(Piece::id)), PlayerId.entries.associateWith(::Participant),
++        ArmyColor.entries.associateWith { ArmyControl(it, it.originalPlayer) }, Turn(actor, 1), GamePhase.InProgress,
++    )
++
++    private fun piece(id: String, type: PieceType, army: ArmyColor, label: String) =
++        Piece(PieceId(id), type, army, at(label), hasMoved = true)
++
++    private fun at(label: String) = checkNotNull(ThreePlayerBoardNotation.parse(label))
++    private fun apply(state: GameState, move: Move) = assertIs<MoveReduction.Applied>(GameReducer.reduce(
++        state, MoveIntent(move.actor, move.from, move.to, move.promotion),
++    )).state
++}
+diff --git a/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BoundedBotDirectCheckOrderingTest.kt b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BoundedBotDirectCheckOrderingTest.kt
+new file mode 100644
+--- /dev/null
++++ b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/BoundedBotDirectCheckOrderingTest.kt
+@@ -0,0 +1,278 @@
++package com.chesstree.game.domain.bot
++
++import com.chesstree.game.domain.ArmyColor
++import com.chesstree.game.domain.ArmyControl
++import com.chesstree.game.domain.GamePhase
++import com.chesstree.game.domain.GameReducer
++import com.chesstree.game.domain.GameState
++import com.chesstree.game.domain.LegalMoveGenerator
++import com.chesstree.game.domain.Move
++import com.chesstree.game.domain.MoveIntent
++import com.chesstree.game.domain.MoveReduction
++import com.chesstree.game.domain.Participant
++import com.chesstree.game.domain.Piece
++import com.chesstree.game.domain.PieceId
++import com.chesstree.game.domain.PieceType
++import com.chesstree.game.domain.PlayerId
++import com.chesstree.game.domain.Position
++import com.chesstree.game.domain.ThreePlayerBoardNotation
++import com.chesstree.game.domain.Turn
++import com.chesstree.game.domain.scenario.StandardGame
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertIs
++import kotlin.test.assertTrue
++
++class BoundedBotDirectCheckOrderingTest {
++    @Test
++    fun optInDefaultKeepsTheExistingPublicParanoidPath() {
++        val state = checkFixture()
++        val bot = bot()
++        val public = bot.choose(state)
++        val disabled = bot.chooseWithDiagnostics(state, prioritizeDirectChecks = false, diagnostics = {})
++        val default = bot.chooseWithDiagnostics(state, diagnostics = {})
++        assertEquals(public, disabled)
++        assertEquals(disabled, default)
++    }
++
++    @Test
++    fun maxNResultsCallbacksDiagnosticsAndStopProbeCountsAreExactlyUnchanged() {
++        for (state in listOf(checkFixture(), quietFixture())) {
++            for (tacticalDepth in listOf(0, 1, 2)) {
++                val control = observe(state, BotSearchModel.MAX_N, enabled = false, tacticalDepth = tacticalDepth)
++                val ordered = observe(state, BotSearchModel.MAX_N, enabled = true, tacticalDepth = tacticalDepth)
++                assertEquals(control, ordered, "MAX_N q=$tacticalDepth")
++            }
++        }
++    }
++
++    @Test
++    fun completedParanoidChoicesMatchExhaustiveReferencesForEveryRootSeatAndPolicy() {
++        val policies = listOf(BotPolicy.DEFAULT, BotPolicy(listOf(BotRule(BotFeature.MATERIAL, 100))),
++            BotPolicy(emptyList()))
++        for (actor in PlayerId.entries) {
++            val state = checkFixture(actor)
++            val legal = LegalMoveGenerator.legalMoves(state)
++            assertTrue(directCheckPriorities(state, legal).values.any { it }, "$actor must exercise a checking hint")
++            assertTrue(directCheckPriorities(state, legal).values.any { !it }, "$actor must retain quiet alternatives")
++            for (policy in policies) {
++                val expected = exhaustiveRoot(state, 3, policy)
++                val plain = completed(state, policy, enabled = false)
++                val ordered = completed(state, policy, enabled = true)
++                assertEquals(expected, plain.intent, "$actor/control/$policy")
++                assertEquals(expected, ordered.intent, "$actor/ordered/$policy")
++                assertDecision(plain, ordered)
++                assertEquals(3, ordered.stats.completedDepth)
++                assertEquals(BotStopReason.DEPTH_COMPLETE, ordered.reason)
++                assertIs<MoveReduction.Applied>(GameReducer.reduce(state, ordered.intent))
++            }
++        }
++    }
++
++    @Test
++    fun repertoireRootTiesKeepTheirOriginalPolicy() {
++        val state = StandardGame.scenario.initialState
++        val policy = BotPolicy(emptyList())
++        fun choose(enabled: Boolean) = assertIs<BoundedBotResult.Move>(BoundedMaxNBot(
++            maxDepth = 2, maxNodes = 100_000, maxEvaluations = 100_000,
++            searchModel = BotSearchModel.PARANOID, openingBookVersion = 1, seed = 123,
++        ).chooseWithDiagnostics(state, policy, prioritizeDirectChecks = enabled, diagnostics = {}))
++        val plain = choose(false)
++        assertDecision(plain, choose(true))
++        val legal = LegalMoveGenerator.legalMoves(state).map { it.intent() }
++        assertEquals(BotOpeningBook.preferredMoves(state, 123).first { it in legal }, plain.intent)
++    }
++
++    @Test
++    fun checkingHintsDoNotReplaceTheThirdActorsActualRecaptureResponse() {
++        val state = checkFixture()
++        val policy = BotPolicy(listOf(BotRule(BotFeature.MATERIAL, 100), BotRule(BotFeature.CHECK_PRESSURE, 40)))
++        fun choose(enabled: Boolean) = assertIs<BoundedBotResult.Move>(BoundedMaxNBot(
++            maxDepth = 1, maxNodes = 10_000, maxEvaluations = 10_000,
++            tacticalDepth = 2, searchModel = BotSearchModel.PARANOID,
++        ).chooseWithDiagnostics(state, policy, prioritizeDirectChecks = enabled, diagnostics = {}))
++        val plain = choose(false)
++        val ordered = choose(true)
++        assertDecision(plain, ordered)
++        assertEquals(BotSearchHorizon.EXCHANGES, ordered.stats.completedHorizon)
++        assertTrue(ordered.intent != MoveIntent(PlayerId.WHITE, at("G10"), at("G12")))
++        assertIs<MoveReduction.Applied>(GameReducer.reduce(state, ordered.intent))
++    }
++
++    @Test
++    fun unresolvedThirdActorCheckDiscardsTheWholeAttempt() {
++        val state = checkFixture()
++        for (enabled in listOf(false, true)) {
++            val publications = mutableListOf<BoundedBotResult.Move>()
++            val result = assertIs<BoundedBotResult.Move>(BoundedMaxNBot(
++                maxDepth = 1, maxNodes = 10_000, maxEvaluations = 10_000,
++                tacticalDepth = 1, searchModel = BotSearchModel.PARANOID,
++            ).chooseWithDiagnostics(state, onCompletedDepth = publications::add,
++                prioritizeDirectChecks = enabled, diagnostics = {}))
++            assertEquals(BotMoveSource.LEGAL_FALLBACK, result.source)
++            assertEquals(BotStopReason.TACTICAL_LIMIT, result.reason)
++            assertEquals(0, result.stats.completedDepth)
++            assertTrue(publications.isEmpty())
++            assertIs<MoveReduction.Applied>(GameReducer.reduce(state, result.intent))
++        }
++    }
++
++    @Test
++    fun cancellationAndTimeoutRetainOnlyFullyCompletedAttempts() {
++        val state = checkFixture()
++        for (enabled in listOf(false, true)) {
++            val bot = bot()
++            val completed = bot.chooseWithDiagnostics(state, prioritizeDirectChecks = enabled, diagnostics = {})
++            for (signal in listOf(BotStopSignal.CANCEL, BotStopSignal.TIMEOUT)) {
++                val publications = mutableListOf<BoundedBotResult.Move>()
++                val stopped = bot.chooseWithDiagnostics(state, stop = BotStopProbe {
++                    if (publications.any { it.stats.completedDepth == 2 }) signal else BotStopSignal.CONTINUE
++                }, onCompletedDepth = publications::add, prioritizeDirectChecks = enabled, diagnostics = {})
++                assertEquals(listOf(1, 2), publications.map { it.stats.completedDepth })
++                if (signal == BotStopSignal.CANCEL) {
++                    assertEquals(2, assertIs<BoundedBotResult.Cancelled>(stopped).stats.completedDepth)
++                } else {
++                    val move = assertIs<BoundedBotResult.Move>(stopped)
++                    assertEquals(BotStopReason.TIMEOUT, move.reason)
++                    assertEquals(publications.last().intent, move.intent)
++                    assertEquals(2, move.stats.completedDepth)
++                }
++                assertEquals(completed, bot.chooseWithDiagnostics(state,
++                    prioritizeDirectChecks = enabled, diagnostics = {}))
++            }
++        }
++    }
++
++    @Test
++    fun interruptionDuringRootHintConstructionCannotPublishPartialWork() {
++        for (signal in listOf(BotStopSignal.CANCEL, BotStopSignal.TIMEOUT)) {
++            var probes = 0
++            val publications = mutableListOf<BoundedBotResult.Move>()
++            val fallback = mutableListOf<MoveIntent>()
++            val result = bot().chooseWithDiagnostics(checkFixture(), stop = BotStopProbe {
++                probes++
++                // Two entry probes and the root node precede the first per-move hint probe.
++                if (probes >= 4) signal else BotStopSignal.CONTINUE
++            }, onFallbackReady = fallback::add, onCompletedDepth = publications::add,
++                prioritizeDirectChecks = true, diagnostics = {})
++            assertEquals(1, fallback.size)
++            assertTrue(publications.isEmpty())
++            if (signal == BotStopSignal.CANCEL) {
++                assertEquals(0, assertIs<BoundedBotResult.Cancelled>(result).stats.completedDepth)
++            } else {
++                val move = assertIs<BoundedBotResult.Move>(result)
++                assertEquals(BotStopReason.TIMEOUT, move.reason)
++                assertEquals(BotMoveSource.LEGAL_FALLBACK, move.source)
++                assertEquals(fallback.single(), move.intent)
++                assertEquals(0, move.stats.completedDepth)
++            }
++        }
++    }
++
++    @Test
++    fun completedChoicesRemainIndependentOfColdAndWarmExactCaches() {
++        for (actor in PlayerId.entries) {
++            val state = checkFixture(actor)
++            val expected = completed(state, BotPolicy.DEFAULT, enabled = false)
++            val cache = BotSearchCache()
++            for (enabled in listOf(false, true, true, false)) {
++                assertDecision(expected, completed(state, BotPolicy.DEFAULT, enabled, cache))
++            }
++        }
++    }
++
++    private data class Observation(
++        val result: BoundedBotResult,
++        val publications: List<BoundedBotResult.Move>,
++        val fallback: List<MoveIntent>,
++        val diagnostics: BotSearchDiagnostics?,
++        val probes: Int,
++    )
++
++    private fun observe(state: GameState, model: BotSearchModel, enabled: Boolean, tacticalDepth: Int): Observation {
++        val publications = mutableListOf<BoundedBotResult.Move>()
++        val fallback = mutableListOf<MoveIntent>()
++        var diagnostics: BotSearchDiagnostics? = null
++        var probes = 0
++        val result = BoundedMaxNBot(maxDepth = 3, maxNodes = 20_000, maxEvaluations = 20_000,
++            tacticalDepth = tacticalDepth, searchModel = model).chooseWithDiagnostics(state,
++            stop = BotStopProbe { probes++; BotStopSignal.CONTINUE },
++            onFallbackReady = fallback::add, onCompletedDepth = publications::add,
++            prioritizeDirectChecks = enabled, diagnostics = { diagnostics = it })
++        return Observation(result, publications.toList(), fallback.toList(), diagnostics, probes)
++    }
++
++    private fun bot(cache: BotSearchCache? = null) = BoundedMaxNBot(
++        maxDepth = 3, maxNodes = 100_000, maxEvaluations = 100_000,
++        searchModel = BotSearchModel.PARANOID, cache = cache,
++    )
++
++    private fun completed(state: GameState, policy: BotPolicy, enabled: Boolean, cache: BotSearchCache? = null) =
++        assertIs<BoundedBotResult.Move>(bot(cache).chooseWithDiagnostics(state, policy,
++            prioritizeDirectChecks = enabled, diagnostics = {}))
++
++    private fun assertDecision(expected: BoundedBotResult.Move, actual: BoundedBotResult.Move) {
++        assertEquals(expected.intent, actual.intent)
++        assertEquals(expected.source, actual.source)
++        assertEquals(expected.reason, actual.reason)
++        assertEquals(expected.stats.completedDepth, actual.stats.completedDepth)
++        assertEquals(expected.stats.completedHorizon, actual.stats.completedHorizon)
++        assertEquals(expected.openingBook, actual.openingBook)
++        assertEquals(expected.repetitionPenalty, actual.repetitionPenalty)
++    }
++
++    private fun exhaustiveRoot(state: GameState, depth: Int, policy: BotPolicy): MoveIntent {
++        val actor = checkNotNull(state.turn).player
++        return checkNotNull(LegalMoveGenerator.legalMoves(state).map { move ->
++            move to exhaustive(apply(state, move), depth - 1, actor, policy)
++        }.maxByOrNull { it.second }).first.intent()
++    }
++
++    private fun exhaustive(state: GameState, depth: Int, root: PlayerId, policy: BotPolicy): Double {
++        if (depth == 0 || state.phase != GamePhase.InProgress) {
++            return BotEvaluationMode.CONTROL.evaluate(state, policy)[root.ordinal]
++        }
++        val actor = checkNotNull(state.turn).player
++        val values = LegalMoveGenerator.legalMoves(state).map { move ->
++            exhaustive(apply(state, move), depth - 1, root, policy)
++        }
++        return if (actor == root) values.max() else values.min()
++    }
++
++    private fun checkFixture(actor: PlayerId = PlayerId.WHITE): GameState {
++        val original = listOf(
++            piece("a-white-rook", PieceType.ROOK, ArmyColor.WHITE, "G10"),
++            piece("white-king", PieceType.KING, ArmyColor.WHITE, "F12"),
++            piece("red-pawn", PieceType.PAWN, ArmyColor.RED, "G12"),
++            piece("red-king", PieceType.KING, ArmyColor.RED, "A2"),
++            piece("black-bishop", PieceType.BISHOP, ArmyColor.BLACK, "H11"),
++            piece("black-king", PieceType.KING, ArmyColor.BLACK, "H12"),
++        )
++        val rotated = original.map { piece ->
++            piece.copy(army = ArmyColor.entries[(piece.army.ordinal + actor.ordinal) % ArmyColor.entries.size])
++        }
++        return state(actor, rotated)
++    }
++
++    private fun quietFixture(): GameState = state(PlayerId.WHITE, listOf(
++        piece("white-king", PieceType.KING, ArmyColor.WHITE, "H12"),
++        piece("red-king", PieceType.KING, ArmyColor.RED, "A1"),
++        piece("black-king", PieceType.KING, ArmyColor.BLACK, "N8"),
++        piece("white-pawn", PieceType.PAWN, ArmyColor.WHITE, "K9"),
++        piece("red-pawn", PieceType.PAWN, ArmyColor.RED, "D3"),
++        piece("black-pawn", PieceType.PAWN, ArmyColor.BLACK, "K6"),
++    ))
++
++    private fun state(actor: PlayerId, pieces: List<Piece>) = GameState(
++        Position(pieces.associateBy(Piece::id)), PlayerId.entries.associateWith(::Participant),
++        ArmyColor.entries.associateWith { ArmyControl(it, it.originalPlayer) }, Turn(actor, 1), GamePhase.InProgress,
++    )
++
++    private fun piece(id: String, type: PieceType, army: ArmyColor, square: String) =
++        Piece(PieceId(id), type, army, at(square), hasMoved = true)
++
++    private fun at(square: String) = checkNotNull(ThreePlayerBoardNotation.parse(square))
++    private fun Move.intent() = MoveIntent(actor, from, to, promotion)
++    private fun apply(state: GameState, move: Move): GameState =
++        assertIs<MoveReduction.Applied>(GameReducer.reduce(state, move.intent())).state
++}

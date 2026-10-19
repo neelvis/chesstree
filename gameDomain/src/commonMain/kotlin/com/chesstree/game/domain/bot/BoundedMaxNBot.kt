@@ -121,6 +121,36 @@ class BoundedMaxNBot(
         onFallbackReady: (MoveIntent) -> Unit = {},
         onCompletedDepth: (BoundedBotResult.Move) -> Unit = {},
         recentPositions: List<GameState> = emptyList(),
+    ): BoundedBotResult = chooseImpl(
+        state, policy, stop, onFallbackReady, onCompletedDepth, recentPositions, null, true,
+    )
+
+    internal fun chooseWithDiagnostics(
+        state: GameState,
+        policy: BotPolicy = BotPolicy.DEFAULT,
+        stop: BotStopProbe = BotStopProbe { BotStopSignal.CONTINUE },
+        onFallbackReady: (MoveIntent) -> Unit = {},
+        onCompletedDepth: (BoundedBotResult.Move) -> Unit = {},
+        recentPositions: List<GameState> = emptyList(),
+        reuseKingAttackContext: Boolean = true,
+        diagnostics: (BotSearchDiagnostics) -> Unit,
+    ): BoundedBotResult {
+        val collector = BotSearchDiagnosticCollector()
+        val result = chooseImpl(state, policy, stop, onFallbackReady, onCompletedDepth, recentPositions, collector,
+            reuseKingAttackContext)
+        diagnostics(collector.finish(result))
+        return result
+    }
+
+    private fun chooseImpl(
+        state: GameState,
+        policy: BotPolicy,
+        stop: BotStopProbe,
+        onFallbackReady: (MoveIntent) -> Unit,
+        onCompletedDepth: (BoundedBotResult.Move) -> Unit,
+        recentPositions: List<GameState>,
+        diagnostics: BotSearchDiagnosticCollector?,
+        reuseKingAttackContext: Boolean,
     ): BoundedBotResult {
         require(recentPositions.size <= MAX_BOT_RECENT_POSITIONS)
         val phase = state.phase
@@ -148,7 +178,7 @@ class BoundedMaxNBot(
             openingBookVersion, preferred,
             tacticalDepth,
             recentPositions.toList(), searchModel, profile, profileCatalogVersion,
-            repeatedLayoutPenaltyPerOccurrence, cache,
+            repeatedLayoutPenaltyPerOccurrence, cache, diagnostics, reuseKingAttackContext,
         )
         return search.choose(state, actor, rootMoves, fallback)
     }
@@ -192,6 +222,8 @@ class BoundedMaxNBot(
         private val profileCatalogVersion: Int,
         private val repeatedLayoutPenaltyPerOccurrence: Double,
         private val cache: BotSearchCache?,
+        private val diagnostics: BotSearchDiagnosticCollector?,
+        private val reuseKingAttackContext: Boolean,
     ) {
         private var expandedNodes = 0
         private var leafEvaluations = 0
@@ -229,6 +261,7 @@ class BoundedMaxNBot(
             iterations@ for (depth in 1..maxDepth) {
                 for (horizon in horizons) {
                     currentHorizon = horizon
+                    diagnostics?.beginAttempt(depth, horizon)
                     if (!enterNode()) break@iterations
                     var bestMove: Move? = null
                     var bestScore: DoubleArray? = null
@@ -303,6 +336,7 @@ class BoundedMaxNBot(
                     if (interruption == Interruption.TACTICAL_LIMIT) {
                         // Discard the entire attempt; deeper checks may settle this frontier.
                         lastAttemptCapped = true
+                        diagnostics?.endAttempt(BotSearchAttemptStop.TACTICAL_LIMIT)
                         interruption = null
                         if (!checkStop()) break@iterations
                         continue@iterations
@@ -327,6 +361,7 @@ class BoundedMaxNBot(
                     lastAttemptCapped = false
                     openingInfluenced = bestMove != firstBestMove
                     chosenPenalty = bestPenalty
+                    diagnostics?.endAttempt(BotSearchAttemptStop.COMPLETED)
                     onCompletedDepth(BoundedBotResult.Move(
                         intent = checkNotNull(chosen),
                         source = BotMoveSource.COMPLETED_DEPTH,
@@ -442,27 +477,43 @@ class BoundedMaxNBot(
             allowNewExchange: Boolean,
             alpha: Double,
             beta: Double,
+            continuation: Boolean = false,
         ): DoubleArray? {
             if (!checkStop()) return null
             if (state.phase != GamePhase.InProgress || tacticalDepth == 0) {
-                return staticScores(state, knownLegalMoves)
+                return staticScores(state, knownLegalMoves, tactical = continuation)
             }
+            val kingAttacks = if (reuseKingAttackContext) BotKingAttackContext(state) else null
+            fun isChecked(player: PlayerId): Boolean = kingAttacks?.attackers(player)?.isNotEmpty()
+                ?: LegalMoveGenerator.isKingInCheck(state, player)
             val activeCheck = PlayerId.entries.any { player ->
                 state.participants.getValue(player).status == ParticipantStatus.Active &&
-                    LegalMoveGenerator.isKingInCheck(state, player)
+                    isChecked(player)
             }
             if (!checkStop()) return null
             if (remaining == 0) {
                 if (activeCheck) {
                     interruption = Interruption.TACTICAL_LIMIT
+                    diagnostics?.tacticalCutoff(BotTacticalCutoff(
+                        state.turn?.ply,
+                        state.turn?.player,
+                        PlayerId.entries.filterTo(linkedSetOf()) { player ->
+                            state.participants.getValue(player).status == ParticipantStatus.Active &&
+                                isChecked(player)
+                        },
+                        responders.toSet(),
+                        remaining,
+                    ))
                     return null
                 }
-                return staticScores(state, knownLegalMoves)
+                return staticScores(state, knownLegalMoves, tactical = continuation, kingAttacks = kingAttacks)
             }
             val newExchange = currentHorizon == BotSearchHorizon.EXCHANGES && allowNewExchange && knownLegalMoves.any {
                 it.capturedPieceId != null || it.promotion != null
             }
-            if (!activeCheck && responders.isEmpty() && !newExchange) return staticScores(state, knownLegalMoves)
+            if (!activeCheck && responders.isEmpty() && !newExchange) {
+                return staticScores(state, knownLegalMoves, tactical = continuation, kingAttacks = kingAttacks)
+            }
             val key = cache?.let {
                 BotSearchCache.SearchKey(state, configuration, 0, currentHorizon, responders.toSet(), remaining, allowNewExchange)
             }
@@ -481,7 +532,7 @@ class BoundedMaxNBot(
             alpha: Double,
             beta: Double,
         ): DoubleArray? {
-            if (!enterNode()) return null
+            if (!enterNode(tactical = true)) return null
             val actor = state.turn?.player ?: run {
                 failure = BotFailureReason.INVALID_STATE
                 return null
@@ -506,7 +557,7 @@ class BoundedMaxNBot(
                 val score = tacticalFrontier(
                     transition.state, transition.nextLegalMoves, remaining - 1,
                     respondersAfter(transition.state, move, responders),
-                    false, lower, upper,
+                    false, lower, upper, continuation = true,
                 ) ?: return null
                 if (best == null || (if (minimizing) score[component] < best[component] else score[component] > best[component])) best = score
                 if (searchModel == BotSearchModel.PARANOID) {
@@ -548,7 +599,12 @@ class BoundedMaxNBot(
             return transition
         }
 
-        private fun staticScores(state: GameState, knownLegalMoves: List<Move>): DoubleArray? {
+        private fun staticScores(
+            state: GameState,
+            knownLegalMoves: List<Move>,
+            tactical: Boolean = false,
+            kingAttacks: BotKingAttackContext? = null,
+        ): DoubleArray? {
             if (!checkStop()) return null
             val key = cache?.let { BotSearchCache.EvaluationKey(state, configuration) }
             if (key != null) cache?.evaluation(key)?.let { return it }
@@ -557,19 +613,21 @@ class BoundedMaxNBot(
                 return null
             }
             leafEvaluations++
-            val score = evaluation.evaluate(state, policy, knownLegalMoves)
+            diagnostics?.evaluation(tactical)
+            val score = evaluation.evaluate(state, policy, knownLegalMoves, kingAttacks)
             if (!checkStop()) return null
             if (key != null) cache?.rememberEvaluation(key, score)
             return score
         }
 
-        private fun enterNode(): Boolean {
+        private fun enterNode(tactical: Boolean = false): Boolean {
             if (!checkStop()) return false
             if (expandedNodes >= maxNodes) {
                 interruption = Interruption.NODE_LIMIT
                 return false
             }
             expandedNodes++
+            diagnostics?.node(tactical)
             return true
         }
 

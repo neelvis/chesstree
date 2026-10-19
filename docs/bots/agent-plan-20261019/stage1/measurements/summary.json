@@ -1,0 +1,36 @@
+{
+  "protocol": "27 frozen cases; two repetitions per off/on variant; 2000 fixed work; cold caches; same JVM alternating order",
+  "source": "fixed-context-paired.tsv",
+  "elapsedMs": {
+    "false": 67307,
+    "true": 66092
+  },
+  "groups": {
+    "reported": {
+      "cases": 14,
+      "terminal": 1,
+      "completedChecks": 13,
+      "completedExchanges": 0,
+      "moveChanges": 0,
+      "workOrAttemptChanges": 0
+    },
+    "synthetic": {
+      "cases": 7,
+      "terminal": 0,
+      "completedChecks": 3,
+      "completedExchanges": 4,
+      "moveChanges": 0,
+      "workOrAttemptChanges": 0
+    },
+    "held-out": {
+      "cases": 6,
+      "terminal": 0,
+      "completedChecks": 6,
+      "completedExchanges": 0,
+      "moveChanges": 0,
+      "workOrAttemptChanges": 0
+    }
+  },
+  "sameAsStage0": true,
+  "meaning": "Modest measured overhead reduction; no demonstrated stronger decisions or placement"
+}

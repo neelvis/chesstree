@@ -24,7 +24,11 @@ enum class BotEvaluationMode(val version: Int) {
         state: GameState,
         policy: BotPolicy,
         knownLegalMoves: List<Move>? = null,
+        knownKingAttacks: BotKingAttackContext? = null,
     ): DoubleArray {
+        require(knownKingAttacks == null || knownKingAttacks.state === state) {
+            "King-attack context must belong to the evaluated state"
+        }
         val legalByPlayer = if (this == POSITIONAL && state.phase == GamePhase.InProgress &&
             policy.weight(BotFeature.MOBILITY) > 0
         ) {
@@ -34,7 +38,9 @@ enum class BotEvaluationMode(val version: Int) {
                     else LegalMoveGenerator.legalMoves(state, player)
                 }
         } else null
-        val scores = com.chesstree.game.domain.bot.evaluate(state, policy, knownLegalMoves, legalByPlayer)
+        val scores = com.chesstree.game.domain.bot.evaluate(
+            state, policy, knownLegalMoves, legalByPlayer, knownKingAttacks,
+        )
         if (this == CONTROL || state.phase is GamePhase.Finished) return scores
         if (this == POSITIONAL) return positionalScores(state, policy, legalByPlayer ?: emptyMap(), scores)
         val materialWeight = policy.weight(BotFeature.MATERIAL).toDouble()

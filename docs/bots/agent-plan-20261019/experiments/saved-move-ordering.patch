@@ -1,0 +1,397 @@
+diff --git a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
+--- a/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
++++ b/gameDomain/src/commonMain/kotlin/com/chesstree/game/domain/bot/BoundedMaxNBot.kt
+@@ -103,6 +103,7 @@
+     private val profileCatalogVersion: Int = 1,
+     private val repeatedLayoutPenaltyPerOccurrence: Double = DEFAULT_REPEATED_LAYOUT_PENALTY_PER_OCCURRENCE,
+     private val cache: BotSearchCache? = null,
++    private val useSavedMoveOrdering: Boolean = false,
+ ) {
+     init {
+         require(maxDepth > 0)
+@@ -175,7 +176,7 @@
+             openingBookVersion, preferred,
+             tacticalDepth,
+             recentPositions.toList(), searchModel, profile, profileCatalogVersion,
+-            repeatedLayoutPenaltyPerOccurrence, cache, diagnostics,
++            repeatedLayoutPenaltyPerOccurrence, cache, diagnostics, useSavedMoveOrdering,
+         )
+         return search.choose(state, actor, rootMoves, fallback)
+     }
+@@ -220,6 +221,7 @@
+         private val repeatedLayoutPenaltyPerOccurrence: Double,
+         private val cache: BotSearchCache?,
+         private val diagnostics: BotSearchDiagnosticCollector?,
++        useSavedMoveOrdering: Boolean,
+     ) {
+         private var expandedNodes = 0
+         private var leafEvaluations = 0
+@@ -231,6 +233,9 @@
+         private var interruption: Interruption? = null
+         private var failure: BotFailureReason? = null
+         private var cutoffs = 0L
++        private val savedMoves = if (useSavedMoveOrdering && searchModel == BotSearchModel.PARANOID) {
++            linkedMapOf<GameState, MoveIntent>()
++        } else null
+         private lateinit var configuration: BotSearchCache.Configuration
+ 
+         private data class Candidate(val move: Move, val score: Double, val penalty: Double, val style: Double)
+@@ -439,7 +444,9 @@
+             var upper = beta
+             val minimizing = searchModel == BotSearchModel.PARANOID && actor != rootActor
+             val component = if (searchModel == BotSearchModel.PARANOID) rootActor.ordinal else actor.ordinal
+-            for (move in orderedMoves(state, moves)) {
++            val originalOrder = orderedMoves(state, moves)
++            var bestMove: Move? = null
++            for (move in savedMoveFirst(state, originalOrder)) {
+                 if (!checkStop()) return null
+                 val transition = transition(state, move)
+                 if (transition == null) {
+@@ -452,7 +459,13 @@
+                     transition.nextLegalMoves,
+                     respondersAfter(transition.state, move, responders), lower, upper,
+                 ) ?: return null
+-                if (best == null || (if (minimizing) score[component] < best[component] else score[component] > best[component])) best = score
++                if (best == null || (if (minimizing) score[component] < best[component] else score[component] > best[component]) ||
++                    (savedMoves != null && score[component] == best[component] &&
++                        originalOrder.indexOf(move) < originalOrder.indexOf(bestMove))
++                ) {
++                    best = score
++                    bestMove = move
++                }
+                 if (searchModel == BotSearchModel.PARANOID) {
+                     if (minimizing) upper = minOf(upper, score[component]) else lower = maxOf(lower, score[component])
+                     // Strict bounds preserve exact root ties, including repertoire preferences.
+@@ -462,6 +475,7 @@
+                     }
+                 }
+             }
++            rememberSavedMove(state, bestMove)
+             return best
+         }
+ 
+@@ -539,7 +553,9 @@
+             var upper = beta
+             val minimizing = searchModel == BotSearchModel.PARANOID && actor != rootActor
+             val component = if (searchModel == BotSearchModel.PARANOID) rootActor.ordinal else actor.ordinal
+-            for (move in orderedMoves(state, moves)) {
++            val originalOrder = orderedMoves(state, moves)
++            var bestMove: Move? = null
++            for (move in savedMoveFirst(state, originalOrder)) {
+                 if (!checkStop()) return null
+                 val transition = transition(state, move) ?: run {
+                     failure = BotFailureReason.GENERATED_MOVE_REJECTED
+@@ -550,7 +566,13 @@
+                     respondersAfter(transition.state, move, responders),
+                     false, lower, upper, continuation = true,
+                 ) ?: return null
+-                if (best == null || (if (minimizing) score[component] < best[component] else score[component] > best[component])) best = score
++                if (best == null || (if (minimizing) score[component] < best[component] else score[component] > best[component]) ||
++                    (savedMoves != null && score[component] == best[component] &&
++                        originalOrder.indexOf(move) < originalOrder.indexOf(bestMove))
++                ) {
++                    best = score
++                    bestMove = move
++                }
+                 if (searchModel == BotSearchModel.PARANOID) {
+                     if (minimizing) upper = minOf(upper, score[component]) else lower = maxOf(lower, score[component])
+                     // Strict bounds preserve exact root ties, including repertoire preferences.
+@@ -560,7 +582,23 @@
+                     }
+                 }
+             }
++            rememberSavedMove(state, bestMove)
+             return best
++        }
++
++        private fun savedMoveFirst(state: GameState, moves: List<Move>): List<Move> {
++            val hint = savedMoves?.get(state) ?: return moves
++            val saved = moves.firstOrNull { it.intent() == hint } ?: return moves
++            return if (saved == moves.first()) moves else listOf(saved) + moves.filter { it != saved }
++        }
++
++        private fun rememberSavedMove(state: GameState, move: Move?) {
++            val hints = savedMoves ?: return
++            if (move == null) return
++            // A legal refutation from a valid cutoff is useful ordering evidence too.
++            // Hints carry no score/bound authority; interrupted nodes return before admission.
++            if (hints.size >= 2_048 && state !in hints) hints.remove(hints.keys.first())
++            hints[state] = move.intent()
+         }
+ 
+         private fun orderedMoves(state: GameState, moves: List<Move>): List<Move> =
+diff --git a/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt b/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
+--- a/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
++++ b/gameDomain/src/jvmTest/kotlin/com/chesstree/game/domain/bot/BotQualityBaselineProbeTest.kt
+@@ -62,6 +62,7 @@
+         val cap = (System.getenv("CHESSTREE_BOT_QUALITY_WORK") ?: "2000").toInt()
+         require(cap in 1..1_000_000)
+         val timed = System.getenv("CHESSTREE_BOT_QUALITY_TIMED") == "true"
++        val savedMoves = System.getenv("CHESSTREE_BOT_QUALITY_SAVED_MOVES") == "true"
+         val selected = System.getenv("CHESSTREE_BOT_QUALITY_CASES")?.split(',')?.toSet()
+         require(selected == null || selected.isNotEmpty() && selected.all { id -> cases.any { it.id == id } }) {
+             "CHESSTREE_BOT_QUALITY_CASES must contain known case IDs"
+@@ -76,7 +77,7 @@
+             log("# source_status\t${git(root, "status", "--porcelain").replace('\n', ';')}")
+             log("# export_sha256\t${corpus.sourceSha256}")
+             log("# runtime\t${System.getProperty("java.version")};${System.getProperty("os.name")};${System.getProperty("os.arch")}")
+-            log("# protocol\tseed=0;depth=4;tactical=4;model=PARANOID;eval=POSITIONAL:3;profile=UNIVERSAL:2;book=1;repetition=.50;history=36;cache=cold2048;savedMoveOrdering=false;nodes=$cap;evaluations=$cap;softMs=${if (timed) 30000 else "none"};repeats=${if (timed) 1 else 2}")
++            log("# protocol\tseed=0;depth=4;tactical=4;model=PARANOID;eval=POSITIONAL:3;profile=UNIVERSAL:2;book=1;repetition=.50;history=36;cache=cold2048;savedMoveOrdering=$savedMoves;nodes=$cap;evaluations=$cap;softMs=${if (timed) 30000 else "none"};repeats=${if (timed) 1 else 2}")
+             log("# semantics\tFixed-work runs have no time cutoff; timed mode keeps the 30-second soft cap. Heuristic terms describe the selected immediate child, not the minimax leaf score. Terminal scores are excluded from term decomposition.")
+             log("# interpretation\tNo recorded move is a best-move expectation. Held-out states were selected by seeded random legal trajectories before tuning; six trajectories from one start are not six independent strength trials.")
+             val sources = listOf(
+@@ -109,6 +110,7 @@
+                         evaluation = BotEvaluationMode.POSITIONAL, openingBookVersion = BotOpeningBook.VERSION,
+                         seed = 0, tacticalDepth = 4, searchModel = BotSearchModel.PARANOID,
+                         profile = BotPlayingProfile.UNIVERSAL, profileCatalogVersion = 2, cache = cache,
++                        useSavedMoveOrdering = savedMoves,
+                     ).chooseWithDiagnostics(
+                         before, diagnostics = { diagnostics = it },
+                         recentPositions = fixture.history.takeLast(MAX_BOT_RECENT_POSITIONS),
+diff --git a/docs/bots/agent-plan-20261019/run-baseline.sh b/docs/bots/agent-plan-20261019/run-baseline.sh
+--- a/docs/bots/agent-plan-20261019/run-baseline.sh
++++ b/docs/bots/agent-plan-20261019/run-baseline.sh
+@@ -11,4 +11,4 @@
+ ./gradlew :botWire:jvmTest --tests '*ReportedBotInitialStateTest' \
+     :gameDomain:jvmTest --rerun \
+     --tests '*ReportedBotFixturesTest' --tests '*BotQuality*Test' \
+-    --tests '*BotSearchDiagnosticsTest' --console=plain
++    --tests '*BotSearchDiagnosticsTest' --tests '*SavedMoveOrderingTest' --console=plain
+diff --git a/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/SavedMoveOrderingTest.kt b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/SavedMoveOrderingTest.kt
+new file mode 100644
+--- /dev/null
++++ b/gameDomain/src/commonTest/kotlin/com/chesstree/game/domain/bot/SavedMoveOrderingTest.kt
+@@ -0,0 +1,233 @@
++package com.chesstree.game.domain.bot
++
++import com.chesstree.game.domain.ArmyColor
++import com.chesstree.game.domain.ArmyControl
++import com.chesstree.game.domain.GamePhase
++import com.chesstree.game.domain.GameReducer
++import com.chesstree.game.domain.GameState
++import com.chesstree.game.domain.LegalMoveGenerator
++import com.chesstree.game.domain.Move
++import com.chesstree.game.domain.MoveIntent
++import com.chesstree.game.domain.MoveReduction
++import com.chesstree.game.domain.Participant
++import com.chesstree.game.domain.Piece
++import com.chesstree.game.domain.PieceId
++import com.chesstree.game.domain.PieceType
++import com.chesstree.game.domain.PlayerId
++import com.chesstree.game.domain.Position
++import com.chesstree.game.domain.ThreePlayerBoardNotation
++import com.chesstree.game.domain.Turn
++import com.chesstree.game.domain.scenario.StandardGame
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertIs
++import kotlin.test.assertTrue
++
++class SavedMoveOrderingTest {
++    @Test
++    fun defaultIsDisabledAndMaxNWorkIsExactlyUnchangedWhenEnabled() {
++        val state = quietFixture(PlayerId.WHITE)
++        fun choose(enabled: Boolean? = null): Pair<BoundedBotResult, List<BoundedBotResult.Move>> {
++            val publications = mutableListOf<BoundedBotResult.Move>()
++            val bot = if (enabled == null) BoundedMaxNBot(maxDepth = 3, maxNodes = 100_000, maxEvaluations = 100_000)
++            else BoundedMaxNBot(maxDepth = 3, maxNodes = 100_000, maxEvaluations = 100_000,
++                useSavedMoveOrdering = enabled)
++            return bot.choose(state, onCompletedDepth = publications::add) to publications
++        }
++        assertEquals(choose(), choose(false))
++        assertEquals(choose(false), choose(true))
++    }
++
++    @Test
++    fun completedParanoidChoicesMatchAnExhaustiveReferenceForAllRootSeatsAndTies() {
++        val materialOnly = BotPolicy(listOf(BotRule(BotFeature.MATERIAL, 100)))
++        for (actor in PlayerId.entries) {
++            for (policy in listOf(materialOnly, BotPolicy.DEFAULT)) {
++                val state = quietFixture(actor)
++                val expected = exhaustiveRoot(state, 3, policy)
++                val plain = completed(state, policy, enabled = false)
++                val ordered = completed(state, policy, enabled = true)
++                assertEquals(expected, plain.intent)
++                assertEquals(expected, ordered.intent)
++                assertDecision(plain, ordered)
++                assertEquals(3, ordered.stats.completedDepth)
++                assertEquals(BotStopReason.DEPTH_COMPLETE, ordered.reason)
++                assertIs<MoveReduction.Applied>(GameReducer.reduce(state, ordered.intent))
++            }
++        }
++    }
++
++    @Test
++    fun openingRepertoireRootTiesAreUnchanged() {
++        val state = StandardGame.scenario.initialState
++        val zeroPolicy = BotPolicy(emptyList())
++        fun choose(enabled: Boolean) = assertIs<BoundedBotResult.Move>(BoundedMaxNBot(
++            maxDepth = 2, maxNodes = 100_000, maxEvaluations = 100_000,
++            searchModel = BotSearchModel.PARANOID, openingBookVersion = 1, seed = 123,
++            useSavedMoveOrdering = enabled,
++        ).choose(state, zeroPolicy))
++        val plain = choose(false)
++        assertDecision(plain, choose(true))
++        val legal = LegalMoveGenerator.legalMoves(state).map { it.intent() }
++        assertEquals(BotOpeningBook.preferredMoves(state, 123).first { it in legal }, plain.intent)
++    }
++
++    @Test
++    fun actualIntermediateResponsesAndCompletedDefenseArePreserved() {
++        val state = forcedRecapture()
++        val policy = BotPolicy(listOf(BotRule(BotFeature.MATERIAL, 100), BotRule(BotFeature.CHECK_PRESSURE, 40)))
++        fun choose(enabled: Boolean) = assertIs<BoundedBotResult.Move>(BoundedMaxNBot(
++            maxDepth = 1, maxNodes = 10_000, maxEvaluations = 10_000,
++            tacticalDepth = 2, searchModel = BotSearchModel.PARANOID,
++            useSavedMoveOrdering = enabled,
++        ).choose(state, policy))
++        val plain = choose(false)
++        val ordered = choose(true)
++        assertDecision(plain, ordered)
++        assertEquals(BotSearchHorizon.EXCHANGES, ordered.stats.completedHorizon)
++        val losingCapture = MoveIntent(PlayerId.WHITE, at("G10"), at("G12"))
++        assertTrue(ordered.intent != losingCapture)
++        assertIs<MoveReduction.Applied>(GameReducer.reduce(state, ordered.intent))
++    }
++
++    @Test
++    fun unresolvedThirdActorCheckStillDiscardsTheWholeAttempt() {
++        val state = forcedRecapture()
++        for (enabled in listOf(false, true)) {
++            val publications = mutableListOf<BoundedBotResult.Move>()
++            val result = assertIs<BoundedBotResult.Move>(BoundedMaxNBot(
++                maxDepth = 1, maxNodes = 10_000, maxEvaluations = 10_000,
++                tacticalDepth = 1, searchModel = BotSearchModel.PARANOID,
++                useSavedMoveOrdering = enabled,
++            ).choose(state, onCompletedDepth = publications::add))
++            assertEquals(BotMoveSource.LEGAL_FALLBACK, result.source)
++            assertEquals(BotStopReason.TACTICAL_LIMIT, result.reason)
++            assertEquals(0, result.stats.completedDepth)
++            assertTrue(publications.isEmpty())
++            assertIs<MoveReduction.Applied>(GameReducer.reduce(state, result.intent))
++        }
++    }
++
++    @Test
++    fun fixedWorkIsReproducibleAndInterruptedRequestsCannotRetainHints() {
++        val state = quietFixture(PlayerId.WHITE)
++        val bot = BoundedMaxNBot(maxDepth = 3, maxNodes = 100_000, maxEvaluations = 100_000,
++            searchModel = BotSearchModel.PARANOID, useSavedMoveOrdering = true)
++        val completed = bot.choose(state)
++        assertEquals(completed, bot.choose(state))
++        for (signal in listOf(BotStopSignal.CANCEL, BotStopSignal.TIMEOUT)) {
++            val publications = mutableListOf<BoundedBotResult.Move>()
++            val stopped = bot.choose(state, stop = BotStopProbe {
++                if (publications.any { it.stats.completedDepth == 2 }) signal else BotStopSignal.CONTINUE
++            }, onCompletedDepth = publications::add)
++            assertEquals(listOf(1, 2), publications.map { it.stats.completedDepth })
++            if (signal == BotStopSignal.CANCEL) {
++                assertEquals(2, assertIs<BoundedBotResult.Cancelled>(stopped).stats.completedDepth)
++            } else {
++                val move = assertIs<BoundedBotResult.Move>(stopped)
++                assertEquals(BotStopReason.TIMEOUT, move.reason)
++                assertEquals(publications.last().intent, move.intent)
++                assertEquals(2, move.stats.completedDepth)
++            }
++            assertEquals(completed, bot.choose(state))
++        }
++    }
++
++    @Test
++    fun refutationHintsPreserveCompletedDecisionsUnderDifferentNarrowRootWindows() {
++        // Several root candidates establish and tighten the Paranoid alpha window.
++        // A returned cutoff may supply a legal ordering hint, never an exact score.
++        for (policy in listOf(BotPolicy.DEFAULT,
++            BotPolicy(listOf(BotRule(BotFeature.MATERIAL, 100), BotRule(BotFeature.MOBILITY, 7))))) {
++            val state = quietFixture(PlayerId.BLACK)
++            val plain = completed(state, policy, enabled = false)
++            val ordered = completed(state, policy, enabled = true)
++            assertEquals(exhaustiveRoot(state, 3, policy), ordered.intent)
++            assertDecision(plain, ordered)
++            assertEquals(ordered, completed(state, policy, enabled = true))
++        }
++    }
++
++    @Test
++    fun completedChoicesRemainIndependentOfTheExactScoreCache() {
++        val state = quietFixture(PlayerId.RED)
++        val plain = completed(state, BotPolicy.DEFAULT, enabled = false)
++        val cache = BotSearchCache()
++        repeat(2) {
++            assertDecision(plain, completed(state, BotPolicy.DEFAULT, enabled = true, cache = cache))
++        }
++    }
++
++    private fun completed(
++        state: GameState,
++        policy: BotPolicy,
++        enabled: Boolean,
++        cache: BotSearchCache? = null,
++    ) = assertIs<BoundedBotResult.Move>(BoundedMaxNBot(
++        maxDepth = 3, maxNodes = 100_000, maxEvaluations = 100_000,
++        searchModel = BotSearchModel.PARANOID, cache = cache, useSavedMoveOrdering = enabled,
++    ).choose(state, policy))
++
++    private fun assertDecision(expected: BoundedBotResult.Move, actual: BoundedBotResult.Move) {
++        assertEquals(expected.intent, actual.intent)
++        assertEquals(expected.source, actual.source)
++        assertEquals(expected.reason, actual.reason)
++        assertEquals(expected.stats.completedDepth, actual.stats.completedDepth)
++        assertEquals(expected.stats.completedHorizon, actual.stats.completedHorizon)
++        assertEquals(expected.openingBook, actual.openingBook)
++        assertEquals(expected.repetitionPenalty, actual.repetitionPenalty)
++    }
++
++    private fun exhaustiveRoot(state: GameState, depth: Int, policy: BotPolicy): MoveIntent {
++        val actor = checkNotNull(state.turn).player
++        val scores = LegalMoveGenerator.legalMoves(state).map { move ->
++            move to exhaustive(apply(state, move), depth - 1, actor, policy)
++        }
++        return checkNotNull(scores.maxByOrNull { it.second }).first.intent()
++    }
++
++    private fun exhaustive(state: GameState, depth: Int, root: PlayerId, policy: BotPolicy): Double {
++        if (depth == 0 || state.phase != GamePhase.InProgress) {
++            return BotEvaluationMode.CONTROL.evaluate(state, policy)[root.ordinal]
++        }
++        val actor = checkNotNull(state.turn).player
++        val values = LegalMoveGenerator.legalMoves(state).map { move ->
++            exhaustive(apply(state, move), depth - 1, root, policy)
++        }
++        return if (actor == root) values.max() else values.min()
++    }
++
++    private fun apply(state: GameState, move: Move): GameState =
++        assertIs<MoveReduction.Applied>(GameReducer.reduce(state, move.intent())).state
++
++    private fun quietFixture(actor: PlayerId): GameState = state(actor, listOf(
++        piece("white-king", PieceType.KING, ArmyColor.WHITE, "H12"),
++        piece("red-king", PieceType.KING, ArmyColor.RED, "A1"),
++        piece("black-king", PieceType.KING, ArmyColor.BLACK, "N8"),
++        piece("white-pawn", PieceType.PAWN, ArmyColor.WHITE, "K9"),
++        piece("red-pawn", PieceType.PAWN, ArmyColor.RED, "D3"),
++        piece("black-pawn", PieceType.PAWN, ArmyColor.BLACK, "K6"),
++    ))
++
++    private fun forcedRecapture(): GameState = state(PlayerId.WHITE, listOf(
++        piece("a-white-rook", PieceType.ROOK, ArmyColor.WHITE, "G10"),
++        piece("white-king", PieceType.KING, ArmyColor.WHITE, "F12"),
++        piece("red-pawn", PieceType.PAWN, ArmyColor.RED, "G12"),
++        piece("red-king", PieceType.KING, ArmyColor.RED, "A2"),
++        piece("black-bishop", PieceType.BISHOP, ArmyColor.BLACK, "H11"),
++        piece("black-king", PieceType.KING, ArmyColor.BLACK, "H12"),
++    ))
++
++    private fun state(actor: PlayerId, pieces: List<Piece>) = GameState(
++        Position(pieces.associateBy(Piece::id)),
++        PlayerId.entries.associateWith(::Participant),
++        ArmyColor.entries.associateWith { ArmyControl(it, it.originalPlayer) },
++        Turn(actor, 1), GamePhase.InProgress,
++    )
++
++    private fun piece(id: String, type: PieceType, army: ArmyColor, label: String) =
++        Piece(PieceId(id), type, army, at(label), hasMoved = true)
++
++    private fun at(label: String) = checkNotNull(ThreePlayerBoardNotation.parse(label))
++    private fun Move.intent() = MoveIntent(actor, from, to, promotion)
++}

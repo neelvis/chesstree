@@ -357,7 +357,11 @@ internal fun evaluate(
     policy: BotPolicy,
     knownLegalMoves: List<Move>? = null,
     knownLegalMovesByPlayer: Map<PlayerId, List<Move>>? = null,
+    knownKingAttacks: BotKingAttackContext? = null,
 ): DoubleArray {
+    require(knownKingAttacks == null || knownKingAttacks.state === state) {
+        "King-attack context must belong to the evaluated state"
+    }
     val outcome = (state.phase as? GamePhase.Finished)?.outcome
     if (outcome != null) return terminalScores(outcome)
 
@@ -378,10 +382,20 @@ internal fun evaluate(
             is ParticipantStatus.Stalemated -> scores[player.ordinal] -= 2_000.0
             is ParticipantStatus.Checkmated -> scores[player.ordinal] -= 10_000.0
         }
-        if (LegalMoveGenerator.isKingInCheck(state, player)) {
-            scores[player.ordinal] -= kingSafetyWeight
-            LegalMoveGenerator.attackingPlayers(state, player).forEach { attacker ->
-                scores[attacker.ordinal] += checkWeight
+        if (knownKingAttacks == null) {
+            if (LegalMoveGenerator.isKingInCheck(state, player)) {
+                scores[player.ordinal] -= kingSafetyWeight
+                LegalMoveGenerator.attackingPlayers(state, player).forEach { attacker ->
+                    scores[attacker.ordinal] += checkWeight
+                }
+            }
+        } else {
+            val attackers = knownKingAttacks.attackers(player)
+            if (attackers.isNotEmpty()) {
+                scores[player.ordinal] -= kingSafetyWeight
+                attackers.forEach { attacker ->
+                    scores[attacker.ordinal] += checkWeight
+                }
             }
         }
     }
